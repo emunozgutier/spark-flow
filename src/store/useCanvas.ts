@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import type { UseBoundStore, StoreApi } from 'zustand';
+import { temporal } from 'zundo';
+import type { TemporalState } from 'zundo';
 import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor } from '../types';
 
 const STORAGE_KEY = 'spark-flow:board-elements';
@@ -81,8 +84,6 @@ interface CanvasState {
   elements: CanvasElement[];
   selectedId: string | null;
   activeTool: ToolType;
-  past: CanvasElement[][];
-  future: CanvasElement[][];
   
   // Actions
   setActiveTool: (tool: ToolType) => void;
@@ -101,166 +102,163 @@ interface CanvasState {
   canRedo: () => boolean;
 }
 
-export const useCanvas = create<CanvasState>((set, get) => {
-  const saveToStorage = (elements: CanvasElement[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(elements));
-  };
-
-  const recordHistory = () => {
-    const { elements, past } = get();
-    // Capture deep copy of elements list to avoid reference mutations
-    const snap = JSON.parse(JSON.stringify(elements));
-    const nextPast = [...past, snap];
-    if (nextPast.length > 40) nextPast.shift(); // Limit memory depth
-    set({
-      past: nextPast,
-      future: []
-    });
-  };
-
-  return {
-    elements: loadInitialElements(),
-    selectedId: null,
-    activeTool: 'select',
-    past: [],
-    future: [],
-
-    setActiveTool: (tool) => set({ activeTool: tool }),
-    
-    setSelectedId: (id) => set({ selectedId: id }),
-
-    canUndo: () => get().past.length > 0,
-    
-    canRedo: () => get().future.length > 0,
-
-    undo: () => {
-      const { past, elements, future } = get();
-      if (past.length === 0) return;
-
-      const prev = past[past.length - 1];
-      const nextPast = past.slice(0, -1);
-      const snap = JSON.parse(JSON.stringify(elements));
-
-      set({
-        elements: prev,
-        past: nextPast,
-        future: [...future, snap],
-        selectedId: null
-      });
-      saveToStorage(prev);
-    },
-
-    redo: () => {
-      const { future, elements, past } = get();
-      if (future.length === 0) return;
-
-      const next = future[future.length - 1];
-      const nextFuture = future.slice(0, -1);
-      const snap = JSON.parse(JSON.stringify(elements));
-
-      set({
-        elements: next,
-        past: [...past, snap],
-        future: nextFuture,
-        selectedId: null
-      });
-      saveToStorage(next);
-    },
-
-    addCard: (x, y) => {
-      recordHistory();
-      
-      const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-      const newCard: CardElement = {
-        id: `card-${Date.now()}`,
-        type: 'card',
-        x,
-        y,
-        width: 200,
-        height: 120,
-        title: 'New Idea',
-        content: 'Click here to write something wonderful...',
-        color: randomColor
+export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
+  temporal: UseBoundStore<StoreApi<TemporalState<{ elements: CanvasElement[] }>>>;
+} = create<CanvasState>()(
+  temporal(
+    (set, get) => {
+      const saveToStorage = (elements: CanvasElement[]) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(elements));
       };
 
-      const nextElements = [...get().elements, newCard];
-      set({ elements: nextElements, selectedId: newCard.id });
-      saveToStorage(nextElements);
-    },
+      return {
+        elements: loadInitialElements(),
+        selectedId: null as string | null,
+        activeTool: 'select' as ToolType,
 
-    addArrow: (arrow) => {
-      recordHistory();
+        setActiveTool: (tool: ToolType) => set({ activeTool: tool }),
+        
+        setSelectedId: (id: string | null) => set({ selectedId: id }),
 
-      const newArrow: ArrowElement = {
-        ...arrow,
-        id: `arrow-${Date.now()}`,
-        type: 'arrow'
-      };
+        canUndo: (): boolean => {
+          return (useCanvas as any).temporal?.getState().pastStates.length > 0;
+        },
+        
+        canRedo: (): boolean => {
+          return (useCanvas as any).temporal?.getState().futureStates.length > 0;
+        },
 
-      const nextElements = [...get().elements, newArrow];
-      set({ elements: nextElements, selectedId: newArrow.id });
-      saveToStorage(nextElements);
-    },
+        undo: () => {
+          if (get().canUndo()) {
+            (useCanvas as any).temporal?.getState().undo();
+            saveToStorage(get().elements);
+            set({ selectedId: null });
+          }
+        },
 
-    updateElement: (id, updates, record = true) => {
-      if (record) recordHistory();
+        redo: () => {
+          if (get().canRedo()) {
+            (useCanvas as any).temporal?.getState().redo();
+            saveToStorage(get().elements);
+            set({ selectedId: null });
+          }
+        },
 
-      const nextElements = get().elements.map((el) => {
-        if (el.id !== id) return el;
-        return {
-          ...el,
-          ...updates
-        } as CanvasElement;
-      });
+        addCard: (x: number, y: number) => {
+          (useCanvas as any).temporal?.getState().resume();
+          
+          const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
+          const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-      set({ elements: nextElements });
-      saveToStorage(nextElements);
-    },
+          const newCard: CardElement = {
+            id: `card-${Date.now()}`,
+            type: 'card',
+            x,
+            y,
+            width: 200,
+            height: 120,
+            title: 'New Idea',
+            content: 'Click here to write something wonderful...',
+            color: randomColor
+          };
 
-    updateCardPosition: (id, x, y) => {
-      const nextElements = get().elements.map((el) => {
-        if (el.id !== id || el.type !== 'card') return el;
-        return { ...el, x, y };
-      });
-      set({ elements: nextElements });
-    },
+          const nextElements = [...get().elements, newCard];
+          set({ elements: nextElements, selectedId: newCard.id });
+          saveToStorage(nextElements);
+        },
 
-    updateCardSize: (id, width, height) => {
-      const nextElements = get().elements.map((el) => {
-        if (el.id !== id || el.type !== 'card') return el;
-        return { ...el, width, height };
-      });
-      set({ elements: nextElements });
-    },
+        addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => {
+          (useCanvas as any).temporal?.getState().resume();
 
-    finalizeDrag: () => {
-      // Save position to localStorage and push history snapshot
-      recordHistory();
-      saveToStorage(get().elements);
-    },
+          const newArrow: ArrowElement = {
+            ...arrow,
+            id: `arrow-${Date.now()}`,
+            type: 'arrow'
+          };
 
-    deleteElement: (id) => {
-      recordHistory();
+          const nextElements = [...get().elements, newArrow];
+          set({ elements: nextElements, selectedId: newArrow.id });
+          saveToStorage(nextElements);
+        },
 
-      const nextElements = get().elements.filter((el) => {
-        if (el.id === id) return false;
-        // Clean up linked connectors anchored to this deleted card
-        if (el.type === 'arrow') {
-          return el.fromId !== id && el.toId !== id;
+        updateElement: (id: string, updates: Partial<CanvasElement>, record = true) => {
+          const temporalApi = (useCanvas as any).temporal?.getState();
+          if (record) {
+            temporalApi?.resume();
+          } else {
+            temporalApi?.pause();
+          }
+
+          const nextElements = get().elements.map((el) => {
+            if (el.id !== id) return el;
+            return {
+              ...el,
+              ...updates
+            } as CanvasElement;
+          });
+
+          set({ elements: nextElements });
+          if (record) {
+            saveToStorage(nextElements);
+          }
+        },
+
+        updateCardPosition: (id: string, x: number, y: number) => {
+          (useCanvas as any).temporal?.getState().pause();
+
+          const nextElements = get().elements.map((el) => {
+            if (el.id !== id || el.type !== 'card') return el;
+            return { ...el, x, y };
+          });
+          set({ elements: nextElements });
+        },
+
+        updateCardSize: (id: string, width: number, height: number) => {
+          (useCanvas as any).temporal?.getState().pause();
+
+          const nextElements = get().elements.map((el) => {
+            if (el.id !== id || el.type !== 'card') return el;
+            return { ...el, width, height };
+          });
+          set({ elements: nextElements });
+        },
+
+        finalizeDrag: () => {
+          const { elements } = get();
+          const temporalApi = (useCanvas as any).temporal?.getState();
+          
+          temporalApi?.resume();
+          const nextElements = JSON.parse(JSON.stringify(elements));
+          set({ elements: nextElements });
+          
+          saveToStorage(nextElements);
+        },
+
+        deleteElement: (id: string) => {
+          (useCanvas as any).temporal?.getState().resume();
+
+          const nextElements = get().elements.filter((el) => {
+            if (el.id === id) return false;
+            if (el.type === 'arrow') {
+              return el.fromId !== id && el.toId !== id;
+            }
+            return true;
+          });
+
+          set({ elements: nextElements, selectedId: null });
+          saveToStorage(nextElements);
+        },
+
+        clearCanvas: () => {
+          (useCanvas as any).temporal?.getState().resume();
+          set({ elements: [], selectedId: null });
+          saveToStorage([]);
         }
-        return true;
-      });
-
-      set({ elements: nextElements, selectedId: null });
-      saveToStorage(nextElements);
+      };
     },
-
-    clearCanvas: () => {
-      recordHistory();
-      set({ elements: [], selectedId: null });
-      saveToStorage([]);
+    {
+      partialize: (state) => ({ elements: state.elements }),
+      limit: 40
     }
-  };
-});
+  )
+);
