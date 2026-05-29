@@ -1,111 +1,150 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* System Typography */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Premium Dark Theme Color Palette */
+  --bg-app: #0a0b10;
+  --bg-canvas: #06070a;
+  --bg-panel: rgba(16, 18, 27, 0.7);
+  --bg-panel-hover: rgba(22, 25, 38, 0.85);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Theme Color Mappings (Amethyst, Emerald, Sapphire, Amber, Coral, Slate) */
+  --theme-amethyst: #a855f7;
+  --theme-amethyst-glow: rgba(168, 85, 247, 0.25);
+  --theme-amethyst-bg: rgba(168, 85, 247, 0.08);
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --theme-emerald: #10b981;
+  --theme-emerald-glow: rgba(16, 185, 129, 0.25);
+  --theme-emerald-bg: rgba(16, 185, 129, 0.08);
+
+  --theme-sapphire: #3b82f6;
+  --theme-sapphire-glow: rgba(59, 130, 246, 0.25);
+  --theme-sapphire-bg: rgba(59, 130, 246, 0.08);
+
+  --theme-amber: #f59e0b;
+  --theme-amber-glow: rgba(245, 158, 11, 0.25);
+  --theme-amber-bg: rgba(245, 158, 11, 0.08);
+
+  --theme-coral: #f43f5e;
+  --theme-coral-glow: rgba(244, 63, 94, 0.25);
+  --theme-coral-bg: rgba(244, 63, 94, 0.08);
+
+  --theme-slate: #64748b;
+  --theme-slate-glow: rgba(100, 116, 139, 0.25);
+  --theme-slate-bg: rgba(100, 116, 139, 0.08);
+
+  /* Shadows */
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-neon: 0 0 15px rgba(168, 85, 247, 0.4);
+
+  /* Global Transition Speed */
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* Light theme options (optional, but default is dark for premium developer experience) */
+:root.light-mode {
+  --bg-app: #f8fafc;
+  --bg-canvas: #f1f5f9;
+  --bg-panel: rgba(255, 255, 255, 0.75);
+  --bg-panel-hover: rgba(248, 250, 252, 0.9);
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.12);
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --theme-amethyst-bg: rgba(168, 85, 247, 0.05);
+  --theme-emerald-bg: rgba(16, 185, 129, 0.05);
+  --theme-sapphire-bg: rgba(59, 130, 246, 0.05);
+  --theme-amber-bg: rgba(245, 158, 11, 0.05);
+  --theme-coral-bg: rgba(244, 63, 94, 0.05);
+  --theme-slate-bg: rgba(100, 116, 139, 0.05);
+
+  --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+* {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background-color: var(--bg-app);
+  overflow: hidden; /* Prevent body scrolling */
+  width: 100vw;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+/* Glassmorphism Panel styles */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-glass);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.glass-panel:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--border-strong);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Helper styles for selection */
+.user-select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Utility Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

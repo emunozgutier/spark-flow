@@ -1,0 +1,696 @@
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import type {
+  CanvasElement,
+  CardElement,
+  ArrowElement,
+  Point,
+  ToolType,
+  ThemeColor,
+  DraggingCardState,
+  DrawingArrowState
+} from '../types';
+
+interface CanvasProps {
+  elements: CanvasElement[];
+  pan: Point;
+  zoom: number;
+  selectedId: string | null;
+  activeTool: ToolType;
+  setSelectedId: (id: string | null) => void;
+  setPan: (newPan: Point | ((p: Point) => Point)) => void;
+  setZoom: (newZoom: number | ((z: number) => number)) => void;
+  addCard: (x: number, y: number) => void;
+  addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
+  updateElement: (id: string, updates: Partial<CanvasElement>, record?: boolean) => void;
+  updateCardPosition: (id: string, x: number, y: number) => void;
+  updateCardSize: (id: string, width: number, height: number) => void;
+  finalizeDrag: () => void;
+  deleteElement: (id: string) => void;
+}
+
+export const Canvas: React.FC<CanvasProps> = ({
+  elements,
+  pan,
+  zoom,
+  selectedId,
+  activeTool,
+  setSelectedId,
+  setPan,
+  setZoom,
+  addCard,
+  addArrow,
+  updateElement,
+  updateCardPosition,
+  updateCardSize,
+  finalizeDrag,
+  deleteElement,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Interactive Drag states
+  const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null);
+  const [resizingCard, setResizingCard] = useState<{ id: string; startWidth: number; startHeight: number; startMouseX: number; startMouseY: number } | null>(null);
+  const [drawingArrow, setDrawingArrow] = useState<DrawingArrowState | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 });
+  const [spacePressed, setSpacePressed] = useState(false);
+
+  // Monitor Spacebar key bindings for panning toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        setSpacePressed(true);
+        e.preventDefault();
+      }
+      
+      // Select All, Delete, Undo / Redo keybinds could go here
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        // Only delete if we are not currently editing inputs
+        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+          deleteElement(selectedId);
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setSpacePressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [selectedId, deleteElement]);
+
+  // Convert Screen pixel coordinates into Canvas coordinate system
+  const screenToCanvas = useCallback((screenX: number, screenY: number): Point => {
+    if (!containerRef.current) return { x: 0, y: 0 };
+    const rect = containerRef.current.getBoundingClientRect();
+    return {
+      x: (screenX - rect.left - pan.x) / zoom,
+      y: (screenY - rect.top - pan.y) / zoom
+    };
+  }, [pan, zoom]);
+
+  // Calculate socket absolute coordinates on canvas
+  const getSocketPosition = useCallback((card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
+    switch (socket) {
+      case 'top':
+        return { x: card.x + card.width / 2, y: card.y };
+      case 'right':
+        return { x: card.x + card.width, y: card.y + card.height / 2 };
+      case 'bottom':
+        return { x: card.x + card.width / 2, y: card.y + card.height };
+      case 'left':
+        return { x: card.x, y: card.y + card.height / 2 };
+    }
+  }, []);
+
+  // Zoom-to-Mouse Wheel Handler
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const zoomIntensity = 0.05;
+    const wheelDelta = -e.deltaY;
+    
+    // Zoom step formula
+    setZoom((prevZoom) => {
+      const scale = wheelDelta > 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
+      const nextZoom = Math.max(0.15, Math.min(4.0, prevZoom * scale));
+      
+      // Adjust pan offset to center scale around mouse position
+      const mouseCanvasX = (mouseX - pan.x) / prevZoom;
+      const mouseCanvasY = (mouseY - pan.y) / prevZoom;
+      
+      const newPanX = mouseX - mouseCanvasX * nextZoom;
+      const newPanY = mouseY - mouseCanvasY * nextZoom;
+      
+      setPan({ x: newPanX, y: newPanY });
+      return nextZoom;
+    });
+  };
+
+  // Viewport Panning / Creation Click handler
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+
+    // 1. Viewport panning via Spacebar, Middle mouse, or Hand Tool active
+    const isMiddleClick = e.button === 1;
+    const isHandMode = activeTool === 'hand' || spacePressed;
+
+    if (isMiddleClick || isHandMode) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      e.preventDefault();
+      return;
+    }
+
+    // 2. Click to spawn card in Card Tool mode
+    if (activeTool === 'text' && e.target === containerRef.current || e.target === containerRef.current?.querySelector('.canvas-grid')) {
+      const clickCoords = screenToCanvas(e.clientX, e.clientY);
+      // Spawn new card centered around mouse click
+      addCard(clickCoords.x - 100, clickCoords.y - 60);
+      return;
+    }
+
+    // 3. Clear selected node if clicking blank canvas
+    if (activeTool === 'select' && (e.target === containerRef.current || e.target === containerRef.current?.querySelector('.canvas-grid') || e.target?.toString() === '[object SVGSVGElement]')) {
+      setSelectedId(null);
+    }
+  };
+
+  // Drag Motion Engine (Mouse Move)
+  const handleMouseMove = (e: React.MouseEvent) => {
+    // 1. Panning state
+    if (isPanning) {
+      setPan({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+      return;
+    }
+
+    // 2. Dragging Card state
+    if (draggingCard) {
+      // Delta needs to scale inversely with zoom factor to prevent dragging offset drift
+      const deltaX = (e.clientX - draggingCard.startX) / zoom;
+      const deltaY = (e.clientY - draggingCard.startY) / zoom;
+
+      // Optional snap-to-grid alignment during drag (e.g. 10px snap)
+      const snapVal = 1; // Smooth movement
+      const nextX = Math.round((draggingCard.originalX + deltaX) / snapVal) * snapVal;
+      const nextY = Math.round((draggingCard.originalY + deltaY) / snapVal) * snapVal;
+
+      updateCardPosition(draggingCard.id, nextX, nextY);
+      return;
+    }
+
+    // 3. Resizing Card state
+    if (resizingCard) {
+      const deltaX = (e.clientX - resizingCard.startMouseX) / zoom;
+      const deltaY = (e.clientY - resizingCard.startMouseY) / zoom;
+      
+      const newW = Math.max(140, Math.round(resizingCard.startWidth + deltaX));
+      const newH = Math.max(80, Math.round(resizingCard.startHeight + deltaY));
+
+      updateCardSize(resizingCard.id, newW, newH);
+      return;
+    }
+
+    // 4. Drawing Connection Arrow state
+    if (drawingArrow) {
+      const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
+      setDrawingArrow({
+        ...drawingArrow,
+        currentPoint: mouseCanvas
+      });
+      return;
+    }
+  };
+
+  // Drag Release Handler (Mouse Up)
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
+
+    if (draggingCard) {
+      setDraggingCard(null);
+      finalizeDrag(); // Write finalized position to History
+      return;
+    }
+
+    if (resizingCard) {
+      setResizingCard(null);
+      finalizeDrag(); // Write resized geometry to History
+      return;
+    }
+
+    if (drawingArrow) {
+      // Clean up arrow preview state
+      const targetElement = e.target as HTMLElement;
+      const isSocket = targetElement.classList.contains('card-socket');
+      
+      if (isSocket) {
+        const toCardId = targetElement.getAttribute('data-card-id');
+        const toSocketDir = targetElement.getAttribute('data-socket-dir') as 'top' | 'right' | 'bottom' | 'left';
+        
+        if (toCardId && toSocketDir && (toCardId !== drawingArrow.fromId)) {
+          // Anchored link complete! Add new arrow
+          addArrow({
+            fromId: drawingArrow.fromId,
+            fromSocket: drawingArrow.fromSocket,
+            toId: toCardId,
+            toSocket: toSocketDir,
+            color: drawingArrow.color,
+            style: drawingArrow.style,
+            label: ''
+          });
+        }
+      } else if (activeTool === 'arrow') {
+        // If let go on empty canvas, let's spawn a connected CARD there! (Premium feature)
+        const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
+        
+        // Spawn card
+        const cardColors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
+        const randomColor = cardColors[Math.floor(Math.random() * cardColors.length)];
+        const newCardId = `card-${Date.now()}`;
+        
+        // Add new connected Card and structural arrow manually
+        const newCard: CardElement = {
+          id: newCardId,
+          type: 'card',
+          x: mouseCanvas.x - 100,
+          y: mouseCanvas.y - 60,
+          width: 200,
+          height: 120,
+          title: 'Linked Point',
+          content: 'Auto-created link idea node.',
+          color: randomColor
+        };
+
+        // Create the connection (anchored from source card to this newly created card)
+        // Detect closest incoming socket on the new card based on geometry
+        const sourceCard = elements.find(el => el.id === drawingArrow.fromId) as CardElement;
+        let incomingSocket: 'top' | 'right' | 'bottom' | 'left' = 'left';
+        if (sourceCard) {
+          const dx = newCard.x - sourceCard.x;
+          const dy = newCard.y - sourceCard.y;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            incomingSocket = dx > 0 ? 'left' : 'right';
+          } else {
+            incomingSocket = dy > 0 ? 'top' : 'bottom';
+          }
+        }
+
+        // Add the elements to state inside a single transaction
+        updateElement(newCardId, newCard); // Simulates adding
+        addArrow({
+          fromId: drawingArrow.fromId,
+          fromSocket: drawingArrow.fromSocket,
+          toId: newCardId,
+          toSocket: incomingSocket,
+          color: drawingArrow.color,
+          style: drawingArrow.style,
+          label: ''
+        });
+      }
+
+      setDrawingArrow(null);
+    }
+  };
+
+  // Node drag parameters setup
+  const initiateCardDrag = (card: CardElement, e: React.MouseEvent) => {
+    if (activeTool !== 'select') return;
+    // Don't drag if focus is active on editable text inputs
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) {
+      return;
+    }
+    
+    setSelectedId(card.id);
+    setDraggingCard({
+      id: card.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      originalX: card.x,
+      originalY: card.y
+    });
+    e.stopPropagation();
+  };
+
+  // Node resize parameters setup
+  const initiateCardResize = (card: CardElement, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedId(card.id);
+    setResizingCard({
+      id: card.id,
+      startWidth: card.width,
+      startHeight: card.height,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY
+    });
+  };
+
+  // Arrow drawing start parameters setup
+  const initiateArrowDraw = (card: CardElement, socketDir: 'top' | 'right' | 'bottom' | 'left', e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const socketPt = getSocketPosition(card, socketDir);
+    setSelectedId(null);
+    setDrawingArrow({
+      fromId: card.id,
+      fromSocket: socketDir,
+      fromPoint: socketPt,
+      currentPoint: socketPt,
+      color: card.color,
+      style: 'curved'
+    });
+  };
+
+  // Build arrow path string
+  const calculatePath = (
+    from: Point,
+    to: Point,
+    style: 'straight' | 'curved' | 'dashed',
+    fromDir?: 'top' | 'right' | 'bottom' | 'left',
+    toDir?: 'top' | 'right' | 'bottom' | 'left'
+  ) => {
+    if (style === 'straight' || style === 'dashed') {
+      return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+    }
+
+    // Curved Bezier calculation based on anchors orientation
+    let controlPoint1 = { ...from };
+    let controlPoint2 = { ...to };
+    
+    // Extrusion distance offset
+    const dx = Math.abs(to.x - from.x);
+    const dy = Math.abs(to.y - from.y);
+    const handleOffset = Math.max(Math.min(dx, dy) * 0.75, 45);
+
+    if (fromDir) {
+      if (fromDir === 'right') controlPoint1.x += handleOffset;
+      if (fromDir === 'left') controlPoint1.x -= handleOffset;
+      if (fromDir === 'bottom') controlPoint1.y += handleOffset;
+      if (fromDir === 'top') controlPoint1.y -= handleOffset;
+    } else {
+      controlPoint1.x += handleOffset; // default exit right
+    }
+
+    if (toDir) {
+      if (toDir === 'right') controlPoint2.x += handleOffset;
+      if (toDir === 'left') controlPoint2.x -= handleOffset;
+      if (toDir === 'bottom') controlPoint2.y += handleOffset;
+      if (toDir === 'top') controlPoint2.y -= handleOffset;
+    } else {
+      controlPoint2.x -= handleOffset; // default enter left
+    }
+
+    return `M ${from.x} ${from.y} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${to.x} ${to.y}`;
+  };
+
+  // Dynamic CSS Class determination for container cursor
+  const getContainerClassName = () => {
+    let className = 'canvas-container';
+    if (isPanning) className += ' tool-hand active';
+    else if (spacePressed) className += ' tool-hand';
+    else className += ` tool-${activeTool}`;
+    return className;
+  };
+
+  // Find cards and arrow elements separated
+  const cards = elements.filter((el) => el.type === 'card') as CardElement[];
+  const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+
+  return (
+    <div
+      ref={containerRef}
+      className={getContainerClassName()}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      style={{ touchAction: 'none' }}
+    >
+      {/* 1. Vector Grid Background layer (scales & moves with pan/zoom) */}
+      <div
+        className="canvas-grid"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          backgroundImage: zoom > 0.35 
+            ? 'radial-gradient(var(--border-strong) 1.2px, transparent 1.2px), radial-gradient(var(--border-subtle) 1px, transparent 1px)' 
+            : 'none',
+          backgroundSize: '40px 40px, 20px 20px',
+          backgroundPosition: '0 0, 10px 10px',
+          width: '50000px', // Large space for "infinite" canvas translation bounds
+          height: '50000px',
+          top: '-25000px',
+          left: '-25000px',
+          opacity: Math.min(1.0, zoom * 1.5) // Fades out dots when zoomed out far to look slick
+        }}
+      />
+
+      {/* Viewport content layer */}
+      <div
+        className="canvas-viewport"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        }}
+      >
+        {/* 2. SVG Overlay Layer (Connectors, paths, labels, anchors) */}
+        <svg
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            overflow: 'visible',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none'
+          }}
+        >
+          {/* arrowhead markers definitions */}
+          <defs>
+            {COLOR_THEMES.map((theme) => (
+              <marker
+                key={`marker-${theme.name}`}
+                id={`arrowhead-${theme.name}`}
+                markerWidth="8"
+                markerHeight="7"
+                refX="7.5"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 8 3.5, 0 7"
+                  fill={theme.value}
+                />
+              </marker>
+            ))}
+            <marker
+              id="arrowhead-white"
+              markerWidth="8"
+              markerHeight="7"
+              refX="7.5"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 8 3.5, 0 7"
+                fill="#ffffff"
+              />
+            </marker>
+          </defs>
+
+          {/* Render established connector lines */}
+          {arrows.map((arrow) => {
+            let startPt = arrow.fromPoint || { x: 0, y: 0 };
+            let endPt = arrow.toPoint || { x: 0, y: 0 };
+
+            // Resolve actual socket placements if anchored to cards
+            const fromCard = cards.find((c) => c.id === arrow.fromId);
+            const toCard = cards.find((c) => c.id === arrow.toId);
+
+            if (arrow.fromId && fromCard && arrow.fromSocket) {
+              startPt = getSocketPosition(fromCard, arrow.fromSocket);
+            }
+            if (arrow.toId && toCard && arrow.toSocket) {
+              endPt = getSocketPosition(toCard, arrow.toSocket);
+            }
+
+            const pathStr = calculatePath(
+              startPt,
+              endPt,
+              arrow.style,
+              arrow.fromSocket,
+              arrow.toSocket
+            );
+
+            const isSelected = selectedId === arrow.id;
+            const strokeColorName = isSelected ? 'white' : arrow.color;
+            const strokeColorVal = isSelected ? '#ffffff' : `var(--theme-${arrow.color})`;
+            const isDashed = arrow.style === 'dashed';
+
+            // Curve middle point for text label anchor
+            const midX = (startPt.x + endPt.x) / 2;
+            const midY = (startPt.y + endPt.y) / 2;
+
+            return (
+              <g
+                key={arrow.id}
+                style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedId(arrow.id);
+                }}
+              >
+                {/* Thick invisible interaction background line to make clicking easy */}
+                <path
+                  d={pathStr}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth="16"
+                />
+                {/* Visual outline line */}
+                <path
+                  d={pathStr}
+                  fill="none"
+                  stroke={strokeColorVal}
+                  strokeWidth={isSelected ? '2.5' : '2'}
+                  strokeDasharray={isDashed ? '6,6' : 'none'}
+                  markerEnd={`url(#arrowhead-${strokeColorName})`}
+                  style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
+                />
+                {/* Text Labels overlaid */}
+                {arrow.label && (
+                  <g>
+                    <rect
+                      x={midX - (arrow.label.length * 3.8) - 6}
+                      y={midY - 8}
+                      width={(arrow.label.length * 7.6) + 12}
+                      height="16"
+                      rx="4"
+                      fill="var(--bg-canvas)"
+                      stroke={isSelected ? '#ffffff' : 'var(--border-subtle)'}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={midX}
+                      y={midY + 4}
+                      fill={isSelected ? '#ffffff' : 'var(--text-secondary)'}
+                      fontSize="10"
+                      fontWeight="bold"
+                      fontFamily="var(--font-sans)"
+                      textAnchor="middle"
+                    >
+                      {arrow.label}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Render temporary live connector arrow preview when dragging socket */}
+          {drawingArrow && drawingArrow.fromPoint && (
+            <path
+              d={calculatePath(drawingArrow.fromPoint, drawingArrow.currentPoint, drawingArrow.style, drawingArrow.fromSocket)}
+              fill="none"
+              stroke={`var(--theme-${drawingArrow.color})`}
+              strokeWidth="2.0"
+              strokeDasharray="4,4"
+              markerEnd={`url(#arrowhead-${drawingArrow.color})`}
+            />
+          )}
+        </svg>
+
+        {/* 3. HTML Cards Layer (absolutely positioned) */}
+        {cards.map((card) => {
+          const isSelected = selectedId === card.id;
+          
+          return (
+            <div
+              key={card.id}
+              className={`canvas-card ${isSelected ? 'selected' : ''}`}
+              style={{
+                left: `${card.x}px`,
+                top: `${card.y}px`,
+                width: `${card.width}px`,
+                height: `${card.height}px`,
+                zIndex: isSelected ? 99 : 5,
+                /* Custom mapping variables inside React style */
+                '--theme-color': `var(--theme-${card.color})`,
+                '--theme-color-glow': `var(--theme-${card.color}-glow)`
+              } as React.CSSProperties}
+              onMouseDown={(e) => initiateCardDrag(card, e)}
+            >
+              {/* Card Header title editor */}
+              <div className="card-header">
+                <input
+                  type="text"
+                  className="card-title-input"
+                  value={card.title}
+                  onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
+                  onBlur={finalizeDrag} // Record to history once cursor releases
+                  placeholder="Idea Title"
+                />
+              </div>
+
+              {/* Card Body text editor */}
+              <div className="card-body">
+                <textarea
+                  className="card-textarea"
+                  value={card.content}
+                  onChange={(e) => updateElement(card.id, { content: e.target.value }, false)}
+                  onBlur={finalizeDrag}
+                  placeholder="Describe your thoughts..."
+                />
+              </div>
+
+              {/* Edge Connection Sockets - show only in select or arrow tool states */}
+              {(activeTool === 'select' || activeTool === 'arrow') && (
+                <>
+                  <div
+                    className="card-socket top"
+                    data-card-id={card.id}
+                    data-socket-dir="top"
+                    onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
+                  />
+                  <div
+                    className="card-socket right"
+                    data-card-id={card.id}
+                    data-socket-dir="right"
+                    onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
+                  />
+                  <div
+                    className="card-socket bottom"
+                    data-card-id={card.id}
+                    data-socket-dir="bottom"
+                    onMouseDown={(e) => initiateArrowDraw(card, 'bottom', e)}
+                  />
+                  <div
+                    className="card-socket left"
+                    data-card-id={card.id}
+                    data-socket-dir="left"
+                    onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
+                  />
+                </>
+              )}
+
+              {/* Bottom-right drag resize corner handle */}
+              {activeTool === 'select' && (
+                <div
+                  className="card-resize-handle"
+                  onMouseDown={(e) => initiateCardResize(card, e)}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Static definition array for icon marker mapping
+const COLOR_THEMES: { name: ThemeColor; value: string }[] = [
+  { name: 'slate', value: '#64748b' },
+  { name: 'amethyst', value: '#a855f7' },
+  { name: 'sapphire', value: '#3b82f6' },
+  { name: 'emerald', value: '#10b981' },
+  { name: 'coral', value: '#f43f5e' },
+  { name: 'amber', value: '#f59e0b' },
+];
