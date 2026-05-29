@@ -90,7 +90,7 @@ interface CanvasState {
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -161,7 +161,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => {
+        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground') => {
           (useCanvas as any).temporal?.getState().resume();
           
           let defaultWidth = 200;
@@ -182,23 +182,33 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             );
             instanceNumber = sameTypeElements.length + 1;
 
-            ports = [
-              { id: `${cardId}-left`, direction: 'left', isConnected: false },
-              { id: `${cardId}-right`, direction: 'right', isConnected: false }
-            ];
+            if (componentType === 'ground') {
+              ports = [
+                { id: `${cardId}-top`, direction: 'top', isConnected: false }
+              ];
+              val = undefined;
+              color = 'slate';
+              defaultWidth = 60;
+              defaultHeight = 60;
+            } else {
+              ports = [
+                { id: `${cardId}-left`, direction: 'left', isConnected: false },
+                { id: `${cardId}-right`, direction: 'right', isConnected: false }
+              ];
 
-            if (componentType === 'resistor') {
-              val = 1000;
-              color = 'amber';
-            } else if (componentType === 'capacitor') {
-              val = 10e-6; // 10uF
-              color = 'sapphire';
-            } else if (componentType === 'inductor') {
-              val = 10e-3; // 10mH
-              color = 'emerald';
+              if (componentType === 'resistor') {
+                val = 1000;
+                color = 'amber';
+              } else if (componentType === 'capacitor') {
+                val = 10e-6; // 10uF
+                color = 'sapphire';
+              } else if (componentType === 'inductor') {
+                val = 10e-3; // 10mH
+                color = 'emerald';
+              }
+              defaultWidth = 60;
+              defaultHeight = 90;
             }
-            defaultWidth = 60;
-            defaultHeight = 90;
           } else {
             const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
             color = colors[Math.floor(Math.random() * colors.length)];

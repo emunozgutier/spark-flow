@@ -129,31 +129,33 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
                   id="comp-designator"
                   type="text"
                   className="inspector-input"
-                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
+                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND'}${card.instanceNumber || 1}`}
                   onChange={(e) => {
-                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND';
                     const num = parseInstanceNumber(e.target.value, prefix);
                     onUpdateElement(card.id, { instanceNumber: num });
                   }}
-                  placeholder="e.g. C1"
+                  placeholder="e.g. GND1"
                 />
               </div>
 
               {/* Passive Component Value */}
-              <div className="sidebar-section">
-                <label className="sidebar-section-title" htmlFor="comp-value">Component Value</label>
-                <input
-                  id="comp-value"
-                  type="text"
-                  className="inspector-input"
-                  value={formatEngineering(card.value)}
-                  onChange={(e) => {
-                    const val = parseEngineering(e.target.value);
-                    onUpdateElement(card.id, { value: val });
-                  }}
-                  placeholder="e.g. 10u"
-                />
-              </div>
+              {card.componentType !== 'ground' && (
+                <div className="sidebar-section">
+                  <label className="sidebar-section-title" htmlFor="comp-value">Component Value</label>
+                  <input
+                    id="comp-value"
+                    type="text"
+                    className="inspector-input"
+                    value={formatEngineering(card.value)}
+                    onChange={(e) => {
+                      const val = parseEngineering(e.target.value);
+                      onUpdateElement(card.id, { value: val });
+                    }}
+                    placeholder="e.g. 10u"
+                  />
+                </div>
+              )}
 
               {/* Passive Component Rotation */}
               <div className="sidebar-section">

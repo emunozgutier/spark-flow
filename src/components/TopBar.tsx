@@ -35,7 +35,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   useEffect(() => {
     if (activeTool === 'text' || activeTool === 'arrow') {
       setActiveTab('anotate');
-    } else if (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor') {
+    } else if (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor' || activeTool === 'ground') {
       setActiveTab('passives');
     }
   }, [activeTool]);

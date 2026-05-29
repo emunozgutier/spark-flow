@@ -49,6 +49,22 @@ export const PassivesBar: React.FC<PassivesBarProps> = ({ activeTool, setActiveT
         <span className="tooltip">Add Inductor Card (I)</span>
       </button>
 
+      {/* Ground */}
+      <button
+        className={`tool-btn text-btn ${activeTool === 'ground' ? 'active' : ''}`}
+        onClick={() => setActiveTool('ground')}
+        aria-label="Add Ground"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M 12 4 L 12 14" />
+          <path d="M 5 14 L 19 14" />
+          <path d="M 8 18 L 16 18" />
+          <path d="M 10 22 L 14 22" />
+        </svg>
+        <span>ground</span>
+        <span className="tooltip">Add Ground Card (G)</span>
+      </button>
+
       <div className="toolbar-divider" />
 
       {/* Wire (Uses Arrow Connection Tool) */}

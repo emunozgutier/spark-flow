@@ -678,6 +678,16 @@ svg marker {
   transform: translate(-50%, -50%) scale(1.4);
 }
 
+.canvas-card.passive-component .card-socket.top {
+  left: 50%;
+  top: 0px;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-card.passive-component .card-socket.top:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
 /* Sockets on passive components that are connected should be hidden */
 .canvas-card.passive-component .card-socket:not(.open-port) {
   opacity: 0;

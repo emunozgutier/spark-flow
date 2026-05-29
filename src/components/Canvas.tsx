@@ -83,7 +83,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -267,14 +267,19 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if (isUI) return;
 
-    // 2. Click-to-spawn for fixed-size passive elements
+    // 2. Click-to-spawn for fixed-size passive elements (including ground)
     if (
       activeTool === 'resistor' ||
       activeTool === 'capacitor' ||
-      activeTool === 'inductor'
+      activeTool === 'inductor' ||
+      activeTool === 'ground'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      addCard(clickCoords.x - 30, clickCoords.y - 45, 60, 90, activeTool);
+      if (activeTool === 'ground') {
+        addCard(clickCoords.x - 30, clickCoords.y - 30, 60, 60, activeTool);
+      } else {
+        addCard(clickCoords.x - 30, clickCoords.y - 45, 60, 90, activeTool);
+      }
       e.preventDefault();
       return;
     }
@@ -865,6 +870,14 @@ export const Canvas: React.FC<CanvasProps> = ({
                     <path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" />
                   </svg>
                 )}
+                {card.componentType === 'ground' && (
+                  <svg width="100%" height="100%" viewBox="0 0 60 60" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: 0, left: 0, filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                    <path d="M 30 0 L 30 25" />
+                    <path d="M 20 25 L 40 25" />
+                    <path d="M 24 33 L 36 33" />
+                    <path d="M 28 41 L 32 41" />
+                  </svg>
+                )}
 
                 {/* Vertically Stacked Component Labels at the bottom */}
                 <div
@@ -877,16 +890,18 @@ export const Canvas: React.FC<CanvasProps> = ({
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '1px',
-                    pointerEvents: 'none'
+                    pointerEvents: 'none',
+                    transform: `rotate(-${card.rotation || 0}deg)`,
+                    transformOrigin: '50% 50%'
                   }}
                 >
                   {/* Designator (Name) */}
                   <input
                     type="text"
                     className="passive-title-input"
-                    value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
+                    value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND'}${card.instanceNumber || 1}`}
                     onChange={(e) => {
-                      const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+                      const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND';
                       const num = parseInstanceNumber(e.target.value, prefix);
                       updateElement(card.id, { instanceNumber: num }, false);
                     }}
@@ -909,67 +924,89 @@ export const Canvas: React.FC<CanvasProps> = ({
                   />
 
                   {/* Technical Value */}
-                  <input
-                    type="text"
-                    className="passive-value-input"
-                    value={formatEngineering(card.value)}
-                    onChange={(e) => {
-                      const num = parseEngineering(e.target.value);
-                      updateElement(card.id, { value: num }, false);
-                    }}
-                    onBlur={finalizeDrag}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--theme-color)',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 600,
-                      fontSize: '10px',
-                      textAlign: 'center',
-                      outline: 'none',
-                      width: '100%',
-                      pointerEvents: 'auto',
-                      height: '13px',
-                      lineHeight: '13px'
-                    }}
-                    placeholder="Value"
-                  />
+                  {card.componentType !== 'ground' && (
+                    <input
+                      type="text"
+                      className="passive-value-input"
+                      value={formatEngineering(card.value)}
+                      onChange={(e) => {
+                        const num = parseEngineering(e.target.value);
+                        updateElement(card.id, { value: num }, false);
+                      }}
+                      onBlur={finalizeDrag}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--theme-color)',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 600,
+                        fontSize: '10px',
+                        textAlign: 'center',
+                        outline: 'none',
+                        width: '100%',
+                        pointerEvents: 'auto',
+                        height: '13px',
+                        lineHeight: '13px'
+                      }}
+                      placeholder="Value"
+                    />
+                  )}
                 </div>
 
                 {/* Sockets for Wire connections */}
                 {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (
                   <>
-                    {/* Left Lead Port */}
-                    <div
-                      className={`card-socket left ${
-                        !arrows.some(
-                          (arrow) =>
-                            (arrow.fromId === card.id && arrow.fromSocket === 'left') ||
-                            (arrow.toId === card.id && arrow.toSocket === 'left')
-                        )
-                          ? 'open-port'
-                          : ''
-                      }`}
-                      data-card-id={card.id}
-                      data-socket-dir="left"
-                      onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
-                    />
+                    {card.componentType === 'ground' ? (
+                      /* Top Lead Port for Ground */
+                      <div
+                        className={`card-socket top ${
+                          !arrows.some(
+                            (arrow) =>
+                              (arrow.fromId === card.id && arrow.fromSocket === 'top') ||
+                              (arrow.toId === card.id && arrow.toSocket === 'top')
+                          )
+                            ? 'open-port'
+                            : ''
+                        }`}
+                        data-card-id={card.id}
+                        data-socket-dir="top"
+                        onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
+                      />
+                    ) : (
+                      <>
+                        {/* Left Lead Port */}
+                        <div
+                          className={`card-socket left ${
+                            !arrows.some(
+                              (arrow) =>
+                                (arrow.fromId === card.id && arrow.fromSocket === 'left') ||
+                                (arrow.toId === card.id && arrow.toSocket === 'left')
+                            )
+                              ? 'open-port'
+                              : ''
+                          }`}
+                          data-card-id={card.id}
+                          data-socket-dir="left"
+                          onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
+                        />
 
-                    {/* Right Lead Port */}
-                    <div
-                      className={`card-socket right ${
-                        !arrows.some(
-                          (arrow) =>
-                            (arrow.fromId === card.id && arrow.fromSocket === 'right') ||
-                            (arrow.toId === card.id && arrow.toSocket === 'right')
-                        )
-                          ? 'open-port'
-                          : ''
-                      }`}
-                      data-card-id={card.id}
-                      data-socket-dir="right"
-                      onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
-                    />
+                        {/* Right Lead Port */}
+                        <div
+                          className={`card-socket right ${
+                            !arrows.some(
+                              (arrow) =>
+                                (arrow.fromId === card.id && arrow.fromSocket === 'right') ||
+                                (arrow.toId === card.id && arrow.toSocket === 'right')
+                            )
+                              ? 'open-port'
+                              : ''
+                          }`}
+                          data-card-id={card.id}
+                          data-socket-dir="right"
+                          onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
+                        />
+                      </>
+                    )}
                   </>
                 )}
               </div>

@@ -106,6 +106,9 @@ function App() {
         case 'i':
           setActiveTool('inductor');
           break;
+        case 'g':
+          setActiveTool('ground');
+          break;
       }
     };
 
@@ -317,7 +320,7 @@ function App() {
         const theme = hexColors[card.color] || hexColors.slate;
         
         if (card.componentType) {
-          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND';
           const compName = `${prefix}${card.instanceNumber || 1}`;
           const compVal = formatEngineering(card.value);
 
@@ -329,20 +332,30 @@ function App() {
                                 <path d="M 45 5 L 45 25 M 55 5 L 55 25" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
           } else if (card.componentType === 'inductor') {
             symbolPathMarkup = `<path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else if (card.componentType === 'ground') {
+            symbolPathMarkup = `<path d="M 30 0 L 30 25" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 20 25 L 40 25" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 24 33 L 36 33" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 28 41 L 32 41" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
           }
 
           const rot = card.rotation || 0;
+          const isGnd = card.componentType === 'ground';
+          
           cardMarkup += `
             <g transform="translate(${card.x}, ${card.y}) rotate(${rot}, ${card.width / 2}, ${card.height / 2})">
-              <g transform="translate(0, 15)">
+              <g transform="${isGnd ? 'translate(0, 0)' : 'translate(0, 15)'}">
                 ${symbolPathMarkup}
               </g>
-              <text x="${card.width / 2}" y="70" fill="#ffffff" font-size="11" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
-                ${escapeXml(compName)}
-              </text>
-              <text x="${card.width / 2}" y="83" fill="${theme.main}" font-size="10" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
-                ${escapeXml(compVal)}
-              </text>
+              <g transform="rotate(${-rot}, ${card.width / 2}, ${isGnd ? '52' : '76.5'})">
+                <text x="${card.width / 2}" y="${isGnd ? '52' : '70'}" fill="#ffffff" font-size="11" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
+                  ${escapeXml(compName)}
+                </text>
+                ${!isGnd ? `
+                <text x="${card.width / 2}" y="83" fill="${theme.main}" font-size="10" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
+                  ${escapeXml(compVal)}
+                </text>` : ''}
+              </g>
             </g>`;
           return;
         }
