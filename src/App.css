@@ -642,3 +642,26 @@ svg marker {
   box-shadow: 0 0 15px var(--theme-color-glow) !important;
   border-radius: 8px;
 }
+
+/* Hollow circular terminal style for open/unconnected ports */
+.card-socket.open-port {
+  background: var(--bg-canvas) !important;
+  border: 2.2px solid var(--theme-color) !important;
+  width: 10px !important;
+  height: 10px !important;
+  z-index: 15;
+}
+
+.card-socket.open-port:hover {
+  background: var(--theme-color) !important;
+  border-color: var(--theme-color) !important;
+}
+
+/* Sockets on passive components should perfectly overlay on the lead ends */
+.canvas-card.passive-component .card-socket.left {
+  left: 6px;
+}
+
+.canvas-card.passive-component .card-socket.right {
+  right: 6px;
+}

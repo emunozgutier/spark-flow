@@ -1,5 +1,5 @@
 import type { BaseType } from './BaseType';
-import type { ThemeColor } from './AnotateType';
+import type { ThemeColor, Port } from './AnotateType';
 
 /**
  * Resistor Structure
@@ -15,6 +15,7 @@ export interface Resistor extends BaseType {
   instanceNumber: number; // Unique numerical identifier (e.g. 1 for R1)
   value: number;          // Technical value in ohms (e.g. 1000 for 1k)
   color: ThemeColor;
+  ports: Port[];          // Two-terminal leads (left and right)
 }
 
 /**
@@ -31,6 +32,7 @@ export interface Capacitor extends BaseType {
   instanceNumber: number; // Unique numerical identifier (e.g. 1 for C1)
   value: number;          // Technical value in farads (e.g. 10e-6 for 10u)
   color: ThemeColor;
+  ports: Port[];          // Two-terminal leads (left and right)
 }
 
 /**
@@ -47,6 +49,7 @@ export interface Inductor extends BaseType {
   instanceNumber: number; // Unique numerical identifier (e.g. 1 for L1)
   value: number;          // Technical value in henries (e.g. 0.01 for 10m)
   color: ThemeColor;
+  ports: Port[];          // Two-terminal leads (left and right)
 }
 
 /**

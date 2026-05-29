@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { UseBoundStore, StoreApi } from 'zustand';
 import { temporal } from 'zundo';
 import type { TemporalState } from 'zundo';
-import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor } from '../dataTypes/AnotateType';
+import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor, Port } from '../dataTypes/AnotateType';
 
 const STORAGE_KEY = 'spark-flow:board-elements';
 
@@ -156,12 +156,20 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           let val: number | undefined = undefined;
           let instanceNumber: number | undefined = undefined;
+          let ports: Port[] | undefined = undefined;
+
+          const cardId = `card-${Date.now()}`;
 
           if (componentType) {
             const sameTypeElements = get().elements.filter(
               (el) => el.type === 'box' && (el as CardElement).componentType === componentType
             );
             instanceNumber = sameTypeElements.length + 1;
+
+            ports = [
+              { id: `${cardId}-left`, direction: 'left', isConnected: false },
+              { id: `${cardId}-right`, direction: 'right', isConnected: false }
+            ];
 
             if (componentType === 'resistor') {
               val = 1000;
@@ -181,7 +189,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
 
           const newCard: CardElement = {
-            id: `card-${Date.now()}`,
+            id: cardId,
             type: 'box', // BoxAnnotation datatype
             x,
             y,
@@ -192,7 +200,8 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             color,
             componentType,
             instanceNumber,
-            value: val
+            value: val,
+            ports
           };
 
           const nextElements = [...get().elements, newCard];

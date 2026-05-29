@@ -833,29 +833,36 @@ export const Canvas: React.FC<CanvasProps> = ({
                 {/* Sockets for Wire connections */}
                 {(activeTool === 'select' || activeTool === 'arrow') && (
                   <>
+                    {/* Left Lead Port */}
                     <div
-                      className="card-socket top"
-                      data-card-id={card.id}
-                      data-socket-dir="top"
-                      onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
-                    />
-                    <div
-                      className="card-socket right"
-                      data-card-id={card.id}
-                      data-socket-dir="right"
-                      onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
-                    />
-                    <div
-                      className="card-socket bottom"
-                      data-card-id={card.id}
-                      data-socket-dir="bottom"
-                      onMouseDown={(e) => initiateArrowDraw(card, 'bottom', e)}
-                    />
-                    <div
-                      className="card-socket left"
+                      className={`card-socket left ${
+                        !arrows.some(
+                          (arrow) =>
+                            (arrow.fromId === card.id && arrow.fromSocket === 'left') ||
+                            (arrow.toId === card.id && arrow.toSocket === 'left')
+                        )
+                          ? 'open-port'
+                          : ''
+                      }`}
                       data-card-id={card.id}
                       data-socket-dir="left"
                       onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
+                    />
+
+                    {/* Right Lead Port */}
+                    <div
+                      className={`card-socket right ${
+                        !arrows.some(
+                          (arrow) =>
+                            (arrow.fromId === card.id && arrow.fromSocket === 'right') ||
+                            (arrow.toId === card.id && arrow.toSocket === 'right')
+                        )
+                          ? 'open-port'
+                          : ''
+                      }`}
+                      data-card-id={card.id}
+                      data-socket-dir="right"
+                      onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
                     />
                   </>
                 )}

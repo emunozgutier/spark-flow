@@ -9,6 +9,12 @@ export type ToolType = 'select' | 'text' | 'arrow' | 'hand' | 'resistor' | 'capa
 
 export type ThemeColor = 'amethyst' | 'emerald' | 'sapphire' | 'amber' | 'coral' | 'slate';
 
+export interface Port {
+  id: string;
+  direction: 'left' | 'right';
+  isConnected: boolean;
+}
+
 /**
  * Box Annotation Structure
  * Represents a styled box card container on the canvas.
@@ -25,6 +31,7 @@ export interface BoxAnnotation extends BaseType {
   componentType?: 'resistor' | 'capacitor' | 'inductor';
   instanceNumber?: number;
   value?: number;
+  ports?: Port[];
   borderColor?: string;
   backgroundColor?: string;
   borderRadius?: number;
