@@ -274,7 +274,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       activeTool === 'inductor'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      addCard(clickCoords.x - 30, clickCoords.y - 40, 60, 80, activeTool);
+      addCard(clickCoords.x - 30, clickCoords.y - 45, 60, 90, activeTool);
       e.preventDefault();
       return;
     }
@@ -866,62 +866,75 @@ export const Canvas: React.FC<CanvasProps> = ({
                   </svg>
                 )}
 
-                {/* Designator (Name) at the top */}
-                <input
-                  type="text"
-                  className="passive-title-input"
-                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
-                  onChange={(e) => {
-                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
-                    const num = parseInstanceNumber(e.target.value, prefix);
-                    updateElement(card.id, { instanceNumber: num }, false);
-                  }}
-                  onBlur={finalizeDrag}
-                  style={{
-                    position: 'absolute',
-                    top: '4px',
-                    left: 0,
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-sans)',
-                    fontWeight: 700,
-                    fontSize: '12px',
-                    textAlign: 'center',
-                    outline: 'none',
-                    width: '100%',
-                    pointerEvents: 'auto'
-                  }}
-                  placeholder="Name"
-                />
-
-                {/* Technical Value at the bottom */}
-                <input
-                  type="text"
-                  className="passive-value-input"
-                  value={formatEngineering(card.value)}
-                  onChange={(e) => {
-                    const num = parseEngineering(e.target.value);
-                    updateElement(card.id, { value: num }, false);
-                  }}
-                  onBlur={finalizeDrag}
+                {/* Vertically Stacked Component Labels at the bottom */}
+                <div
                   style={{
                     position: 'absolute',
                     bottom: '4px',
                     left: 0,
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--theme-color)',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 600,
-                    fontSize: '11px',
-                    textAlign: 'center',
-                    outline: 'none',
                     width: '100%',
-                    pointerEvents: 'auto'
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1px',
+                    pointerEvents: 'none'
                   }}
-                  placeholder="Value"
-                />
+                >
+                  {/* Designator (Name) */}
+                  <input
+                    type="text"
+                    className="passive-title-input"
+                    value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
+                    onChange={(e) => {
+                      const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+                      const num = parseInstanceNumber(e.target.value, prefix);
+                      updateElement(card.id, { instanceNumber: num }, false);
+                    }}
+                    onBlur={finalizeDrag}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-sans)',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      textAlign: 'center',
+                      outline: 'none',
+                      width: '100%',
+                      pointerEvents: 'auto',
+                      height: '14px',
+                      lineHeight: '14px'
+                    }}
+                    placeholder="Name"
+                  />
+
+                  {/* Technical Value */}
+                  <input
+                    type="text"
+                    className="passive-value-input"
+                    value={formatEngineering(card.value)}
+                    onChange={(e) => {
+                      const num = parseEngineering(e.target.value);
+                      updateElement(card.id, { value: num }, false);
+                    }}
+                    onBlur={finalizeDrag}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--theme-color)',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 600,
+                      fontSize: '10px',
+                      textAlign: 'center',
+                      outline: 'none',
+                      width: '100%',
+                      pointerEvents: 'auto',
+                      height: '13px',
+                      lineHeight: '13px'
+                    }}
+                    placeholder="Value"
+                  />
+                </div>
 
                 {/* Sockets for Wire connections */}
                 {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (

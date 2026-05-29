@@ -337,10 +337,10 @@ function App() {
               <g transform="translate(0, 15)">
                 ${symbolPathMarkup}
               </g>
-              <text x="${card.width / 2}" y="62" fill="#ffffff" font-size="12" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
+              <text x="${card.width / 2}" y="70" fill="#ffffff" font-size="11" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
                 ${escapeXml(compName)}
               </text>
-              <text x="${card.width / 2}" y="76" fill="${theme.main}" font-size="11" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
+              <text x="${card.width / 2}" y="83" fill="${theme.main}" font-size="10" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
                 ${escapeXml(compVal)}
               </text>
             </g>`;

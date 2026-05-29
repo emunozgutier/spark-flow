@@ -198,7 +198,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
               color = 'emerald';
             }
             defaultWidth = 60;
-            defaultHeight = 80;
+            defaultHeight = 90;
           } else {
             const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
             color = colors[Math.floor(Math.random() * colors.length)];
