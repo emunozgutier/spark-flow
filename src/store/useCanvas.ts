@@ -103,7 +103,7 @@ interface CanvasState {
 }
 
 export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
-  temporal: UseBoundStore<StoreApi<TemporalState<{ elements: CanvasElement[] }>>>;
+  temporal: StoreApi<TemporalState<{ elements: CanvasElement[] }>>;
 } = create<CanvasState>()(
   temporal(
     (set, get) => {
