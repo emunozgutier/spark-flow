@@ -77,8 +77,10 @@ interface CanvasProps {
   pan: Point;
   zoom: number;
   selectedId: string | null;
+  selectedIds: string[];
   activeTool: ToolType;
   setSelectedId: (id: string | null) => void;
+  setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
   addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => void;
@@ -95,8 +97,10 @@ export const Canvas: React.FC<CanvasProps> = ({
   pan,
   zoom,
   selectedId,
+  selectedIds,
   activeTool,
   setSelectedId,
+  setSelectedIds,
   setPan,
   setZoom,
   addCard,
@@ -117,6 +121,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
+  const [drawingSelectionBox, setDrawingSelectionBox] = useState<{ startPoint: Point; currentPoint: Point } | null>(null);
 
   // Monitor Spacebar key bindings for panning toggle
   useEffect(() => {
@@ -252,9 +257,16 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
-    // 3. Clear selected node if clicking blank canvas
+    // 4. Start group selection box if clicking blank canvas in select mode
     if (activeTool === 'select') {
       setSelectedId(null);
+      const clickCoords = screenToCanvas(e.clientX, e.clientY);
+      setDrawingSelectionBox({
+        startPoint: clickCoords,
+        currentPoint: clickCoords
+      });
+      e.preventDefault();
+      return;
     }
   };
 
@@ -279,12 +291,22 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
+    // 1.7 Selection Box Drawing state
+    if (drawingSelectionBox) {
+      const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
+      setDrawingSelectionBox({
+        ...drawingSelectionBox,
+        currentPoint: mouseCanvas
+      });
+      return;
+    }
+
     // 2. Dragging Card state
     if (draggingCard) {
       const deltaX = (e.clientX - draggingCard.startX) / zoom;
       const deltaY = (e.clientY - draggingCard.startY) / zoom;
 
-      const snapVal = 1;
+      const snapVal = 10;
       const nextX = Math.round((draggingCard.originalX + deltaX) / snapVal) * snapVal;
       const nextY = Math.round((draggingCard.originalY + deltaY) / snapVal) * snapVal;
 
@@ -297,8 +319,9 @@ export const Canvas: React.FC<CanvasProps> = ({
       const deltaX = (e.clientX - resizingCard.startMouseX) / zoom;
       const deltaY = (e.clientY - resizingCard.startMouseY) / zoom;
       
-      const newW = Math.max(140, Math.round(resizingCard.startWidth + deltaX));
-      const newH = Math.max(80, Math.round(resizingCard.startHeight + deltaY));
+      const snapVal = 10;
+      const newW = Math.max(140, Math.round((resizingCard.startWidth + deltaX) / snapVal) * snapVal);
+      const newH = Math.max(80, Math.round((resizingCard.startHeight + deltaY) / snapVal) * snapVal);
 
       updateCardSize(resizingCard.id, newW, newH);
       return;
@@ -337,6 +360,35 @@ export const Canvas: React.FC<CanvasProps> = ({
       }
 
       setDrawingBox(null);
+      return;
+    }
+
+    if (drawingSelectionBox) {
+      const minX = Math.min(drawingSelectionBox.startPoint.x, drawingSelectionBox.currentPoint.x);
+      const maxX = Math.max(drawingSelectionBox.startPoint.x, drawingSelectionBox.currentPoint.x);
+      const minY = Math.min(drawingSelectionBox.startPoint.y, drawingSelectionBox.currentPoint.y);
+      const maxY = Math.max(drawingSelectionBox.startPoint.y, drawingSelectionBox.currentPoint.y);
+
+      const overlappingIds: string[] = [];
+      elements.forEach((el) => {
+        if (el.type === 'box') {
+          const card = el as CardElement;
+          const cardWidth = card.width;
+          const cardHeight = card.height;
+          const overlaps = (
+            card.x + cardWidth >= minX &&
+            card.x <= maxX &&
+            card.y + cardHeight >= minY &&
+            card.y <= maxY
+          );
+          if (overlaps) {
+            overlappingIds.push(card.id);
+          }
+        }
+      });
+
+      setSelectedIds(overlappingIds);
+      setDrawingSelectionBox(null);
       return;
     }
 
@@ -625,8 +677,7 @@ export const Canvas: React.FC<CanvasProps> = ({
             );
 
             const isSelected = selectedId === arrow.id;
-            const strokeColorName = isSelected ? 'white' : arrow.color;
-            const strokeColorVal = isSelected ? '#ffffff' : `var(--theme-${arrow.color})`;
+            const strokeColorVal = isSelected ? '#ffffff' : '#64748b';
             const isDashed = arrow.style === 'dashed';
 
             const midX = (startPt.x + endPt.x) / 2;
@@ -653,7 +704,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                   stroke={strokeColorVal}
                   strokeWidth={isSelected ? '2.5' : '2'}
                   strokeDasharray={isDashed ? '6,6' : 'none'}
-                  markerEnd={`url(#arrowhead-${strokeColorName})`}
                   style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
                 />
                 {arrow.label && (
@@ -685,15 +735,14 @@ export const Canvas: React.FC<CanvasProps> = ({
             );
           })}
 
-          {/* Render temporary live connector arrow preview when dragging socket */}
+          {/* Render temporary live connector line preview when dragging socket */}
           {drawingArrow && drawingArrow.fromPoint && (
             <path
               d={calculatePath(drawingArrow.fromPoint, drawingArrow.currentPoint, drawingArrow.style, drawingArrow.fromSocket)}
               fill="none"
-              stroke={`var(--theme-${drawingArrow.color})`}
+              stroke="#64748b"
               strokeWidth="2.0"
               strokeDasharray="4,4"
-              markerEnd={`url(#arrowhead-${drawingArrow.color})`}
             />
           )}
         </svg>
@@ -722,9 +771,29 @@ export const Canvas: React.FC<CanvasProps> = ({
           </div>
         )}
 
+        {/* Render temporary live group selection box */}
+        {drawingSelectionBox && (
+          <div
+            className="selection-box animate-fade-in"
+            style={{
+              position: 'absolute',
+              left: `${Math.min(drawingSelectionBox.startPoint.x, drawingSelectionBox.currentPoint.x)}px`,
+              top: `${Math.min(drawingSelectionBox.startPoint.y, drawingSelectionBox.currentPoint.y)}px`,
+              width: `${Math.abs(drawingSelectionBox.currentPoint.x - drawingSelectionBox.startPoint.x)}px`,
+              height: `${Math.abs(drawingSelectionBox.currentPoint.y - drawingSelectionBox.startPoint.y)}px`,
+              border: '1.5px dashed #3b82f6',
+              background: 'rgba(59, 130, 246, 0.08)',
+              boxShadow: '0 0 10px rgba(59, 130, 246, 0.2)',
+              pointerEvents: 'none',
+              zIndex: 999,
+              borderRadius: '4px'
+            }}
+          />
+        )}
+
         {/* 3. HTML Cards Layer (absolutely positioned) */}
         {cards.map((card) => {
-          const isSelected = selectedId === card.id;
+          const isSelected = selectedId === card.id || selectedIds.includes(card.id);
           const isPassive = !!card.componentType;
           
           if (isPassive) {
@@ -819,7 +888,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                 />
 
                 {/* Sockets for Wire connections */}
-                {(activeTool === 'select' || activeTool === 'arrow') && (
+                {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (
                   <>
                     {/* Left Lead Port */}
                     <div
@@ -916,7 +985,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                 />
               </div>
 
-              {(activeTool === 'select' || activeTool === 'arrow') && (
+              {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (
                 <>
                   <div
                     className="card-socket top"

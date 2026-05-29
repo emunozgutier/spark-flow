@@ -83,11 +83,13 @@ const loadInitialElements = (): CanvasElement[] => {
 interface CanvasState {
   elements: CanvasElement[];
   selectedId: string | null;
+  selectedIds: string[];
   activeTool: ToolType;
   
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
+  setSelectedIds: (ids: string[]) => void;
   addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
@@ -115,11 +117,25 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
       return {
         elements: loadInitialElements(),
         selectedId: null as string | null,
+        selectedIds: [] as string[],
         activeTool: 'select' as ToolType,
 
         setActiveTool: (tool: ToolType) => set({ activeTool: tool }),
         
-        setSelectedId: (id: string | null) => set({ selectedId: id }),
+        setSelectedId: (id: string | null) => set(() => {
+          if (id === null) {
+            return { selectedId: null, selectedIds: [] };
+          } else {
+            return { selectedId: id, selectedIds: [id] };
+          }
+        }),
+
+        setSelectedIds: (ids: string[]) => set(() => {
+          return {
+            selectedIds: ids,
+            selectedId: ids.length === 1 ? ids[0] : (ids.length > 0 ? ids[0] : null)
+          };
+        }),
 
         canUndo: (): boolean => {
           return (useCanvas as any).temporal?.getState().pastStates.length > 0;
@@ -191,10 +207,10 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           const newCard: CardElement = {
             id: cardId,
             type: 'box', // BoxAnnotation datatype
-            x,
-            y,
-            width: componentType ? defaultWidth : (width !== undefined ? width : defaultWidth),
-            height: componentType ? defaultHeight : (height !== undefined ? height : defaultHeight),
+            x: Math.round(x / 10) * 10,
+            y: Math.round(y / 10) * 10,
+            width: componentType ? defaultWidth : (width !== undefined ? Math.round(width / 10) * 10 : defaultWidth),
+            height: componentType ? defaultHeight : (height !== undefined ? Math.round(height / 10) * 10 : defaultHeight),
             title: componentType ? undefined : title,
             content: componentType ? undefined : content,
             color,
@@ -233,9 +249,18 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           const nextElements = get().elements.map((el) => {
             if (el.id !== id) return el;
+            
+            const snappedUpdates = { ...updates };
+            if (el.type === 'box') {
+              if (snappedUpdates.x !== undefined) snappedUpdates.x = Math.round(snappedUpdates.x / 10) * 10;
+              if (snappedUpdates.y !== undefined) snappedUpdates.y = Math.round(snappedUpdates.y / 10) * 10;
+              if (snappedUpdates.width !== undefined) snappedUpdates.width = Math.round(snappedUpdates.width / 10) * 10;
+              if (snappedUpdates.height !== undefined) snappedUpdates.height = Math.round(snappedUpdates.height / 10) * 10;
+            }
+
             return {
               ...el,
-              ...updates
+              ...snappedUpdates
             } as CanvasElement;
           });
 
@@ -250,7 +275,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           const nextElements = get().elements.map((el) => {
             if (el.id !== id || el.type !== 'box') return el;
-            return { ...el, x, y };
+            return { ...el, x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10 };
           });
           set({ elements: nextElements });
         },
@@ -261,7 +286,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           const nextElements = get().elements.map((el) => {
             if (el.id !== id || el.type !== 'box') return el;
             if ((el as CardElement).componentType) return el; // Prevent resizing passive components
-            return { ...el, width, height };
+            return { ...el, width: Math.round(width / 10) * 10, height: Math.round(height / 10) * 10 };
           });
           set({ elements: nextElements });
         },
@@ -280,16 +305,19 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         deleteElement: (id: string) => {
           (useCanvas as any).temporal?.getState().resume();
 
+          const idsToDelete = get().selectedIds.includes(id) ? get().selectedIds : [id];
+
           const nextElements = get().elements.filter((el) => {
-            if (el.id === id) return false;
+            if (idsToDelete.includes(el.id)) return false;
             if (el.type === 'arrow') {
               const arrow = el as ArrowElement;
-              return arrow.fromId !== id && arrow.toId !== id;
+              return (!arrow.fromId || !idsToDelete.includes(arrow.fromId)) && 
+                     (!arrow.toId || !idsToDelete.includes(arrow.toId));
             }
             return true;
           });
 
-          set({ elements: nextElements, selectedId: null });
+          set({ elements: nextElements, selectedId: null, selectedIds: [] });
           saveToStorage(nextElements);
         },
 

@@ -12,9 +12,11 @@ function App() {
   const {
     elements,
     selectedId,
+    selectedIds,
     activeTool,
     setActiveTool,
     setSelectedId,
+    setSelectedIds,
     addCard,
     addArrow,
     updateElement,
@@ -444,8 +446,10 @@ function App() {
         pan={offset}
         zoom={zoom}
         selectedId={selectedId}
+        selectedIds={selectedIds}
         activeTool={activeTool}
         setSelectedId={setSelectedId}
+        setSelectedIds={setSelectedIds}
         setPan={setOffset}
         setZoom={setZoom}
         addCard={addCard}
