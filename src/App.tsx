@@ -46,6 +46,13 @@ function App() {
   // Handle keyboard hotkeys globally
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape key cancels active tools, blurs inputs, and resets to select mode
+      if (e.key === 'Escape') {
+        (document.activeElement as HTMLElement)?.blur();
+        setActiveTool('select');
+        return;
+      }
+
       // Ignore key binds if typing in input textareas
       if (
         document.activeElement?.tagName === 'INPUT' ||
