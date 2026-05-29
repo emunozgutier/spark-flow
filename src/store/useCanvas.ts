@@ -154,22 +154,25 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           let content = 'Click here to write something wonderful...';
           let color: ThemeColor = 'amethyst';
 
-          if (componentType === 'resistor') {
-            title = 'Resistor';
-            content = '1kΩ\nResistance: 1kΩ\nMax Power: 0.25W';
-            color = 'amber';
-            defaultWidth = 100;
-            defaultHeight = 90;
-          } else if (componentType === 'capacitor') {
-            title = 'Capacitor';
-            content = '10µF\nCapacitance: 10µF\nMax Voltage: 16V';
-            color = 'sapphire';
-            defaultWidth = 100;
-            defaultHeight = 90;
-          } else if (componentType === 'inductor') {
-            title = 'Inductor';
-            content = '10mH\nInductance: 10mH\nMax Current: 0.5A';
-            color = 'emerald';
+          let val: number | undefined = undefined;
+          let instanceNumber: number | undefined = undefined;
+
+          if (componentType) {
+            const sameTypeElements = get().elements.filter(
+              (el) => el.type === 'box' && (el as CardElement).componentType === componentType
+            );
+            instanceNumber = sameTypeElements.length + 1;
+
+            if (componentType === 'resistor') {
+              val = 1000;
+              color = 'amber';
+            } else if (componentType === 'capacitor') {
+              val = 10e-6; // 10uF
+              color = 'sapphire';
+            } else if (componentType === 'inductor') {
+              val = 10e-3; // 10mH
+              color = 'emerald';
+            }
             defaultWidth = 100;
             defaultHeight = 90;
           } else {
@@ -184,10 +187,12 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             y,
             width: width !== undefined ? width : defaultWidth,
             height: height !== undefined ? height : defaultHeight,
-            title,
-            content,
+            title: componentType ? undefined : title,
+            content: componentType ? undefined : content,
             color,
-            componentType
+            componentType,
+            instanceNumber,
+            value: val
           };
 
           const nextElements = [...get().elements, newCard];

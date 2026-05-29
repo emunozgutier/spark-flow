@@ -133,6 +133,32 @@ function App() {
   // Compile standalone static SVG vector representation of the flow board
   const handleExportSVG = () => {
     try {
+      const formatEngineering = (val: number | undefined): string => {
+        if (val === undefined || isNaN(val)) return '';
+        if (val === 0) return '0';
+        const absVal = Math.abs(val);
+        const prefixes = [
+          { value: 1e9, symbol: 'G' },
+          { value: 1e6, symbol: 'M' },
+          { value: 1e3, symbol: 'k' },
+          { value: 1, symbol: '' },
+          { value: 1e-3, symbol: 'm' },
+          { value: 1e-6, symbol: 'u' },
+          { value: 1e-9, symbol: 'n' },
+          { value: 1e-12, symbol: 'p' },
+          { value: 1e-15, symbol: 'f' }
+        ];
+        for (let i = 0; i < prefixes.length; i++) {
+          const p = prefixes[i];
+          if (absVal >= p.value) {
+            const num = val / p.value;
+            const formattedNum = parseFloat(num.toFixed(3));
+            return `${formattedNum}${p.symbol}`;
+          }
+        }
+        return val.toExponential(2);
+      };
+
       const cards = elements.filter((el: CanvasElement) => el.type === 'box') as CardElement[];
       const arrows = elements.filter((el: CanvasElement) => el.type === 'arrow') as ArrowElement[];
 
@@ -265,12 +291,42 @@ function App() {
       cards.forEach((card) => {
         const theme = hexColors[card.color] || hexColors.slate;
         
+        if (card.componentType) {
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+          const compName = `${prefix}${card.instanceNumber || 1}`;
+          const compVal = formatEngineering(card.value);
+
+          let symbolPathMarkup = '';
+          if (card.componentType === 'resistor') {
+            symbolPathMarkup = `<path d="M 0 15 L 12 15 L 16 5 L 24 25 L 32 5 L 40 25 L 44 15 L 60 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else if (card.componentType === 'capacitor') {
+            symbolPathMarkup = `<path d="M 0 15 L 24 15 M 36 15 L 60 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 24 5 L 24 25 M 36 5 L 36 25" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else if (card.componentType === 'inductor') {
+            symbolPathMarkup = `<path d="M 0 15 L 10 15 C 10 5, 20 5, 20 15 C 20 5, 30 5, 30 15 C 30 5, 40 5, 40 15 C 40 5, 50 5, 50 15 L 60 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+          }
+
+          cardMarkup += `
+            <g transform="translate(${card.x}, ${card.y})">
+              <g transform="translate(${(card.width - 60) / 2}, 15)">
+                ${symbolPathMarkup}
+              </g>
+              <text x="${card.width / 2}" y="62" fill="#ffffff" font-size="12" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
+                ${escapeXml(compName)}
+              </text>
+              <text x="${card.width / 2}" y="76" fill="${theme.main}" font-size="11" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">
+                ${escapeXml(compVal)}
+              </text>
+            </g>`;
+          return;
+        }
+
         // Wrap text to fit inside card layout limits
-        const titleText = escapeXml(card.title);
+        const titleText = escapeXml(card.title || '');
         
         // Split content text into nice rows
         const maxChar = 24;
-        const words = card.content.split(' ');
+        const words = (card.content || '').split(' ');
         const lines: string[] = [];
         let curLine = '';
         

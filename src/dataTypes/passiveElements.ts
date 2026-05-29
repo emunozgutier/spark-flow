@@ -3,7 +3,7 @@ import type { ThemeColor } from './AnotateType';
 
 /**
  * Resistor Structure
- * Represents a schematic resistor element on the canvas.
+ * Represents a schematic resistor element on the canvas with numerical parameters.
  */
 export interface Resistor extends BaseType {
   type: 'box';
@@ -12,14 +12,14 @@ export interface Resistor extends BaseType {
   y: number;
   width: number;
   height: number;
-  title: string;       // Component designator (e.g. "R1")
-  content: string;     // Value and details (e.g. "1kΩ\nMax Power: 0.25W")
+  instanceNumber: number; // Unique numerical identifier (e.g. 1 for R1)
+  value: number;          // Technical value in ohms (e.g. 1000 for 1k)
   color: ThemeColor;
 }
 
 /**
  * Capacitor Structure
- * Represents a schematic capacitor element on the canvas.
+ * Represents a schematic capacitor element on the canvas with numerical parameters.
  */
 export interface Capacitor extends BaseType {
   type: 'box';
@@ -28,14 +28,14 @@ export interface Capacitor extends BaseType {
   y: number;
   width: number;
   height: number;
-  title: string;       // Component designator (e.g. "C1")
-  content: string;     // Value and details (e.g. "10µF\nMax Voltage: 16V")
+  instanceNumber: number; // Unique numerical identifier (e.g. 1 for C1)
+  value: number;          // Technical value in farads (e.g. 10e-6 for 10u)
   color: ThemeColor;
 }
 
 /**
  * Inductor Structure
- * Represents a schematic inductor element on the canvas.
+ * Represents a schematic inductor element on the canvas with numerical parameters.
  */
 export interface Inductor extends BaseType {
   type: 'box';
@@ -44,8 +44,8 @@ export interface Inductor extends BaseType {
   y: number;
   width: number;
   height: number;
-  title: string;       // Component designator (e.g. "L1")
-  content: string;     // Value and details (e.g. "10mH\nMax Current: 0.5A")
+  instanceNumber: number; // Unique numerical identifier (e.g. 1 for L1)
+  value: number;          // Technical value in henries (e.g. 0.01 for 10m)
   color: ThemeColor;
 }
 

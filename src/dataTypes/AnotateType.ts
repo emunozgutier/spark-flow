@@ -19,10 +19,12 @@ export interface BoxAnnotation extends BaseType {
   y: number;
   width: number;
   height: number;
-  title: string;
-  content: string;
+  title?: string;
+  content?: string;
   color: ThemeColor;
   componentType?: 'resistor' | 'capacitor' | 'inductor';
+  instanceNumber?: number;
+  value?: number;
   borderColor?: string;
   backgroundColor?: string;
   borderRadius?: number;

@@ -1,6 +1,67 @@
 import React from 'react';
 import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../dataTypes/AnotateType';
 
+// Engineering notation and designator helpers
+const formatEngineering = (val: number | undefined): string => {
+  if (val === undefined || isNaN(val)) return '';
+  if (val === 0) return '0';
+  
+  const absVal = Math.abs(val);
+  const prefixes = [
+    { value: 1e9, symbol: 'G' },
+    { value: 1e6, symbol: 'M' },
+    { value: 1e3, symbol: 'k' },
+    { value: 1, symbol: '' },
+    { value: 1e-3, symbol: 'm' },
+    { value: 1e-6, symbol: 'u' },
+    { value: 1e-9, symbol: 'n' },
+    { value: 1e-12, symbol: 'p' },
+    { value: 1e-15, symbol: 'f' }
+  ];
+
+  for (let i = 0; i < prefixes.length; i++) {
+    const p = prefixes[i];
+    if (absVal >= p.value) {
+      const num = val / p.value;
+      const formattedNum = parseFloat(num.toFixed(3));
+      return `${formattedNum}${p.symbol}`;
+    }
+  }
+  
+  return val.toExponential(2);
+};
+
+const parseEngineering = (str: string): number => {
+  const trimmed = str.trim();
+  if (!trimmed) return 0;
+  
+  const match = trimmed.match(/^([+-]?\d*(?:\.\d+)?)\s*([a-zA-Zµ]?)$/);
+  if (!match) return parseFloat(trimmed) || 0;
+  
+  const [_, numStr, suffix] = match;
+  const num = parseFloat(numStr);
+  if (isNaN(num)) return 0;
+  
+  switch (suffix) {
+    case 'f': return num * 1e-15;
+    case 'p': return num * 1e-12;
+    case 'n': return num * 1e-9;
+    case 'u':
+    case 'µ': return num * 1e-6;
+    case 'm': return num * 1e-3;
+    case 'k': return num * 1e3;
+    case 'M': return num * 1e6;
+    case 'G': return num * 1e9;
+    default: return num;
+  }
+};
+
+const parseInstanceNumber = (str: string, prefixChar: string): number => {
+  const numStr = str.replace(new RegExp(`^${prefixChar}`, 'i'), '').trim();
+  const parsed = parseInt(numStr, 10);
+  return isNaN(parsed) ? 1 : parsed;
+};
+
 interface ElementSettingsProps {
   selectedElement: CanvasElement | null;
   onUpdateElement: (id: string, updates: Partial<any>) => void;
@@ -59,31 +120,70 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
       {/* Card Form Controls */}
       {isCard ? (
         <div className="sidebar-content">
-          {/* Card Title */}
-          <div className="sidebar-section">
-            <label className="sidebar-section-title" htmlFor="card-title">Card Header</label>
-            <input
-              id="card-title"
-              type="text"
-              className="inspector-input"
-              value={card.title}
-              onChange={(e) => onUpdateElement(card.id, { title: e.target.value })}
-              placeholder="e.g. Brainstorming"
-            />
-          </div>
+          {card.componentType ? (
+            <>
+              {/* Passive Component Designator */}
+              <div className="sidebar-section">
+                <label className="sidebar-section-title" htmlFor="comp-designator">Instance Designator</label>
+                <input
+                  id="comp-designator"
+                  type="text"
+                  className="inspector-input"
+                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
+                  onChange={(e) => {
+                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+                    const num = parseInstanceNumber(e.target.value, prefix);
+                    onUpdateElement(card.id, { instanceNumber: num });
+                  }}
+                  placeholder="e.g. C1"
+                />
+              </div>
 
-          {/* Card Body content */}
-          <div className="sidebar-section">
-            <label className="sidebar-section-title" htmlFor="card-body">Card Contents</label>
-            <textarea
-              id="card-body"
-              className="inspector-input"
-              style={{ minHeight: '120px', resize: 'vertical', lineHeight: '1.4' }}
-              value={card.content}
-              onChange={(e) => onUpdateElement(card.id, { content: e.target.value })}
-              placeholder="Write core description..."
-            />
-          </div>
+              {/* Passive Component Value */}
+              <div className="sidebar-section">
+                <label className="sidebar-section-title" htmlFor="comp-value">Component Value</label>
+                <input
+                  id="comp-value"
+                  type="text"
+                  className="inspector-input"
+                  value={formatEngineering(card.value)}
+                  onChange={(e) => {
+                    const val = parseEngineering(e.target.value);
+                    onUpdateElement(card.id, { value: val });
+                  }}
+                  placeholder="e.g. 10u"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Card Title */}
+              <div className="sidebar-section">
+                <label className="sidebar-section-title" htmlFor="card-title">Card Header</label>
+                <input
+                  id="card-title"
+                  type="text"
+                  className="inspector-input"
+                  value={card.title || ''}
+                  onChange={(e) => onUpdateElement(card.id, { title: e.target.value })}
+                  placeholder="e.g. Brainstorming"
+                />
+              </div>
+
+              {/* Card Body content */}
+              <div className="sidebar-section">
+                <label className="sidebar-section-title" htmlFor="card-body">Card Contents</label>
+                <textarea
+                  id="card-body"
+                  className="inspector-input"
+                  style={{ minHeight: '120px', resize: 'vertical', lineHeight: '1.4' }}
+                  value={card.content || ''}
+                  onChange={(e) => onUpdateElement(card.id, { content: e.target.value })}
+                  placeholder="Write core description..."
+                />
+              </div>
+            </>
+          )}
 
           {/* Card Theme Picker */}
           <div className="sidebar-section">
