@@ -96,3 +96,5 @@ export type AnnotationElement = BoxAnnotation | ArrowAnnotation | TextAnnotation
 export interface AnnotateState {
   annotations: AnnotationElement[];
 }
+
+export * from './passiveElements';

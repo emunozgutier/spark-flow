@@ -664,7 +664,141 @@ export const Canvas: React.FC<CanvasProps> = ({
         {/* 3. HTML Cards Layer (absolutely positioned) */}
         {cards.map((card) => {
           const isSelected = selectedId === card.id;
+          const isPassive = !!card.componentType;
           
+          if (isPassive) {
+            return (
+              <div
+                key={card.id}
+                className={`canvas-card passive-component ${isSelected ? 'selected' : ''}`}
+                style={{
+                  left: `${card.x}px`,
+                  top: `${card.y}px`,
+                  width: `${card.width}px`,
+                  height: `${card.height}px`,
+                  zIndex: isSelected ? 99 : 5,
+                  '--theme-color': `var(--theme-${card.color})`,
+                  '--theme-color-glow': `var(--theme-${card.color}-glow)`
+                } as React.CSSProperties}
+                onMouseDown={(e) => initiateCardDrag(card, e)}
+              >
+                {/* Passive Component schematic display */}
+                <div className="passive-symbol-container" style={{
+                  flexGrow: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%'
+                }}>
+                  {/* Schematic SVG */}
+                  {card.componentType === 'resistor' && (
+                    <svg width="70" height="30" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                      <path d="M 0 15 L 12 15 L 16 5 L 24 25 L 32 5 L 40 25 L 44 15 L 60 15" />
+                    </svg>
+                  )}
+                  {card.componentType === 'capacitor' && (
+                    <svg width="70" height="30" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                      <path d="M 0 15 L 24 15 M 36 15 L 60 15" />
+                      <path d="M 24 5 L 24 25 M 36 5 L 36 25" />
+                    </svg>
+                  )}
+                  {card.componentType === 'inductor' && (
+                    <svg width="70" height="30" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                      <path d="M 0 15 L 10 15 C 10 5, 20 5, 20 15 C 20 5, 30 5, 30 15 C 30 5, 40 5, 40 15 C 40 5, 50 5, 50 15 L 60 15" />
+                    </svg>
+                  )}
+
+                  {/* Component Label Text (Name & Value) */}
+                  <div className="passive-label" style={{
+                    marginTop: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1px',
+                    width: '100%',
+                    pointerEvents: 'auto'
+                  }}>
+                    <input
+                      type="text"
+                      className="passive-title-input"
+                      value={card.title}
+                      onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
+                      onBlur={finalizeDrag}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-sans)',
+                        fontWeight: 700,
+                        fontSize: '12px',
+                        textAlign: 'center',
+                        outline: 'none',
+                        width: '100%'
+                      }}
+                      placeholder="Name"
+                    />
+                    <input
+                      type="text"
+                      className="passive-value-input"
+                      value={card.content.split('\n')[0]}
+                      onChange={(e) => {
+                        const lines = card.content.split('\n');
+                        lines[0] = e.target.value;
+                        updateElement(card.id, { content: lines.join('\n') }, false);
+                      }}
+                      onBlur={finalizeDrag}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--theme-color)',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 600,
+                        fontSize: '11px',
+                        textAlign: 'center',
+                        outline: 'none',
+                        width: '100%'
+                      }}
+                      placeholder="Value"
+                    />
+                  </div>
+                </div>
+
+                {/* Sockets for Wire connections */}
+                {(activeTool === 'select' || activeTool === 'arrow') && (
+                  <>
+                    <div
+                      className="card-socket top"
+                      data-card-id={card.id}
+                      data-socket-dir="top"
+                      onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
+                    />
+                    <div
+                      className="card-socket right"
+                      data-card-id={card.id}
+                      data-socket-dir="right"
+                      onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
+                    />
+                    <div
+                      className="card-socket bottom"
+                      data-card-id={card.id}
+                      data-socket-dir="bottom"
+                      onMouseDown={(e) => initiateArrowDraw(card, 'bottom', e)}
+                    />
+                    <div
+                      className="card-socket left"
+                      data-card-id={card.id}
+                      data-socket-dir="left"
+                      onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
+                    />
+                  </>
+                )}
+              </div>
+            );
+          }
+
           return (
             <div
               key={card.id}
