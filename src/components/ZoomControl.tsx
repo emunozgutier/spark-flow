@@ -20,7 +20,7 @@ export const ZoomControl: React.FC<ZoomControlProps> = ({
   activeTool,
   setActiveTool,
 }) => {
-  const percent = Math.round(zoom * 100);
+  const percent = Math.round((zoom / 1.75) * 100);
 
   return (
     <>

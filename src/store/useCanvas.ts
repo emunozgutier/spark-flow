@@ -181,8 +181,8 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
               val = 10e-3; // 10mH
               color = 'emerald';
             }
-            defaultWidth = 100;
-            defaultHeight = 90;
+            defaultWidth = 60;
+            defaultHeight = 80;
           } else {
             const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
             color = colors[Math.floor(Math.random() * colors.length)];
@@ -193,8 +193,8 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             type: 'box', // BoxAnnotation datatype
             x,
             y,
-            width: width !== undefined ? width : defaultWidth,
-            height: height !== undefined ? height : defaultHeight,
+            width: componentType ? defaultWidth : (width !== undefined ? width : defaultWidth),
+            height: componentType ? defaultHeight : (height !== undefined ? height : defaultHeight),
             title: componentType ? undefined : title,
             content: componentType ? undefined : content,
             color,
@@ -260,6 +260,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           const nextElements = get().elements.map((el) => {
             if (el.id !== id || el.type !== 'box') return el;
+            if ((el as CardElement).componentType) return el; // Prevent resizing passive components
             return { ...el, width, height };
           });
           set({ elements: nextElements });

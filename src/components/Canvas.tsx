@@ -227,20 +227,22 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if (isUI) return;
 
-    // 2. Click-and-Hold to draw a custom Box in Card/Passive Tool mode
+    // 2. Click-to-spawn for fixed-size passive elements
     if (
-      activeTool === 'text' ||
       activeTool === 'resistor' ||
       activeTool === 'capacitor' ||
       activeTool === 'inductor'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      
-      let activeColor = useStyle.getState().themeColor;
-      if (activeTool === 'resistor') activeColor = 'amber';
-      else if (activeTool === 'capacitor') activeColor = 'sapphire';
-      else if (activeTool === 'inductor') activeColor = 'emerald';
+      addCard(clickCoords.x - 30, clickCoords.y - 40, 60, 80, activeTool);
+      e.preventDefault();
+      return;
+    }
 
+    // 3. Click-and-Hold to draw a custom Box for Text cards
+    if (activeTool === 'text') {
+      const clickCoords = screenToCanvas(e.clientX, e.clientY);
+      let activeColor = useStyle.getState().themeColor;
       setDrawingBox({
         startPoint: clickCoords,
         currentPoint: clickCoords,
@@ -326,14 +328,12 @@ export const Canvas: React.FC<CanvasProps> = ({
       const width = Math.abs(drawingBox.currentPoint.x - drawingBox.startPoint.x);
       const height = Math.abs(drawingBox.currentPoint.y - drawingBox.startPoint.y);
 
-      const componentType = (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor') ? activeTool : undefined;
-
       // If the drag shape size is extremely small (e.g. less than 15px), we treat it as a click-to-spawn centered box!
       if (width < 15 || height < 15) {
-        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, componentType);
+        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, undefined);
       } else {
-        // Spawn box with custom dimensions drawn!
-        addCard(x1, y1, width, height, componentType);
+        // Spawn standard box with custom dimensions drawn!
+        addCard(x1, y1, width, height, undefined);
       }
 
       setDrawingBox(null);
@@ -743,92 +743,80 @@ export const Canvas: React.FC<CanvasProps> = ({
                 } as React.CSSProperties}
                 onMouseDown={(e) => initiateCardDrag(card, e)}
               >
-                {/* Passive Component schematic display */}
-                <div className="passive-symbol-container" style={{
-                  flexGrow: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%'
-                }}>
-                  {/* Schematic SVG */}
-                  {card.componentType === 'resistor' && (
-                    <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
-                      <path d="M 0 15 L 20 15 L 25 5 L 35 25 L 45 5 L 55 25 L 65 5 L 75 25 L 80 15 L 100 15" />
-                    </svg>
-                  )}
-                  {card.componentType === 'capacitor' && (
-                    <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
-                      <path d="M 0 15 L 45 15 M 55 15 L 100 15" />
-                      <path d="M 45 5 L 45 25 M 55 5 L 55 25" />
-                    </svg>
-                  )}
-                  {card.componentType === 'inductor' && (
-                    <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
-                      <path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" />
-                    </svg>
-                  )}
+                {/* Schematic SVG */}
+                {card.componentType === 'resistor' && (
+                  <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                    <path d="M 0 15 L 20 15 L 25 5 L 35 25 L 45 5 L 55 25 L 65 5 L 75 25 L 80 15 L 100 15" />
+                  </svg>
+                )}
+                {card.componentType === 'capacitor' && (
+                  <svg width="100%" height="40" viewBox="0 0 100 40" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                    <path d="M 0 20 L 43 20 M 57 20 L 100 20" />
+                    <path d="M 43 5 L 43 35 M 57 5 L 57 35" />
+                  </svg>
+                )}
+                {card.componentType === 'inductor' && (
+                  <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                    <path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" />
+                  </svg>
+                )}
 
-                  {/* Component Label Text (Name & Value) */}
-                  <div className="passive-label" style={{
-                    marginTop: '6px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '1px',
+                {/* Designator (Name) at the top */}
+                <input
+                  type="text"
+                  className="passive-title-input"
+                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
+                  onChange={(e) => {
+                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
+                    const num = parseInstanceNumber(e.target.value, prefix);
+                    updateElement(card.id, { instanceNumber: num }, false);
+                  }}
+                  onBlur={finalizeDrag}
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    left: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    textAlign: 'center',
+                    outline: 'none',
                     width: '100%',
                     pointerEvents: 'auto'
-                  }}>
-                    <input
-                      type="text"
-                      className="passive-title-input"
-                      value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L'}${card.instanceNumber || 1}`}
-                      onChange={(e) => {
-                        const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : 'L';
-                        const num = parseInstanceNumber(e.target.value, prefix);
-                        updateElement(card.id, { instanceNumber: num }, false);
-                      }}
-                      onBlur={finalizeDrag}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-sans)',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        outline: 'none',
-                        width: '100%'
-                      }}
-                      placeholder="Name"
-                    />
-                    <input
-                      type="text"
-                      className="passive-value-input"
-                      value={formatEngineering(card.value)}
-                      onChange={(e) => {
-                        const num = parseEngineering(e.target.value);
-                        updateElement(card.id, { value: num }, false);
-                      }}
-                      onBlur={finalizeDrag}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--theme-color)',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 600,
-                        fontSize: '11px',
-                        textAlign: 'center',
-                        outline: 'none',
-                        width: '100%'
-                      }}
-                      placeholder="Value"
-                    />
-                  </div>
-                </div>
+                  }}
+                  placeholder="Name"
+                />
+
+                {/* Technical Value at the bottom */}
+                <input
+                  type="text"
+                  className="passive-value-input"
+                  value={formatEngineering(card.value)}
+                  onChange={(e) => {
+                    const num = parseEngineering(e.target.value);
+                    updateElement(card.id, { value: num }, false);
+                  }}
+                  onBlur={finalizeDrag}
+                  style={{
+                    position: 'absolute',
+                    bottom: '4px',
+                    left: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--theme-color)',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    fontSize: '11px',
+                    textAlign: 'center',
+                    outline: 'none',
+                    width: '100%',
+                    pointerEvents: 'auto'
+                  }}
+                  placeholder="Value"
+                />
 
                 {/* Sockets for Wire connections */}
                 {(activeTool === 'select' || activeTool === 'arrow') && (

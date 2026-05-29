@@ -625,8 +625,8 @@ svg marker {
   justify-content: center;
   align-items: center;
   padding: 0;
-  min-width: 80px;
-  min-height: 80px;
+  min-width: 0 !important;
+  min-height: 0 !important;
   cursor: grab;
 }
 
@@ -659,9 +659,27 @@ svg marker {
 
 /* Sockets on passive components should perfectly overlay on the lead ends */
 .canvas-card.passive-component .card-socket.left {
-  left: 6px;
+  left: 0px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-card.passive-component .card-socket.left:hover {
+  transform: translate(-50%, -50%) scale(1.4);
 }
 
 .canvas-card.passive-component .card-socket.right {
-  right: 6px;
+  left: 100%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-card.passive-component .card-socket.right:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
+/* Sockets on passive components that are connected should be hidden */
+.canvas-card.passive-component .card-socket:not(.open-port) {
+  opacity: 0;
+  pointer-events: auto;
 }

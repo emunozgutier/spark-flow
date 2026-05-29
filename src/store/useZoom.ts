@@ -13,7 +13,7 @@ interface ZoomState {
 }
 
 export const useZoom = create<ZoomState>((set, get) => ({
-  zoom: 1.0,
+  zoom: 1.75,
   offset: { x: 150, y: 150 },
   
   setZoom: (newZoom) => set((state) => {
@@ -34,7 +34,7 @@ export const useZoom = create<ZoomState>((set, get) => ({
 
   resetView: () => set({
     offset: { x: window.innerWidth / 2 - 400, y: window.innerHeight / 2 - 250 },
-    zoom: 1.0
+    zoom: 1.75
   }),
 
   fitView: (elements) => {
@@ -42,7 +42,7 @@ export const useZoom = create<ZoomState>((set, get) => ({
     if (cards.length === 0) {
       set({
         offset: { x: window.innerWidth / 2 - 400, y: window.innerHeight / 2 - 250 },
-        zoom: 1.0
+        zoom: 1.75
       });
       return;
     }
