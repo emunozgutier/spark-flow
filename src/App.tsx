@@ -305,17 +305,17 @@ function App() {
 
           let symbolPathMarkup = '';
           if (card.componentType === 'resistor') {
-            symbolPathMarkup = `<path d="M 0 15 L 12 15 L 16 5 L 24 25 L 32 5 L 40 25 L 44 15 L 60 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+            symbolPathMarkup = `<path d="M 0 15 L 20 15 L 25 5 L 35 25 L 45 5 L 55 25 L 65 5 L 75 25 L 80 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
           } else if (card.componentType === 'capacitor') {
-            symbolPathMarkup = `<path d="M 0 15 L 24 15 M 36 15 L 60 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M 24 5 L 24 25 M 36 5 L 36 25" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+            symbolPathMarkup = `<path d="M 0 15 L 45 15 M 55 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 45 5 L 45 25 M 55 5 L 55 25" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
           } else if (card.componentType === 'inductor') {
-            symbolPathMarkup = `<path d="M 0 15 L 10 15 C 10 5, 20 5, 20 15 C 20 5, 30 5, 30 15 C 30 5, 40 5, 40 15 C 40 5, 50 5, 50 15 L 60 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+            symbolPathMarkup = `<path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
           }
 
           cardMarkup += `
             <g transform="translate(${card.x}, ${card.y})">
-              <g transform="translate(${(card.width - 60) / 2}, 15)">
+              <g transform="translate(0, 15)">
                 ${symbolPathMarkup}
               </g>
               <text x="${card.width / 2}" y="62" fill="#ffffff" font-size="12" font-weight="bold" font-family="system-ui, sans-serif" text-anchor="middle">

@@ -756,19 +756,19 @@ export const Canvas: React.FC<CanvasProps> = ({
                 }}>
                   {/* Schematic SVG */}
                   {card.componentType === 'resistor' && (
-                    <svg width="70" height="30" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
-                      <path d="M 0 15 L 12 15 L 16 5 L 24 25 L 32 5 L 40 25 L 44 15 L 60 15" />
+                    <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                      <path d="M 0 15 L 20 15 L 25 5 L 35 25 L 45 5 L 55 25 L 65 5 L 75 25 L 80 15 L 100 15" />
                     </svg>
                   )}
                   {card.componentType === 'capacitor' && (
-                    <svg width="70" height="30" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
-                      <path d="M 0 15 L 24 15 M 36 15 L 60 15" />
-                      <path d="M 24 5 L 24 25 M 36 5 L 36 25" />
+                    <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                      <path d="M 0 15 L 45 15 M 55 15 L 100 15" />
+                      <path d="M 45 5 L 45 25 M 55 5 L 55 25" />
                     </svg>
                   )}
                   {card.componentType === 'inductor' && (
-                    <svg width="70" height="30" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
-                      <path d="M 0 15 L 10 15 C 10 5, 20 5, 20 15 C 20 5, 30 5, 30 15 C 30 5, 40 5, 40 15 C 40 5, 50 5, 50 15 L 60 15" />
+                    <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+                      <path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" />
                     </svg>
                   )}
 
