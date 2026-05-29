@@ -88,7 +88,7 @@ interface CanvasState {
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
-  addCard: (x: number, y: number) => void;
+  addCard: (x: number, y: number, width?: number, height?: number) => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -144,7 +144,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number) => {
+        addCard: (x: number, y: number, width?: number, height?: number) => {
           (useCanvas as any).temporal?.getState().resume();
           
           const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
@@ -155,8 +155,8 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             type: 'box', // BoxAnnotation datatype
             x,
             y,
-            width: 200,
-            height: 120,
+            width: width !== undefined ? width : 200,
+            height: height !== undefined ? height : 120,
             title: 'New Idea',
             content: 'Click here to write something wonderful...',
             color: randomColor
