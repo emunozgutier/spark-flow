@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useStyle } from '../store/useStyle';
 import type {
   CanvasElement,
   CardElement,
@@ -19,7 +20,7 @@ interface CanvasProps {
   setSelectedId: (id: string | null) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number) => void;
+  addCard: (x: number, y: number, width?: number, height?: number) => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -51,6 +52,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null);
   const [resizingCard, setResizingCard] = useState<{ id: string; startWidth: number; startHeight: number; startMouseX: number; startMouseY: number } | null>(null);
   const [drawingArrow, setDrawingArrow] = useState<DrawingArrowState | null>(null);
+  const [drawingBox, setDrawingBox] = useState<{ startPoint: Point; currentPoint: Point; color: ThemeColor } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
@@ -154,11 +156,17 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
-    // 2. Click to spawn card in Card Tool mode
-    if (activeTool === 'text' && e.target === containerRef.current || e.target === containerRef.current?.querySelector('.canvas-grid')) {
+    // 2. Click-and-Hold to draw a custom Box in Card Tool mode
+    if (activeTool === 'text' && (e.target === containerRef.current || e.target === containerRef.current?.querySelector('.canvas-grid') || e.target?.toString() === '[object SVGSVGElement]')) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      // Spawn new card centered around mouse click
-      addCard(clickCoords.x - 100, clickCoords.y - 60);
+      const activeColor = useStyle.getState().themeColor; // Fetch active style theme color
+
+      setDrawingBox({
+        startPoint: clickCoords,
+        currentPoint: clickCoords,
+        color: activeColor
+      });
+      e.preventDefault();
       return;
     }
 
@@ -179,14 +187,22 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
+    // 1.5 Box Drawing state
+    if (drawingBox) {
+      const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
+      setDrawingBox({
+        ...drawingBox,
+        currentPoint: mouseCanvas
+      });
+      return;
+    }
+
     // 2. Dragging Card state
     if (draggingCard) {
-      // Delta needs to scale inversely with zoom factor to prevent dragging offset drift
       const deltaX = (e.clientX - draggingCard.startX) / zoom;
       const deltaY = (e.clientY - draggingCard.startY) / zoom;
 
-      // Optional snap-to-grid alignment during drag (e.g. 10px snap)
-      const snapVal = 1; // Smooth movement
+      const snapVal = 1;
       const nextX = Math.round((draggingCard.originalX + deltaX) / snapVal) * snapVal;
       const nextY = Math.round((draggingCard.originalY + deltaY) / snapVal) * snapVal;
 
@@ -224,20 +240,37 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
+    if (drawingBox) {
+      const x1 = Math.min(drawingBox.startPoint.x, drawingBox.currentPoint.x);
+      const y1 = Math.min(drawingBox.startPoint.y, drawingBox.currentPoint.y);
+      const width = Math.abs(drawingBox.currentPoint.x - drawingBox.startPoint.x);
+      const height = Math.abs(drawingBox.currentPoint.y - drawingBox.startPoint.y);
+
+      // If the drag shape size is extremely small (e.g. less than 15px), we treat it as a click-to-spawn centered box!
+      if (width < 15 || height < 15) {
+        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60);
+      } else {
+        // Spawn box with custom dimensions drawn!
+        addCard(x1, y1, width, height);
+      }
+
+      setDrawingBox(null);
+      return;
+    }
+
     if (draggingCard) {
       setDraggingCard(null);
-      finalizeDrag(); // Write finalized position to History
+      finalizeDrag();
       return;
     }
 
     if (resizingCard) {
       setResizingCard(null);
-      finalizeDrag(); // Write resized geometry to History
+      finalizeDrag();
       return;
     }
 
     if (drawingArrow) {
-      // Clean up arrow preview state
       const targetElement = e.target as HTMLElement;
       const isSocket = targetElement.classList.contains('card-socket');
       
@@ -246,7 +279,6 @@ export const Canvas: React.FC<CanvasProps> = ({
         const toSocketDir = targetElement.getAttribute('data-socket-dir') as 'top' | 'right' | 'bottom' | 'left';
         
         if (toCardId && toSocketDir && (toCardId !== drawingArrow.fromId)) {
-          // Anchored link complete! Add new arrow
           addArrow({
             fromId: drawingArrow.fromId,
             fromSocket: drawingArrow.fromSocket,
@@ -258,15 +290,12 @@ export const Canvas: React.FC<CanvasProps> = ({
           });
         }
       } else if (activeTool === 'arrow') {
-        // If let go on empty canvas, let's spawn a connected CARD there! (Premium feature)
         const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
         
-        // Spawn card
         const cardColors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
         const randomColor = cardColors[Math.floor(Math.random() * cardColors.length)];
         const newCardId = `card-${Date.now()}`;
         
-        // Add new connected Card and structural arrow manually
         const newCard: CardElement = {
           id: newCardId,
           type: 'box',
@@ -279,8 +308,6 @@ export const Canvas: React.FC<CanvasProps> = ({
           color: randomColor
         };
 
-        // Create the connection (anchored from source card to this newly created card)
-        // Detect closest incoming socket on the new card based on geometry
         const sourceCard = elements.find(el => el.id === drawingArrow.fromId) as CardElement;
         let incomingSocket: 'top' | 'right' | 'bottom' | 'left' = 'left';
         if (sourceCard) {
@@ -293,8 +320,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           }
         }
 
-        // Add the elements to state inside a single transaction
-        updateElement(newCardId, newCard); // Simulates adding
+        updateElement(newCardId, newCard);
         addArrow({
           fromId: drawingArrow.fromId,
           fromSocket: drawingArrow.fromSocket,
@@ -313,7 +339,6 @@ export const Canvas: React.FC<CanvasProps> = ({
   // Node drag parameters setup
   const initiateCardDrag = (card: CardElement, e: React.MouseEvent) => {
     if (activeTool !== 'select') return;
-    // Don't drag if focus is active on editable text inputs
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) {
       return;
     }
@@ -372,11 +397,9 @@ export const Canvas: React.FC<CanvasProps> = ({
       return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
     }
 
-    // Curved Bezier calculation based on anchors orientation
     let controlPoint1 = { ...from };
     let controlPoint2 = { ...to };
     
-    // Extrusion distance offset
     const dx = Math.abs(to.x - from.x);
     const dy = Math.abs(to.y - from.y);
     const handleOffset = Math.max(Math.min(dx, dy) * 0.75, 45);
@@ -387,7 +410,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       if (fromDir === 'bottom') controlPoint1.y += handleOffset;
       if (fromDir === 'top') controlPoint1.y -= handleOffset;
     } else {
-      controlPoint1.x += handleOffset; // default exit right
+      controlPoint1.x += handleOffset;
     }
 
     if (toDir) {
@@ -396,7 +419,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       if (toDir === 'bottom') controlPoint2.y += handleOffset;
       if (toDir === 'top') controlPoint2.y -= handleOffset;
     } else {
-      controlPoint2.x -= handleOffset; // default enter left
+      controlPoint2.x -= handleOffset;
     }
 
     return `M ${from.x} ${from.y} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${to.x} ${to.y}`;
@@ -425,7 +448,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       onMouseUp={handleMouseUp}
       style={{ touchAction: 'none' }}
     >
-      {/* 1. Vector Grid Background layer (scales & moves with pan/zoom) */}
+      {/* 1. Vector Grid Background layer */}
       <div
         className="canvas-grid"
         style={{
@@ -435,11 +458,11 @@ export const Canvas: React.FC<CanvasProps> = ({
             : 'none',
           backgroundSize: '40px 40px, 20px 20px',
           backgroundPosition: '0 0, 10px 10px',
-          width: '50000px', // Large space for "infinite" canvas translation bounds
+          width: '50000px',
           height: '50000px',
           top: '-25000px',
           left: '-25000px',
-          opacity: Math.min(1.0, zoom * 1.5) // Fades out dots when zoomed out far to look slick
+          opacity: Math.min(1.0, zoom * 1.5)
         }}
       />
 
@@ -450,7 +473,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
         }}
       >
-        {/* 2. SVG Overlay Layer (Connectors, paths, labels, anchors) */}
+        {/* 2. SVG Overlay Layer (Connectors) */}
         <svg
           style={{
             position: 'absolute',
@@ -500,7 +523,6 @@ export const Canvas: React.FC<CanvasProps> = ({
             let startPt = arrow.fromPoint || { x: 0, y: 0 };
             let endPt = arrow.toPoint || { x: 0, y: 0 };
 
-            // Resolve actual socket placements if anchored to cards
             const fromCard = cards.find((c) => c.id === arrow.fromId);
             const toCard = cards.find((c) => c.id === arrow.toId);
 
@@ -524,7 +546,6 @@ export const Canvas: React.FC<CanvasProps> = ({
             const strokeColorVal = isSelected ? '#ffffff' : `var(--theme-${arrow.color})`;
             const isDashed = arrow.style === 'dashed';
 
-            // Curve middle point for text label anchor
             const midX = (startPt.x + endPt.x) / 2;
             const midY = (startPt.y + endPt.y) / 2;
 
@@ -537,14 +558,12 @@ export const Canvas: React.FC<CanvasProps> = ({
                   setSelectedId(arrow.id);
                 }}
               >
-                {/* Thick invisible interaction background line to make clicking easy */}
                 <path
                   d={pathStr}
                   fill="none"
                   stroke="transparent"
                   strokeWidth="16"
                 />
-                {/* Visual outline line */}
                 <path
                   d={pathStr}
                   fill="none"
@@ -554,7 +573,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                   markerEnd={`url(#arrowhead-${strokeColorName})`}
                   style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
                 />
-                {/* Text Labels overlaid */}
                 {arrow.label && (
                   <g>
                     <rect
@@ -597,6 +615,30 @@ export const Canvas: React.FC<CanvasProps> = ({
           )}
         </svg>
 
+        {/* Render temporary live box drawing preview */}
+        {drawingBox && (
+          <div
+            className="canvas-card animate-fade-in"
+            style={{
+              left: `${Math.min(drawingBox.startPoint.x, drawingBox.currentPoint.x)}px`,
+              top: `${Math.min(drawingBox.startPoint.y, drawingBox.currentPoint.y)}px`,
+              width: `${Math.abs(drawingBox.currentPoint.x - drawingBox.startPoint.x)}px`,
+              height: `${Math.abs(drawingBox.currentPoint.y - drawingBox.startPoint.y)}px`,
+              border: '2px dashed var(--theme-color)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              boxShadow: '0 0 15px var(--theme-color-glow)',
+              pointerEvents: 'none',
+              zIndex: 999,
+              '--theme-color': `var(--theme-${drawingBox.color})`,
+              '--theme-color-glow': `var(--theme-${drawingBox.color}-glow)`
+            } as React.CSSProperties}
+          >
+            <div className="card-header" style={{ opacity: 0.5 }}>
+              <span className="card-title-input" style={{ fontStyle: 'italic' }}>Drawing Box...</span>
+            </div>
+          </div>
+        )}
+
         {/* 3. HTML Cards Layer (absolutely positioned) */}
         {cards.map((card) => {
           const isSelected = selectedId === card.id;
@@ -611,25 +653,22 @@ export const Canvas: React.FC<CanvasProps> = ({
                 width: `${card.width}px`,
                 height: `${card.height}px`,
                 zIndex: isSelected ? 99 : 5,
-                /* Custom mapping variables inside React style */
                 '--theme-color': `var(--theme-${card.color})`,
                 '--theme-color-glow': `var(--theme-${card.color}-glow)`
               } as React.CSSProperties}
               onMouseDown={(e) => initiateCardDrag(card, e)}
             >
-              {/* Card Header title editor */}
               <div className="card-header">
                 <input
                   type="text"
                   className="card-title-input"
                   value={card.title}
                   onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
-                  onBlur={finalizeDrag} // Record to history once cursor releases
+                  onBlur={finalizeDrag}
                   placeholder="Idea Title"
                 />
               </div>
 
-              {/* Card Body text editor */}
               <div className="card-body">
                 <textarea
                   className="card-textarea"
@@ -640,7 +679,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                 />
               </div>
 
-              {/* Edge Connection Sockets - show only in select or arrow tool states */}
               {(activeTool === 'select' || activeTool === 'arrow') && (
                 <>
                   <div
@@ -670,7 +708,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                 </>
               )}
 
-              {/* Bottom-right drag resize corner handle */}
               {activeTool === 'select' && (
                 <div
                   className="card-resize-handle"
@@ -685,7 +722,6 @@ export const Canvas: React.FC<CanvasProps> = ({
   );
 };
 
-// Static definition array for icon marker mapping
 const COLOR_THEMES: { name: ThemeColor; value: string }[] = [
   { name: 'slate', value: '#64748b' },
   { name: 'amethyst', value: '#a855f7' },
