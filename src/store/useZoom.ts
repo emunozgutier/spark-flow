@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Point, CanvasElement, CardElement } from '../types';
+import type { Point, CanvasElement, CardElement } from '../dataTypes/AnotateType';
 
 interface ZoomState {
   zoom: number;

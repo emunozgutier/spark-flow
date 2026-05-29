@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ToolType } from '../types';
+import type { ToolType } from '../dataTypes/AnotateType';
 
 interface ToolbarProps {
   activeTool: ToolType;

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ThemeColor } from '../types';
+import type { ThemeColor } from '../dataTypes/AnotateType';
 
 export interface ColorThemeDefinition {
   name: ThemeColor;
