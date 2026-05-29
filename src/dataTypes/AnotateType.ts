@@ -1,16 +1,19 @@
+import type { BaseType } from './BaseType';
+
 export interface Point {
   x: number;
   y: number;
 }
 
+export type ToolType = 'select' | 'text' | 'arrow' | 'hand';
+
 export type ThemeColor = 'amethyst' | 'emerald' | 'sapphire' | 'amber' | 'coral' | 'slate';
 
 /**
  * Box Annotation Structure
- * Represents a styled layout card container on the infinite canvas.
+ * Represents a styled box card container on the canvas.
  */
-export interface BoxAnnotation {
-  id: string;
+export interface BoxAnnotation extends BaseType {
   type: 'box';
   x: number;
   y: number;
@@ -26,10 +29,9 @@ export interface BoxAnnotation {
 
 /**
  * Arrow Annotation Structure
- * Represents a vector connecting line linking shapes or empty grid nodes together.
+ * Represents a connecting vector line.
  */
-export interface ArrowAnnotation {
-  id: string;
+export interface ArrowAnnotation extends BaseType {
   type: 'arrow';
   fromId?: string; // Anchored to a Box Annotation
   fromSocket?: 'top' | 'right' | 'bottom' | 'left';
@@ -45,10 +47,9 @@ export interface ArrowAnnotation {
 
 /**
  * Free Text Annotation Structure
- * Represents floating textual annotations overlaying elements.
+ * Represents overlaying textual comments.
  */
-export interface TextAnnotation {
-  id: string;
+export interface TextAnnotation extends BaseType {
   type: 'text';
   x: number;
   y: number;
@@ -58,6 +59,35 @@ export interface TextAnnotation {
   fontFamily?: string;
   isBold?: boolean;
   isItalic?: boolean;
+}
+
+// Backwards compatibility mappings for App & Canvas layout bindings
+export type CardElement = BoxAnnotation;
+export type ArrowElement = ArrowAnnotation;
+
+export type CanvasElement = BaseType;
+
+export interface CanvasState {
+  pan: Point;
+  zoom: number;
+  elements: CanvasElement[];
+}
+
+export interface DraggingCardState {
+  id: string;
+  startX: number;
+  startY: number;
+  originalX: number;
+  originalY: number;
+}
+
+export interface DrawingArrowState {
+  fromId?: string;
+  fromSocket?: 'top' | 'right' | 'bottom' | 'left';
+  fromPoint?: Point;
+  currentPoint: Point;
+  color: ThemeColor;
+  style: 'straight' | 'curved' | 'dashed';
 }
 
 export type AnnotationElement = BoxAnnotation | ArrowAnnotation | TextAnnotation;

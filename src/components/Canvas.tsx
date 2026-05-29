@@ -8,7 +8,7 @@ import type {
   ThemeColor,
   DraggingCardState,
   DrawingArrowState
-} from '../types';
+} from '../dataTypes/AnotateType';
 
 interface CanvasProps {
   elements: CanvasElement[];
@@ -21,7 +21,7 @@ interface CanvasProps {
   setZoom: (newZoom: number | ((z: number) => number)) => void;
   addCard: (x: number, y: number) => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
-  updateElement: (id: string, updates: Partial<CanvasElement>, record?: boolean) => void;
+  updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
   updateCardSize: (id: string, width: number, height: number) => void;
   finalizeDrag: () => void;
@@ -269,7 +269,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         // Add new connected Card and structural arrow manually
         const newCard: CardElement = {
           id: newCardId,
-          type: 'card',
+          type: 'box',
           x: mouseCanvas.x - 100,
           y: mouseCanvas.y - 60,
           width: 200,
@@ -412,7 +412,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   // Find cards and arrow elements separated
-  const cards = elements.filter((el) => el.type === 'card') as CardElement[];
+  const cards = elements.filter((el) => el.type === 'box') as CardElement[];
   const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
 
   return (

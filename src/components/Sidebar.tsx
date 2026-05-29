@@ -1,9 +1,9 @@
 import React from 'react';
-import type { CanvasElement, ThemeColor } from '../types';
+import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../dataTypes/AnotateType';
 
 interface SidebarProps {
   selectedElement: CanvasElement | null;
-  onUpdateElement: (id: string, updates: Partial<CanvasElement>) => void;
+  onUpdateElement: (id: string, updates: Partial<any>) => void;
   onDeleteElement: (id: string) => void;
   onClose: () => void;
 }
@@ -35,7 +35,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  const isCard = selectedElement.type === 'card';
+  const isCard = selectedElement.type === 'box';
+  
+  // Cast types safely based on element type mapping
+  const card = selectedElement as CardElement;
+  const arrow = selectedElement as ArrowElement;
 
   return (
     <div className={`sidebar-panel glass-panel ${isOpen ? 'open' : ''} user-select-none`}>
@@ -62,8 +66,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               id="card-title"
               type="text"
               className="inspector-input"
-              value={selectedElement.title}
-              onChange={(e) => onUpdateElement(selectedElement.id, { title: e.target.value })}
+              value={card.title}
+              onChange={(e) => onUpdateElement(card.id, { title: e.target.value })}
               placeholder="e.g. Brainstorming"
             />
           </div>
@@ -75,8 +79,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               id="card-body"
               className="inspector-input"
               style={{ minHeight: '120px', resize: 'vertical', lineHeight: '1.4' }}
-              value={selectedElement.content}
-              onChange={(e) => onUpdateElement(selectedElement.id, { content: e.target.value })}
+              value={card.content}
+              onChange={(e) => onUpdateElement(card.id, { content: e.target.value })}
               placeholder="Write core description..."
             />
           </div>
@@ -88,9 +92,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {COLOR_THEMES.map((theme) => (
                 <button
                   key={theme.name}
-                  className={`color-option ${selectedElement.color === theme.name ? 'active' : ''}`}
+                  className={`color-option ${card.color === theme.name ? 'active' : ''}`}
                   style={{ backgroundColor: theme.value }}
-                  onClick={() => onUpdateElement(selectedElement.id, { color: theme.name })}
+                  onClick={() => onUpdateElement(card.id, { color: theme.name })}
                   title={theme.display}
                   aria-label={`Select ${theme.display} theme`}
                 />
@@ -102,10 +106,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-section" style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
             <span className="sidebar-section-title" style={{ margin: 0, fontSize: '10px' }}>Geometries</span>
             <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-              <div>X: {Math.round(selectedElement.x)}px</div>
-              <div>Y: {Math.round(selectedElement.y)}px</div>
-              <div>W: {selectedElement.width}px</div>
-              <div>H: {selectedElement.height}px</div>
+              <div>X: {Math.round(card.x)}px</div>
+              <div>Y: {Math.round(card.y)}px</div>
+              <div>W: {card.width}px</div>
+              <div>H: {card.height}px</div>
             </div>
           </div>
         </div>
@@ -119,8 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               id="arrow-label"
               type="text"
               className="inspector-input"
-              value={selectedElement.label || ''}
-              onChange={(e) => onUpdateElement(selectedElement.id, { label: e.target.value })}
+              value={arrow.label || ''}
+              onChange={(e) => onUpdateElement(arrow.id, { label: e.target.value })}
               placeholder="e.g. Next Step / Triggers"
             />
           </div>
@@ -130,20 +134,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <label className="sidebar-section-title">Link Geometry Style</label>
             <div className="style-select">
               <button
-                className={`style-option-btn ${selectedElement.style === 'curved' ? 'active' : ''}`}
-                onClick={() => onUpdateElement(selectedElement.id, { style: 'curved' })}
+                className={`style-option-btn ${arrow.style === 'curved' ? 'active' : ''}`}
+                onClick={() => onUpdateElement(arrow.id, { style: 'curved' })}
               >
                 Curved
               </button>
               <button
-                className={`style-option-btn ${selectedElement.style === 'straight' ? 'active' : ''}`}
-                onClick={() => onUpdateElement(selectedElement.id, { style: 'straight' })}
+                className={`style-option-btn ${arrow.style === 'straight' ? 'active' : ''}`}
+                onClick={() => onUpdateElement(arrow.id, { style: 'straight' })}
               >
                 Straight
               </button>
               <button
-                className={`style-option-btn ${selectedElement.style === 'dashed' ? 'active' : ''}`}
-                onClick={() => onUpdateElement(selectedElement.id, { style: 'dashed' })}
+                className={`style-option-btn ${arrow.style === 'dashed' ? 'active' : ''}`}
+                onClick={() => onUpdateElement(arrow.id, { style: 'dashed' })}
               >
                 Dashed
               </button>
@@ -157,9 +161,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {COLOR_THEMES.map((theme) => (
                 <button
                   key={theme.name}
-                  className={`color-option ${selectedElement.color === theme.name ? 'active' : ''}`}
+                  className={`color-option ${arrow.color === theme.name ? 'active' : ''}`}
                   style={{ backgroundColor: theme.value }}
-                  onClick={() => onUpdateElement(selectedElement.id, { color: theme.name })}
+                  onClick={() => onUpdateElement(arrow.id, { color: theme.name })}
                   title={theme.display}
                   aria-label={`Select ${theme.display} theme`}
                 />

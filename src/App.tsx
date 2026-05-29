@@ -5,7 +5,7 @@ import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { ZoomControl } from './components/ZoomControl';
 import { Sidebar } from './components/Sidebar';
-import type { CanvasElement, CardElement, ArrowElement } from './types';
+import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import './App.css';
 
 function App() {
@@ -122,7 +122,7 @@ function App() {
   // Compile standalone static SVG vector representation of the flow board
   const handleExportSVG = () => {
     try {
-      const cards = elements.filter((el: CanvasElement) => el.type === 'card') as CardElement[];
+      const cards = elements.filter((el: CanvasElement) => el.type === 'box') as CardElement[];
       const arrows = elements.filter((el: CanvasElement) => el.type === 'arrow') as ArrowElement[];
 
       if (cards.length === 0) {

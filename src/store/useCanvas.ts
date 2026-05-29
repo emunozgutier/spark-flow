@@ -2,15 +2,15 @@ import { create } from 'zustand';
 import type { UseBoundStore, StoreApi } from 'zustand';
 import { temporal } from 'zundo';
 import type { TemporalState } from 'zundo';
-import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor } from '../types';
+import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor } from '../dataTypes/AnotateType';
 
 const STORAGE_KEY = 'spark-flow:board-elements';
 
-// Beautiful preloaded starter board elements
+// Beautiful preloaded starter board elements (safely cast as CardElement/ArrowElement)
 const DEFAULT_ELEMENTS: CanvasElement[] = [
   {
     id: 'node-welcome',
-    type: 'card',
+    type: 'box',
     x: 100,
     y: 100,
     width: 240,
@@ -18,10 +18,10 @@ const DEFAULT_ELEMENTS: CanvasElement[] = [
     title: '✨ Welcome to Spark Flow',
     content: 'An elegant, high-performance infinite board. Double-click here to edit or customize colors in the right-side inspector.',
     color: 'amethyst'
-  },
+  } as CardElement,
   {
     id: 'node-canvas',
-    type: 'card',
+    type: 'box',
     x: 480,
     y: 0,
     width: 220,
@@ -29,10 +29,10 @@ const DEFAULT_ELEMENTS: CanvasElement[] = [
     title: '🚀 High Performance Grid',
     content: 'Pan around by holding Spacebar + Dragging, or scroll to zoom in/out relative to your mouse pointer.',
     color: 'sapphire'
-  },
+  } as CardElement,
   {
     id: 'node-arrows',
-    type: 'card',
+    type: 'box',
     x: 480,
     y: 220,
     width: 220,
@@ -40,7 +40,7 @@ const DEFAULT_ELEMENTS: CanvasElement[] = [
     title: '🔗 Anchored Connectors',
     content: 'Drag from card edge sockets to create arrows. Move cards, and arrows automatically stretch with them!',
     color: 'emerald'
-  },
+  } as CardElement,
   {
     id: 'arrow-1',
     type: 'arrow',
@@ -51,7 +51,7 @@ const DEFAULT_ELEMENTS: CanvasElement[] = [
     color: 'slate',
     style: 'curved',
     label: 'Interactive Zoom'
-  },
+  } as ArrowElement,
   {
     id: 'arrow-2',
     type: 'arrow',
@@ -62,7 +62,7 @@ const DEFAULT_ELEMENTS: CanvasElement[] = [
     color: 'amethyst',
     style: 'dashed',
     label: 'Dynamic Links'
-  }
+  } as ArrowElement
 ];
 
 const loadInitialElements = (): CanvasElement[] => {
@@ -90,7 +90,7 @@ interface CanvasState {
   setSelectedId: (id: string | null) => void;
   addCard: (x: number, y: number) => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
-  updateElement: (id: string, updates: Partial<CanvasElement>, record?: boolean) => void;
+  updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
   updateCardSize: (id: string, width: number, height: number) => void;
   finalizeDrag: () => void;
@@ -152,7 +152,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           const newCard: CardElement = {
             id: `card-${Date.now()}`,
-            type: 'card',
+            type: 'box', // BoxAnnotation datatype
             x,
             y,
             width: 200,
@@ -181,7 +181,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           saveToStorage(nextElements);
         },
 
-        updateElement: (id: string, updates: Partial<CanvasElement>, record = true) => {
+        updateElement: (id: string, updates: Partial<any>, record = true) => {
           const temporalApi = (useCanvas as any).temporal?.getState();
           if (record) {
             temporalApi?.resume();
@@ -207,7 +207,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           (useCanvas as any).temporal?.getState().pause();
 
           const nextElements = get().elements.map((el) => {
-            if (el.id !== id || el.type !== 'card') return el;
+            if (el.id !== id || el.type !== 'box') return el;
             return { ...el, x, y };
           });
           set({ elements: nextElements });
@@ -217,7 +217,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           (useCanvas as any).temporal?.getState().pause();
 
           const nextElements = get().elements.map((el) => {
-            if (el.id !== id || el.type !== 'card') return el;
+            if (el.id !== id || el.type !== 'box') return el;
             return { ...el, width, height };
           });
           set({ elements: nextElements });
@@ -240,7 +240,8 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           const nextElements = get().elements.filter((el) => {
             if (el.id === id) return false;
             if (el.type === 'arrow') {
-              return el.fromId !== id && el.toId !== id;
+              const arrow = el as ArrowElement;
+              return arrow.fromId !== id && arrow.toId !== id;
             }
             return true;
           });
