@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useStyle } from '../store/useStyle';
 import { PassiveElment } from './Canvas/PassiveElment';
+import { Anotations } from './Canvas/Anotations';
+import { Connections } from './Canvas/Connections';
 import type {
   CanvasElement,
   CardElement,
@@ -502,45 +504,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     });
   };
 
-  // Build arrow path string
-  const calculatePath = (
-    from: Point,
-    to: Point,
-    style: 'straight' | 'curved' | 'dashed',
-    fromDir?: 'top' | 'right' | 'bottom' | 'left',
-    toDir?: 'top' | 'right' | 'bottom' | 'left'
-  ) => {
-    if (style === 'straight' || style === 'dashed') {
-      return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-    }
 
-    let controlPoint1 = { ...from };
-    let controlPoint2 = { ...to };
-    
-    const dx = Math.abs(to.x - from.x);
-    const dy = Math.abs(to.y - from.y);
-    const handleOffset = Math.max(Math.min(dx, dy) * 0.75, 45);
-
-    if (fromDir) {
-      if (fromDir === 'right') controlPoint1.x += handleOffset;
-      if (fromDir === 'left') controlPoint1.x -= handleOffset;
-      if (fromDir === 'bottom') controlPoint1.y += handleOffset;
-      if (fromDir === 'top') controlPoint1.y -= handleOffset;
-    } else {
-      controlPoint1.x += handleOffset;
-    }
-
-    if (toDir) {
-      if (toDir === 'right') controlPoint2.x += handleOffset;
-      if (toDir === 'left') controlPoint2.x -= handleOffset;
-      if (toDir === 'bottom') controlPoint2.y += handleOffset;
-      if (toDir === 'top') controlPoint2.y -= handleOffset;
-    } else {
-      controlPoint2.x -= handleOffset;
-    }
-
-    return `M ${from.x} ${from.y} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${to.x} ${to.y}`;
-  };
 
   // Dynamic CSS Class determination for container cursor
   const getContainerClassName = () => {
@@ -591,143 +555,14 @@ export const Canvas: React.FC<CanvasProps> = ({
         }}
       >
         {/* 2. SVG Overlay Layer (Connectors) */}
-        <svg
-          style={{
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            overflow: 'visible',
-            top: 0,
-            left: 0,
-            pointerEvents: 'none'
-          }}
-        >
-          {/* arrowhead markers definitions */}
-          <defs>
-            {COLOR_THEMES.map((theme) => (
-              <marker
-                key={`marker-${theme.name}`}
-                id={`arrowhead-${theme.name}`}
-                markerWidth="8"
-                markerHeight="7"
-                refX="7.5"
-                refY="3.5"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 8 3.5, 0 7"
-                  fill={theme.value}
-                />
-              </marker>
-            ))}
-            <marker
-              id="arrowhead-white"
-              markerWidth="8"
-              markerHeight="7"
-              refX="7.5"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon
-                points="0 0, 8 3.5, 0 7"
-                fill="#ffffff"
-              />
-            </marker>
-          </defs>
-
-          {/* Render established connector lines */}
-          {arrows.map((arrow) => {
-            let startPt = arrow.fromPoint || { x: 0, y: 0 };
-            let endPt = arrow.toPoint || { x: 0, y: 0 };
-
-            const fromCard = cards.find((c) => c.id === arrow.fromId);
-            const toCard = cards.find((c) => c.id === arrow.toId);
-
-            if (arrow.fromId && fromCard && arrow.fromSocket) {
-              startPt = getSocketPosition(fromCard, arrow.fromSocket);
-            }
-            if (arrow.toId && toCard && arrow.toSocket) {
-              endPt = getSocketPosition(toCard, arrow.toSocket);
-            }
-
-            const pathStr = calculatePath(
-              startPt,
-              endPt,
-              arrow.style,
-              arrow.fromSocket,
-              arrow.toSocket
-            );
-
-            const isSelected = selectedId === arrow.id;
-            const strokeColorVal = isSelected ? '#ffffff' : '#64748b';
-            const isDashed = arrow.style === 'dashed';
-
-            const midX = (startPt.x + endPt.x) / 2;
-            const midY = (startPt.y + endPt.y) / 2;
-
-            return (
-              <g
-                key={arrow.id}
-                style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedId(arrow.id);
-                }}
-              >
-                <path
-                  d={pathStr}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth="16"
-                />
-                <path
-                  d={pathStr}
-                  fill="none"
-                  stroke={strokeColorVal}
-                  strokeWidth={isSelected ? '2.5' : '2'}
-                  strokeDasharray={isDashed ? '6,6' : 'none'}
-                  style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
-                />
-                {arrow.label && (
-                  <g>
-                    <rect
-                      x={midX - (arrow.label.length * 3.8) - 6}
-                      y={midY - 8}
-                      width={(arrow.label.length * 7.6) + 12}
-                      height="16"
-                      rx="4"
-                      fill="var(--bg-canvas)"
-                      stroke={isSelected ? '#ffffff' : 'var(--border-subtle)'}
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={midX}
-                      y={midY + 4}
-                      fill={isSelected ? '#ffffff' : 'var(--text-secondary)'}
-                      fontSize="10"
-                      fontWeight="bold"
-                      fontFamily="var(--font-sans)"
-                      textAnchor="middle"
-                    >
-                      {arrow.label}
-                    </text>
-                  </g>
-                )}
-              </g>
-            );
-          })}
-
-          {/* Render temporary live connector line preview when dragging socket */}
-          {drawingArrow && drawingArrow.fromPoint && (
-            <path
-              d={calculatePath(drawingArrow.fromPoint, drawingArrow.currentPoint, drawingArrow.style, drawingArrow.fromSocket)}
-              fill="none"
-              stroke="#64748b"
-              strokeWidth="2.0"
-              strokeDasharray="4,4"
-            />
-          )}
-        </svg>
+        <Connections
+          arrows={arrows}
+          cards={cards}
+          selectedId={selectedId}
+          setSelectedId={setSelectedId}
+          drawingArrow={drawingArrow}
+          getSocketPosition={getSocketPosition}
+        />
 
         {/* Render temporary live box drawing preview */}
         {drawingBox && (
@@ -795,79 +630,17 @@ export const Canvas: React.FC<CanvasProps> = ({
           }
 
           return (
-            <div
+            <Anotations
               key={card.id}
-              className={`canvas-card ${isSelected ? 'selected' : ''}`}
-              style={{
-                left: `${card.x}px`,
-                top: `${card.y}px`,
-                width: `${card.width}px`,
-                height: `${card.height}px`,
-                zIndex: isSelected ? 99 : 5,
-                '--theme-color': `var(--theme-${card.color})`,
-                '--theme-color-glow': `var(--theme-${card.color}-glow)`
-              } as React.CSSProperties}
-              onMouseDown={(e) => initiateCardDrag(card, e)}
-            >
-              <div className="card-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                  <input
-                    type="text"
-                    className="card-title-input"
-                    value={card.title}
-                    onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
-                    onBlur={finalizeDrag}
-                    placeholder="Component Title"
-                  />
-                </div>
-              </div>
-
-              <div className="card-body">
-                <textarea
-                  className="card-textarea"
-                  value={card.content}
-                  onChange={(e) => updateElement(card.id, { content: e.target.value }, false)}
-                  onBlur={finalizeDrag}
-                  placeholder="Describe your thoughts..."
-                />
-              </div>
-
-              {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (
-                <>
-                  <div
-                    className="card-socket top"
-                    data-card-id={card.id}
-                    data-socket-dir="top"
-                    onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
-                  />
-                  <div
-                    className="card-socket right"
-                    data-card-id={card.id}
-                    data-socket-dir="right"
-                    onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
-                  />
-                  <div
-                    className="card-socket bottom"
-                    data-card-id={card.id}
-                    data-socket-dir="bottom"
-                    onMouseDown={(e) => initiateArrowDraw(card, 'bottom', e)}
-                  />
-                  <div
-                    className="card-socket left"
-                    data-card-id={card.id}
-                    data-socket-dir="left"
-                    onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
-                  />
-                </>
-              )}
-
-              {activeTool === 'select' && (
-                <div
-                  className="card-resize-handle"
-                  onMouseDown={(e) => initiateCardResize(card, e)}
-                />
-              )}
-            </div>
+              card={card}
+              isSelected={isSelected}
+              activeTool={activeTool}
+              initiateCardDrag={initiateCardDrag}
+              initiateCardResize={initiateCardResize}
+              initiateArrowDraw={initiateArrowDraw}
+              updateElement={updateElement}
+              finalizeDrag={finalizeDrag}
+            />
           );
         })}
       </div>
@@ -875,11 +648,4 @@ export const Canvas: React.FC<CanvasProps> = ({
   );
 };
 
-const COLOR_THEMES: { name: ThemeColor; value: string }[] = [
-  { name: 'slate', value: '#64748b' },
-  { name: 'amethyst', value: '#a855f7' },
-  { name: 'sapphire', value: '#3b82f6' },
-  { name: 'emerald', value: '#10b981' },
-  { name: 'coral', value: '#f43f5e' },
-  { name: 'amber', value: '#f59e0b' },
-];
+
