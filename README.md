@@ -1,6 +1,14 @@
-# React + TypeScript + Vite
+# ⚡️ Spark Flow
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive, modern, and high-performance circuit simulation website.
+
+### 🌐 Live Demo
+The application is deployed and available to test on various screen sizes here:
+👉 **[Launch Spark Flow on GitHub Pages](https://emunozgutier.github.io/spark-flow/)**
+
+---
+
+## React + TypeScript + Vite
 
 Currently, two official plugins are available:
 
