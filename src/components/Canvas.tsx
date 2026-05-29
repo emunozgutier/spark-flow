@@ -20,7 +20,7 @@ interface CanvasProps {
   setSelectedId: (id: string | null) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number) => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -166,10 +166,19 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if (isUI) return;
 
-    // 2. Click-and-Hold to draw a custom Box in Card Tool mode
-    if (activeTool === 'text') {
+    // 2. Click-and-Hold to draw a custom Box in Card/Passive Tool mode
+    if (
+      activeTool === 'text' ||
+      activeTool === 'resistor' ||
+      activeTool === 'capacitor' ||
+      activeTool === 'inductor'
+    ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      const activeColor = useStyle.getState().themeColor; // Fetch active style theme color
+      
+      let activeColor = useStyle.getState().themeColor;
+      if (activeTool === 'resistor') activeColor = 'amber';
+      else if (activeTool === 'capacitor') activeColor = 'sapphire';
+      else if (activeTool === 'inductor') activeColor = 'emerald';
 
       setDrawingBox({
         startPoint: clickCoords,
@@ -256,12 +265,14 @@ export const Canvas: React.FC<CanvasProps> = ({
       const width = Math.abs(drawingBox.currentPoint.x - drawingBox.startPoint.x);
       const height = Math.abs(drawingBox.currentPoint.y - drawingBox.startPoint.y);
 
+      const componentType = (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor') ? activeTool : undefined;
+
       // If the drag shape size is extremely small (e.g. less than 15px), we treat it as a click-to-spawn centered box!
       if (width < 15 || height < 15) {
-        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60);
+        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, componentType);
       } else {
         // Spawn box with custom dimensions drawn!
-        addCard(x1, y1, width, height);
+        addCard(x1, y1, width, height, componentType);
       }
 
       setDrawingBox(null);
@@ -670,14 +681,36 @@ export const Canvas: React.FC<CanvasProps> = ({
               onMouseDown={(e) => initiateCardDrag(card, e)}
             >
               <div className="card-header">
-                <input
-                  type="text"
-                  className="card-title-input"
-                  value={card.title}
-                  onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
-                  onBlur={finalizeDrag}
-                  placeholder="Idea Title"
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                  {card.componentType && (
+                    <div className="component-icon" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', opacity: 0.85 }}>
+                      {card.componentType === 'resistor' && (
+                        <svg width="32" height="16" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M 0 15 L 12 15 L 16 5 L 24 25 L 32 5 L 40 25 L 44 15 L 60 15" />
+                        </svg>
+                      )}
+                      {card.componentType === 'capacitor' && (
+                        <svg width="32" height="16" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M 0 15 L 24 15 M 36 15 L 60 15" />
+                          <path d="M 24 5 L 24 25 M 36 5 L 36 25" />
+                        </svg>
+                      )}
+                      {card.componentType === 'inductor' && (
+                        <svg width="32" height="16" viewBox="0 0 60 30" fill="none" stroke="var(--theme-color)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M 0 15 L 10 15 C 10 5, 20 5, 20 15 C 20 5, 30 5, 30 15 C 30 5, 40 5, 40 15 C 40 5, 50 5, 50 15 L 60 15" />
+                        </svg>
+                      )}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    className="card-title-input"
+                    value={card.title}
+                    onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
+                    onBlur={finalizeDrag}
+                    placeholder="Component Title"
+                  />
+                </div>
               </div>
 
               <div className="card-body">

@@ -82,10 +82,20 @@ function App() {
           setActiveTool('text');
           break;
         case 'a':
-          setActiveTool('arrow');
+        case 'w':
+          setActiveTool('arrow'); // A or W for connector wire
           break;
         case 'h':
           setActiveTool('hand');
+          break;
+        case 'r':
+          setActiveTool('resistor');
+          break;
+        case 'c':
+          setActiveTool('capacitor');
+          break;
+        case 'i':
+          setActiveTool('inductor');
           break;
       }
     };
@@ -405,6 +415,8 @@ function App() {
         zoomOut={zoomOut}
         resetView={resetView}
         fitView={() => fitView(elements)}
+        activeTool={activeTool}
+        setActiveTool={setActiveTool}
       />
 
       {/* 4. Slide out element settings inspector (right-side) */}

@@ -88,7 +88,7 @@ interface CanvasState {
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
-  addCard: (x: number, y: number, width?: number, height?: number) => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -145,22 +145,49 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number, width?: number, height?: number) => {
+        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor') => {
           (useCanvas as any).temporal?.getState().resume();
           
-          const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
-          const randomColor = colors[Math.floor(Math.random() * colors.length)];
+          let defaultWidth = 200;
+          let defaultHeight = 120;
+          let title = 'New Idea';
+          let content = 'Click here to write something wonderful...';
+          let color: ThemeColor = 'amethyst';
+
+          if (componentType === 'resistor') {
+            title = 'Resistor';
+            content = '1kΩ\nResistance: 1kΩ\nMax Power: 0.25W';
+            color = 'amber';
+            defaultWidth = 100;
+            defaultHeight = 90;
+          } else if (componentType === 'capacitor') {
+            title = 'Capacitor';
+            content = '10µF\nCapacitance: 10µF\nMax Voltage: 16V';
+            color = 'sapphire';
+            defaultWidth = 100;
+            defaultHeight = 90;
+          } else if (componentType === 'inductor') {
+            title = 'Inductor';
+            content = '10mH\nInductance: 10mH\nMax Current: 0.5A';
+            color = 'emerald';
+            defaultWidth = 100;
+            defaultHeight = 90;
+          } else {
+            const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
+            color = colors[Math.floor(Math.random() * colors.length)];
+          }
 
           const newCard: CardElement = {
             id: `card-${Date.now()}`,
             type: 'box', // BoxAnnotation datatype
             x,
             y,
-            width: width !== undefined ? width : 200,
-            height: height !== undefined ? height : 120,
-            title: 'New Idea',
-            content: 'Click here to write something wonderful...',
-            color: randomColor
+            width: width !== undefined ? width : defaultWidth,
+            height: height !== undefined ? height : defaultHeight,
+            title,
+            content,
+            color,
+            componentType
           };
 
           const nextElements = [...get().elements, newCard];
