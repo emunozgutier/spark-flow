@@ -281,8 +281,9 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
 
     if (drawingArrow) {
-      const targetElement = e.target as HTMLElement;
-      const isSocket = targetElement.classList.contains('card-socket');
+      const realTarget = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const targetElement = realTarget || (e.target as HTMLElement);
+      const isSocket = targetElement?.classList.contains('card-socket');
       
       if (isSocket) {
         const toCardId = targetElement.getAttribute('data-card-id');

@@ -514,3 +514,101 @@ svg marker {
   padding: 4px 10px;
   user-select: none;
 }
+
+/* Double-Decker TopBar Styles */
+.topbar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+
+.topbar-main {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 10px;
+  border-radius: 14px;
+}
+
+.topbar-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: lowercase;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-btn.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.topbar-sub-bar-container {
+  pointer-events: auto;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.topbar-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 12px;
+  background: rgba(16, 18, 27, 0.85); /* Slightly darker/richer glass for the sub-bar */
+}
+
+/* Hybrid Icon + Text Buttons */
+.tool-btn.text-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  width: auto;
+  height: 32px;
+  font-size: 12px;
+  border-radius: 8px;
+  text-transform: lowercase;
+}
+
+.tool-btn.text-btn span {
+  font-weight: 600;
+  font-family: var(--font-sans);
+  letter-spacing: -0.2px;
+}
+
+/* Slide Down Sub-Bar Animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

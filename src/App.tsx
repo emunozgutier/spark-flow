@@ -23,6 +23,7 @@ function App() {
     finalizeDrag,
     deleteElement,
     clearCanvas,
+    loadElements,
     undo,
     redo,
     canUndo,
@@ -394,6 +395,7 @@ function App() {
         clearCanvas={clearCanvas}
         exportJSON={handleExportJSON}
         exportSVG={handleExportSVG}
+        loadElements={loadElements}
       />
 
       {/* 3. Bottom HUD zoom panel */}

@@ -96,6 +96,7 @@ interface CanvasState {
   finalizeDrag: () => void;
   deleteElement: (id: string) => void;
   clearCanvas: () => void;
+  loadElements: (elements: CanvasElement[]) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -254,6 +255,11 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           (useCanvas as any).temporal?.getState().resume();
           set({ elements: [], selectedId: null });
           saveToStorage([]);
+        },
+        loadElements: (elements: CanvasElement[]) => {
+          (useCanvas as any).temporal?.getState().resume();
+          set({ elements, selectedId: null });
+          saveToStorage(elements);
         }
       };
     },
