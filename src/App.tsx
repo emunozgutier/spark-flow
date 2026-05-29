@@ -5,7 +5,7 @@ import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { ZoomControl } from './components/ZoomControl';
 import { Sidebar } from './components/Sidebar';
-import type { CardElement, ArrowElement } from './types';
+import type { CanvasElement, CardElement, ArrowElement } from './types';
 import './App.css';
 
 function App() {
@@ -40,7 +40,7 @@ function App() {
     fitView,
   } = useZoom();
 
-  const selectedElement = elements.find((el) => el.id === selectedId) || null;
+  const selectedElement = elements.find((el: CanvasElement) => el.id === selectedId) || null;
 
   // Handle keyboard hotkeys globally
   useEffect(() => {
@@ -122,8 +122,8 @@ function App() {
   // Compile standalone static SVG vector representation of the flow board
   const handleExportSVG = () => {
     try {
-      const cards = elements.filter((el) => el.type === 'card') as CardElement[];
-      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+      const cards = elements.filter((el: CanvasElement) => el.type === 'card') as CardElement[];
+      const arrows = elements.filter((el: CanvasElement) => el.type === 'arrow') as ArrowElement[];
 
       if (cards.length === 0) {
         alert('Your board is empty. Add some cards before exporting!');
