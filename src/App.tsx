@@ -6,6 +6,7 @@ import { TopBar } from './components/TopBar';
 import { ZoomControl } from './components/ZoomControl';
 import { ElementSettings } from './components/ElementSettings';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
+import { formatEngineering } from './utils/math';
 import './App.css';
 
 function App() {
@@ -145,31 +146,6 @@ function App() {
   // Compile standalone static SVG vector representation of the flow board
   const handleExportSVG = () => {
     try {
-      const formatEngineering = (val: number | undefined): string => {
-        if (val === undefined || isNaN(val)) return '';
-        if (val === 0) return '0';
-        const absVal = Math.abs(val);
-        const prefixes = [
-          { value: 1e9, symbol: 'G' },
-          { value: 1e6, symbol: 'M' },
-          { value: 1e3, symbol: 'k' },
-          { value: 1, symbol: '' },
-          { value: 1e-3, symbol: 'm' },
-          { value: 1e-6, symbol: 'u' },
-          { value: 1e-9, symbol: 'n' },
-          { value: 1e-12, symbol: 'p' },
-          { value: 1e-15, symbol: 'f' }
-        ];
-        for (let i = 0; i < prefixes.length; i++) {
-          const p = prefixes[i];
-          if (absVal >= p.value) {
-            const num = val / p.value;
-            const formattedNum = parseFloat(num.toFixed(3));
-            return `${formattedNum}${p.symbol}`;
-          }
-        }
-        return val.toExponential(2);
-      };
 
       const cards = elements.filter((el: CanvasElement) => el.type === 'box') as CardElement[];
       const arrows = elements.filter((el: CanvasElement) => el.type === 'arrow') as ArrowElement[];
