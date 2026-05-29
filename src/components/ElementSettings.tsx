@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../dataTypes/AnotateType';
 
-interface SidebarProps {
+interface ElementSettingsProps {
   selectedElement: CanvasElement | null;
   onUpdateElement: (id: string, updates: Partial<any>) => void;
   onDeleteElement: (id: string) => void;
@@ -17,7 +17,7 @@ const COLOR_THEMES: { name: ThemeColor; value: string; display: string }[] = [
   { name: 'amber', value: 'var(--theme-amber)', display: 'Amber' },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const ElementSettings: React.FC<ElementSettingsProps> = ({
   selectedElement,
   onUpdateElement,
   onDeleteElement,

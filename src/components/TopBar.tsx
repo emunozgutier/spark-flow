@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ToolType } from '../dataTypes/AnotateType';
 
-interface ToolbarProps {
+interface TopBarProps {
   activeTool: ToolType;
   setActiveTool: (tool: ToolType) => void;
   undo: () => void;
@@ -13,7 +13,7 @@ interface ToolbarProps {
   exportSVG: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({
+export const TopBar: React.FC<TopBarProps> = ({
   activeTool,
   setActiveTool,
   undo,

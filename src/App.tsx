@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { useCanvas } from './store/useCanvas';
 import { useZoom } from './store/useZoom';
 import { Canvas } from './components/Canvas';
-import { Toolbar } from './components/Toolbar';
+import { TopBar } from './components/TopBar';
 import { ZoomControl } from './components/ZoomControl';
-import { Sidebar } from './components/Sidebar';
+import { ElementSettings } from './components/ElementSettings';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import './App.css';
 
@@ -383,8 +383,8 @@ function App() {
         deleteElement={deleteElement}
       />
 
-      {/* 2. Overlaid Floating Toolbar (top-center) */}
-      <Toolbar
+      {/* 2. Overlaid Floating TopBar (top-center) */}
+      <TopBar
         activeTool={activeTool}
         setActiveTool={setActiveTool}
         undo={undo}
@@ -405,8 +405,8 @@ function App() {
         fitView={() => fitView(elements)}
       />
 
-      {/* 4. Slide out sidebar inspector (right-side) */}
-      <Sidebar
+      {/* 4. Slide out element settings inspector (right-side) */}
+      <ElementSettings
         selectedElement={selectedElement}
         onUpdateElement={updateElement}
         onDeleteElement={deleteElement}

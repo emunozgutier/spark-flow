@@ -145,6 +145,14 @@ export const Canvas: React.FC<CanvasProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!containerRef.current) return;
 
+    // Detect if we clicked any card or panel UI element
+    const target = e.target as HTMLElement;
+    const isUI = target.closest('.canvas-card') || 
+                 target.closest('.card-socket') || 
+                 target.closest('.card-resize-handle') ||
+                 target.closest('.interactive-panel') || 
+                 target.closest('.sidebar-panel');
+
     // 1. Viewport panning via Spacebar, Middle mouse, or Hand Tool active
     const isMiddleClick = e.button === 1;
     const isHandMode = activeTool === 'hand' || spacePressed;
@@ -156,8 +164,10 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
+    if (isUI) return;
+
     // 2. Click-and-Hold to draw a custom Box in Card Tool mode
-    if (activeTool === 'text' && (e.target === containerRef.current || e.target === containerRef.current?.querySelector('.canvas-grid') || e.target?.toString() === '[object SVGSVGElement]')) {
+    if (activeTool === 'text') {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
       const activeColor = useStyle.getState().themeColor; // Fetch active style theme color
 
@@ -171,7 +181,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
 
     // 3. Clear selected node if clicking blank canvas
-    if (activeTool === 'select' && (e.target === containerRef.current || e.target === containerRef.current?.querySelector('.canvas-grid') || e.target?.toString() === '[object SVGSVGElement]')) {
+    if (activeTool === 'select') {
       setSelectedId(null);
     }
   };
