@@ -1,27 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useCanvasState } from './hooks/useCanvasState';
+import { useEffect } from 'react';
+import { useCanvas } from './store/useCanvas';
+import { useZoom } from './store/useZoom';
 import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { ZoomControl } from './components/ZoomControl';
 import { Sidebar } from './components/Sidebar';
-import type { ToolType, CardElement, ArrowElement } from './types';
+import type { CardElement, ArrowElement } from './types';
 import './App.css';
 
 function App() {
   const {
-    state,
-    pan,
-    zoom,
     elements,
     selectedId,
-    selectedElement,
+    activeTool,
+    setActiveTool,
     setSelectedId,
-    setPan,
-    setZoom,
-    undo,
-    redo,
-    resetView,
-    fitView,
     addCard,
     addArrow,
     updateElement,
@@ -30,11 +23,24 @@ function App() {
     finalizeDrag,
     deleteElement,
     clearCanvas,
+    undo,
+    redo,
     canUndo,
     canRedo,
-  } = useCanvasState();
+  } = useCanvas();
 
-  const [activeTool, setActiveTool] = useState<ToolType>('select');
+  const {
+    zoom,
+    offset,
+    setZoom,
+    setOffset,
+    zoomIn,
+    zoomOut,
+    resetView,
+    fitView,
+  } = useZoom();
+
+  const selectedElement = elements.find((el) => el.id === selectedId) || null;
 
   // Handle keyboard hotkeys globally
   useEffect(() => {
@@ -85,12 +91,20 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, setActiveTool]);
 
   // Export board data as a JSON document
   const handleExportJSON = () => {
     try {
-      const dataStr = JSON.stringify(state, null, 2);
+      const dataStr = JSON.stringify(
+        {
+          elements,
+          zoom,
+          pan: offset // Kept 'pan' key for backwards-compatibility of backups
+        },
+        null,
+        2
+      );
       const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
       
       const exportFileDefaultName = `spark-flow-board-${Date.now()}.json`;
@@ -187,21 +201,21 @@ function App() {
         } else {
           const dx = Math.abs(endPt.x - startPt.x);
           const dy = Math.abs(endPt.y - startPt.y);
-          const offset = Math.max(Math.min(dx, dy) * 0.75, 45);
+          const offsetDist = Math.max(Math.min(dx, dy) * 0.75, 45);
           
           let cp1 = { ...startPt };
           let cp2 = { ...endPt };
-          if (arrow.fromSocket === 'right') cp1.x += offset;
-          else if (arrow.fromSocket === 'left') cp1.x -= offset;
-          else if (arrow.fromSocket === 'bottom') cp1.y += offset;
-          else if (arrow.fromSocket === 'top') cp1.y -= offset;
-          else cp1.x += offset;
+          if (arrow.fromSocket === 'right') cp1.x += offsetDist;
+          else if (arrow.fromSocket === 'left') cp1.x -= offsetDist;
+          else if (arrow.fromSocket === 'bottom') cp1.y += offsetDist;
+          else if (arrow.fromSocket === 'top') cp1.y -= offsetDist;
+          else cp1.x += offsetDist;
 
-          if (arrow.toSocket === 'right') cp2.x += offset;
-          else if (arrow.toSocket === 'left') cp2.x -= offset;
-          else if (arrow.toSocket === 'bottom') cp2.y += offset;
-          else if (arrow.toSocket === 'top') cp2.y -= offset;
-          else cp2.x -= offset;
+          if (arrow.toSocket === 'right') cp2.x += offsetDist;
+          else if (arrow.toSocket === 'left') cp2.x -= offsetDist;
+          else if (arrow.toSocket === 'bottom') cp2.y += offsetDist;
+          else if (arrow.toSocket === 'top') cp2.y -= offsetDist;
+          else cp2.x -= offsetDist;
 
           path = `M ${startPt.x} ${startPt.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${endPt.x} ${endPt.y}`;
         }
@@ -353,12 +367,12 @@ function App() {
       {/* 1. Main Viewport Canvas */}
       <Canvas
         elements={elements}
-        pan={pan}
+        pan={offset}
         zoom={zoom}
         selectedId={selectedId}
         activeTool={activeTool}
         setSelectedId={setSelectedId}
-        setPan={setPan}
+        setPan={setOffset}
         setZoom={setZoom}
         addCard={addCard}
         addArrow={addArrow}
@@ -375,8 +389,8 @@ function App() {
         setActiveTool={setActiveTool}
         undo={undo}
         redo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
         clearCanvas={clearCanvas}
         exportJSON={handleExportJSON}
         exportSVG={handleExportSVG}
@@ -385,10 +399,10 @@ function App() {
       {/* 3. Bottom HUD zoom panel */}
       <ZoomControl
         zoom={zoom}
-        zoomIn={() => setZoom((z) => z + 0.1)}
-        zoomOut={() => setZoom((z) => z - 0.1)}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
         resetView={resetView}
-        fitView={fitView}
+        fitView={() => fitView(elements)}
       />
 
       {/* 4. Slide out sidebar inspector (right-side) */}
