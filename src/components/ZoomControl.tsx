@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface ControlPanelProps {
+interface ZoomControlProps {
   zoom: number;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -8,7 +8,7 @@ interface ControlPanelProps {
   fitView: () => void;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({
+export const ZoomControl: React.FC<ZoomControlProps> = ({
   zoom,
   zoomIn,
   zoomOut,

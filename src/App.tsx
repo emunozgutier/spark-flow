@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useCanvasState } from './hooks/useCanvasState';
 import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
-import { ControlPanel } from './components/ControlPanel';
+import { ZoomControl } from './components/ZoomControl';
 import { Sidebar } from './components/Sidebar';
 import type { ToolType, CardElement, ArrowElement } from './types';
 import './App.css';
@@ -383,7 +383,7 @@ function App() {
       />
 
       {/* 3. Bottom HUD zoom panel */}
-      <ControlPanel
+      <ZoomControl
         zoom={zoom}
         zoomIn={() => setZoom((z) => z + 0.1)}
         zoomOut={() => setZoom((z) => z - 0.1)}
