@@ -35,6 +35,7 @@ export interface BoxAnnotation extends BaseType {
   borderColor?: string;
   backgroundColor?: string;
   borderRadius?: number;
+  rotation?: number;
 }
 
 /**

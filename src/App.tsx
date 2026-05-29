@@ -227,10 +227,26 @@ function App() {
         const toCard = cards.find((c) => c.id === arrow.toId);
 
         const getSocketPt = (card: CardElement, socket: string) => {
-          if (socket === 'top') return { x: card.x + card.width / 2, y: card.y };
-          if (socket === 'right') return { x: card.x + card.width, y: card.y + card.height / 2 };
-          if (socket === 'bottom') return { x: card.x + card.width / 2, y: card.y + card.height };
-          return { x: card.x, y: card.y + card.height / 2 }; // left
+          let basePt = { x: 0, y: 0 };
+          if (socket === 'top') basePt = { x: card.x + card.width / 2, y: card.y };
+          else if (socket === 'right') basePt = { x: card.x + card.width, y: card.y + card.height / 2 };
+          else if (socket === 'bottom') basePt = { x: card.x + card.width / 2, y: card.y + card.height };
+          else basePt = { x: card.x, y: card.y + card.height / 2 }; // left
+
+          if (card.rotation && card.rotation !== 0) {
+            const cx = card.x + card.width / 2;
+            const cy = card.y + card.height / 2;
+            const rad = (card.rotation * Math.PI) / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            const dx = basePt.x - cx;
+            const dy = basePt.y - cy;
+            return {
+              x: cx + dx * cos - dy * sin,
+              y: cy + dx * sin + dy * cos
+            };
+          }
+          return basePt;
         };
 
         if (arrow.fromId && fromCard && arrow.fromSocket) {
@@ -315,8 +331,9 @@ function App() {
             symbolPathMarkup = `<path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
           }
 
+          const rot = card.rotation || 0;
           cardMarkup += `
-            <g transform="translate(${card.x}, ${card.y})">
+            <g transform="translate(${card.x}, ${card.y}) rotate(${rot}, ${card.width / 2}, ${card.height / 2})">
               <g transform="translate(0, 15)">
                 ${symbolPathMarkup}
               </g>

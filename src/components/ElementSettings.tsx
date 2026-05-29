@@ -154,6 +154,23 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
                   placeholder="e.g. 10u"
                 />
               </div>
+
+              {/* Passive Component Rotation */}
+              <div className="sidebar-section">
+                <label className="sidebar-section-title">Component Rotation</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[0, 90, 180, 270].map((angle) => (
+                    <button
+                      key={angle}
+                      className={`style-option-btn ${((card.rotation || 0) % 360) === angle ? 'active' : ''}`}
+                      onClick={() => onUpdateElement(card.id, { rotation: angle })}
+                      style={{ flex: 1, padding: '6px 0', fontSize: '12px' }}
+                    >
+                      {angle}°
+                    </button>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
             <>

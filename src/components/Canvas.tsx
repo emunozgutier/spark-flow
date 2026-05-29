@@ -123,7 +123,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [spacePressed, setSpacePressed] = useState(false);
   const [drawingSelectionBox, setDrawingSelectionBox] = useState<{ startPoint: Point; currentPoint: Point } | null>(null);
 
-  // Monitor Spacebar key bindings for panning toggle
+  // Monitor Spacebar key bindings for panning toggle and R key rotation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
@@ -136,6 +136,21 @@ export const Canvas: React.FC<CanvasProps> = ({
         // Only delete if we are not currently editing inputs
         if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
           deleteElement(selectedId);
+        }
+      }
+
+      // Rotate selected passive component on 'R' keypress (90 deg increments)
+      if (e.key.toLowerCase() === 'r' && selectedId) {
+        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+          const selectedEl = elements.find((el) => el.id === selectedId);
+          if (selectedEl && selectedEl.type === 'box') {
+            const card = selectedEl as CardElement;
+            if (card.componentType) {
+              const currentRotation = card.rotation || 0;
+              const nextRotation = (currentRotation + 90) % 360;
+              updateElement(selectedId, { rotation: nextRotation });
+            }
+          }
         }
       }
     };
@@ -152,7 +167,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedId, deleteElement]);
+  }, [selectedId, deleteElement, elements, updateElement]);
 
   // Convert Screen pixel coordinates into Canvas coordinate system
   const screenToCanvas = useCallback((screenX: number, screenY: number): Point => {
@@ -166,16 +181,36 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Calculate socket absolute coordinates on canvas
   const getSocketPosition = useCallback((card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
+    let basePt = { x: 0, y: 0 };
     switch (socket) {
       case 'top':
-        return { x: card.x + card.width / 2, y: card.y };
+        basePt = { x: card.x + card.width / 2, y: card.y };
+        break;
       case 'right':
-        return { x: card.x + card.width, y: card.y + card.height / 2 };
+        basePt = { x: card.x + card.width, y: card.y + card.height / 2 };
+        break;
       case 'bottom':
-        return { x: card.x + card.width / 2, y: card.y + card.height };
+        basePt = { x: card.x + card.width / 2, y: card.y + card.height };
+        break;
       case 'left':
-        return { x: card.x, y: card.y + card.height / 2 };
+        basePt = { x: card.x, y: card.y + card.height / 2 };
+        break;
     }
+
+    if (card.rotation && card.rotation !== 0) {
+      const cx = card.x + card.width / 2;
+      const cy = card.y + card.height / 2;
+      const rad = (card.rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const dx = basePt.x - cx;
+      const dy = basePt.y - cy;
+      return {
+        x: cx + dx * cos - dy * sin,
+        y: cy + dx * sin + dy * cos
+      };
+    }
+    return basePt;
   }, []);
 
   // Zoom-to-Mouse Wheel Handler
@@ -807,6 +842,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                   width: `${card.width}px`,
                   height: `${card.height}px`,
                   zIndex: isSelected ? 99 : 5,
+                  transform: `rotate(${card.rotation || 0}deg)`,
                   '--theme-color': `var(--theme-${card.color})`,
                   '--theme-color-glow': `var(--theme-${card.color}-glow)`
                 } as React.CSSProperties}
