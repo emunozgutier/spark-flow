@@ -73,21 +73,12 @@ export const getOrthogonalPathPoints = (
   to: Point,
   absFromDir?: 'top' | 'right' | 'bottom' | 'left',
   absToDir?: 'top' | 'right' | 'bottom' | 'left',
-  arrowId?: string
+  _arrowId?: string
 ): Point[] => {
   const minSegment = 24; // Distance to push wire away from component
 
-  // Get deterministic offset for this wire to prevent overlapping
-  let offset = 0;
-  if (arrowId) {
-    let hash = 0;
-    for (let i = 0; i < arrowId.length; i++) {
-      hash = arrowId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const lanes = [-12, -6, 0, 6, 12];
-    const laneIndex = Math.abs(hash) % lanes.length;
-    offset = lanes[laneIndex];
-  }
+  // Keep wires perfectly snapped to grid lines with sharp clean 90-degree corners
+  const offset = 0;
   
   // 1. Determine the actual lead-out point
   let p1 = { ...from };
