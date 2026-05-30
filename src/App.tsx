@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCanvas } from './store/useCanvas';
 import { useZoom } from './store/useZoom';
 import { Canvas } from './components/Canvas';
@@ -8,6 +8,7 @@ import { ElementSettings } from './components/ElementSettings';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import { formatEngineering } from './utils/math';
 import './App.css';
+import { useURLState } from './url';
 
 function App() {
   const {
@@ -45,6 +46,19 @@ function App() {
   } = useZoom();
 
   const selectedElement = elements.find((el: CanvasElement) => el.id === selectedId) || null;
+
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+
+  // Auto-dismiss toast notification after 6 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Handle URL debug save & state loading via custom hook
+  useURLState({ loadElements, setToast });
 
   // Handle keyboard hotkeys globally
   useEffect(() => {
@@ -499,6 +513,36 @@ function App() {
         onDeleteElement={deleteElement}
         onClose={() => setSelectedId(null)}
       />
+
+      {/* Premium Glassmorphic Floating Toast */}
+      {toast && (
+        <div
+          className="glass-panel animate-fade-in"
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            right: '24px',
+            padding: '12px 18px',
+            borderRadius: '12px',
+            background: 'rgba(16, 18, 27, 0.9)',
+            border: '1.5px solid var(--theme-amethyst)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5), 0 0 15px var(--theme-amethyst-glow)',
+            color: '#ffffff',
+            fontSize: '13px',
+            fontWeight: 600,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            maxWidth: '380px',
+            pointerEvents: 'auto',
+            animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse'
+          }}
+        >
+          <span style={{ fontSize: '16px' }}>⚡</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </>
   );
 }

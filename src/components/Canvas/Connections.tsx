@@ -20,7 +20,7 @@ const COLOR_THEMES = [
   { name: 'amber', value: '#f59e0b' },
 ];
 
-const getAbsoluteDirection = (
+export const getAbsoluteDirection = (
   localDir?: 'top' | 'right' | 'bottom' | 'left',
   rotation: number = 0
 ): 'top' | 'right' | 'bottom' | 'left' | undefined => {
@@ -32,13 +32,13 @@ const getAbsoluteDirection = (
   return dirs[absoluteIndex >= 0 ? absoluteIndex : absoluteIndex + 4];
 };
 
-export const calculateOrthogonalPath = (
+export const getOrthogonalPathPoints = (
   from: Point,
   to: Point,
   absFromDir?: 'top' | 'right' | 'bottom' | 'left',
   absToDir?: 'top' | 'right' | 'bottom' | 'left',
   arrowId?: string
-): string => {
+): Point[] => {
   const minSegment = 24; // Distance to push wire away from component
 
   // Get deterministic offset for this wire to prevent overlapping
@@ -101,11 +101,20 @@ export const calculateOrthogonalPath = (
 
   path.push(p2);
   path.push(to);
+  return path;
+};
 
-  // Generate SVG path string
-  return path.reduce((dStr, pt, index) => {
+export const calculateOrthogonalPath = (
+  from: Point,
+  to: Point,
+  absFromDir?: 'top' | 'right' | 'bottom' | 'left',
+  absToDir?: 'top' | 'right' | 'bottom' | 'left',
+  arrowId?: string
+): string => {
+  const points = getOrthogonalPathPoints(from, to, absFromDir, absToDir, arrowId);
+  return points.reduce((dStr, pt, index) => {
     if (index === 0) return `M ${pt.x} ${pt.y}`;
-    const prev = path[index - 1];
+    const prev = points[index - 1];
     if (prev.x === pt.x && prev.y === pt.y) return dStr;
     return `${dStr} L ${pt.x} ${pt.y}`;
   }, '');

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ArrowElement, CardElement, Point } from '../../dataTypes/AnotateType';
-import { calculatePath } from './Connections';
+import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from './Connections';
 
 interface WireProps {
   arrow: ArrowElement;
@@ -41,6 +41,25 @@ export const Wire: React.FC<WireProps> = ({
     arrow.id
   );
 
+  // Compute absolute path points to identify exact 90-degree turns
+  const absFromDir = getAbsoluteDirection(arrow.fromSocket, fromCard?.rotation || 0);
+  const absToDir = getAbsoluteDirection(arrow.toSocket, toCard?.rotation || 0);
+  const pathPoints = getOrthogonalPathPoints(startPt, endPt, absFromDir, absToDir, arrow.id);
+
+  const corners: Point[] = [];
+  for (let i = 1; i < pathPoints.length - 1; i++) {
+    const prev = pathPoints[i - 1];
+    const curr = pathPoints[i];
+    const next = pathPoints[i + 1];
+    
+    const isPrevHorizontal = prev.y === curr.y;
+    const isNextHorizontal = curr.y === next.y;
+    
+    if (isPrevHorizontal !== isNextHorizontal) {
+      corners.push(curr);
+    }
+  }
+
   const isSelected = selectedId === arrow.id;
   const strokeColorVal = isSelected ? '#ffffff' : '#64748b';
   const isDashed = arrow.style === 'dashed';
@@ -70,6 +89,19 @@ export const Wire: React.FC<WireProps> = ({
         strokeDasharray={isDashed ? '6,6' : 'none'}
         style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
       />
+      {/* 90-Degree Turn Vertex Markers */}
+      {corners.map((corner, idx) => (
+        <circle
+          key={`corner-${idx}`}
+          cx={corner.x}
+          cy={corner.y}
+          r="3"
+          fill="var(--bg-canvas)"
+          stroke={strokeColorVal}
+          strokeWidth={isSelected ? '2.5' : '2'}
+          style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
+        />
+      ))}
       {arrow.label && (
         <g>
           <rect
