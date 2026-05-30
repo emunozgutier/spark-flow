@@ -1,57 +1,150 @@
-import { useEffect, useRef } from 'react';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
-import { useCanvas } from './store/useCanvas';
 
-interface UseURLStateProps {
-  loadElements: (elements: CanvasElement[]) => void;
-  setToast: (toast: { message: string; type: 'success' | 'info' } | null) => void;
-}
+// Socket direction compression helpers
+const socketToCode = (socket?: string): string => {
+  if (socket === 'left') return 'l';
+  if (socket === 'right') return 'r';
+  if (socket === 'top') return 't';
+  if (socket === 'bottom') return 'b';
+  return '';
+};
+
+const codeToSocket = (code?: string): 'left' | 'right' | 'top' | 'bottom' => {
+  if (code === 'l') return 'left';
+  if (code === 'r') return 'right';
+  if (code === 't') return 'top';
+  if (code === 'b') return 'bottom';
+  return 'left';
+};
+
+// ID compression helpers
+const getCompactId = (card: CardElement): string => {
+  if (card.componentType === 'resistor') {
+    return `R${card.instanceNumber || 1}`;
+  }
+  if (card.componentType === 'capacitor') {
+    return `C${card.instanceNumber || 1}`;
+  }
+  if (card.componentType === 'inductor') {
+    return `L${card.instanceNumber || 1}`;
+  }
+  if (card.componentType === 'ground') {
+    return card.instanceNumber ? `GND${card.instanceNumber}` : 'GND';
+  }
+  if (card.id.startsWith('card-')) {
+    return card.id.substring(5);
+  }
+  return card.id;
+};
+
+const getCompactIdById = (id: string | undefined, elements: CanvasElement[]): string => {
+  if (!id) return '';
+  const el = elements.find((e) => e.id === id);
+  if (el && el.type === 'box') {
+    return getCompactId(el as CardElement);
+  }
+  if (id.startsWith('card-')) {
+    return id.substring(5);
+  }
+  return id;
+};
 
 /**
  * Lossless, ultra-compact dot/tilde representation of the board state.
  * Uses only URL-safe characters (. and ~) to completely avoid URL encoding expansion.
- * format: b.id.x.y.w.h.color.compType.instNum.value.rotation.title.content ~ a.id.fromId.fromSocket...
+ * Omit default values, and simplify elements:
+ * - Resistor R1 at (250, 40) -> R1.250.40
+ * - Wire between R1 right socket and C2 left socket -> W.R1.r.C2.l
  */
 export const serializeElements = (elements: CanvasElement[]): string => {
   const parts = elements.map((el) => {
     if (el.type === 'box') {
       const card = el as CardElement;
-      const fields = [
-        'b',
-        card.id,
-        String(card.x),
-        String(card.y),
-        String(card.width),
-        String(card.height),
-        card.color || '',
-        card.componentType || '',
-        card.instanceNumber !== undefined ? String(card.instanceNumber) : '',
-        card.value !== undefined ? String(card.value) : '',
-        card.rotation !== undefined ? String(card.rotation) : '',
-        card.title ? encodeURIComponent(card.title) : '',
-        card.content ? encodeURIComponent(card.content) : ''
-      ];
-      // Trim empty trailing fields
-      while (fields.length > 7 && fields[fields.length - 1] === '') {
-        fields.pop();
+      
+      if (card.componentType) {
+        const compactId = getCompactId(card);
+        const rotationStr = card.rotation ? String(card.rotation) : '';
+        
+        let defaultVal = 0;
+        let defaultColor = '';
+        if (card.componentType === 'resistor') {
+          defaultVal = 1000;
+          defaultColor = 'amber';
+        } else if (card.componentType === 'capacitor') {
+          defaultVal = 10e-6;
+          defaultColor = 'sapphire';
+        } else if (card.componentType === 'inductor') {
+          defaultVal = 10e-3;
+          defaultColor = 'emerald';
+        } else if (card.componentType === 'ground') {
+          defaultColor = 'slate';
+        }
+
+        const valStr = card.value !== undefined && card.value !== defaultVal ? String(card.value) : '';
+        const colorStr = card.color !== defaultColor ? card.color : '';
+
+        // Fields: [compactId, x, y, rotationStr, valueStr (if not ground), colorStr]
+        const fields = [
+          compactId,
+          String(card.x),
+          String(card.y),
+          rotationStr
+        ];
+
+        if (card.componentType !== 'ground') {
+          fields.push(valStr);
+        }
+        fields.push(colorStr);
+
+        // Trim empty trailing fields
+        while (fields.length > 3 && fields[fields.length - 1] === '') {
+          fields.pop();
+        }
+
+        return fields.join('.');
+      } else {
+        // Custom text card
+        const fields = [
+          'T',
+          getCompactId(card),
+          String(card.x),
+          String(card.y),
+          card.width !== 200 ? String(card.width) : '',
+          card.height !== 120 ? String(card.height) : '',
+          card.color !== 'amethyst' ? card.color : '',
+          card.title ? encodeURIComponent(card.title) : '',
+          card.content ? encodeURIComponent(card.content) : ''
+        ];
+
+        while (fields.length > 4 && fields[fields.length - 1] === '') {
+          fields.pop();
+        }
+
+        return fields.join('.');
       }
-      return fields.join('.');
     } else {
       const arrow = el as ArrowElement;
+      
+      const fromCompactId = getCompactIdById(arrow.fromId, elements);
+      const toCompactId = getCompactIdById(arrow.toId, elements);
+      const fromSocketCode = socketToCode(arrow.fromSocket);
+      const toSocketCode = socketToCode(arrow.toSocket);
+
       const fields = [
-        'a',
-        arrow.id,
-        arrow.fromId || '',
-        arrow.fromSocket || '',
-        arrow.toId || '',
-        arrow.toSocket || '',
-        arrow.color || '',
-        arrow.style || '',
+        'W',
+        fromCompactId,
+        fromSocketCode,
+        toCompactId,
+        toSocketCode,
+        arrow.color !== 'slate' ? arrow.color : '',
+        arrow.style !== 'curved' ? arrow.style : '',
         arrow.label ? encodeURIComponent(arrow.label) : ''
       ];
-      while (fields.length > 6 && fields[fields.length - 1] === '') {
+
+      while (fields.length > 5 && fields[fields.length - 1] === '') {
         fields.pop();
       }
+
       return fields.join('.');
     }
   });
@@ -61,7 +154,7 @@ export const serializeElements = (elements: CanvasElement[]): string => {
 
 /**
  * Deserializes elements from URL. Fully supports older JSON arrays, older comma/plus-separated strings,
- * and the new ultra-compact dot/tilde format for 100% perfect backward-compatibility.
+ * verbose dot/tilde strings, and the new ultra-compact format for 100% perfect backward-compatibility.
  */
 export const deserializeElements = (stateStr: string): CanvasElement[] => {
   const trimmed = stateStr.trim();
@@ -248,23 +341,202 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
     return elements;
   }
 
-  // 3. New ultra-compact tilde/dot lossless format
+  // 3. Dot/tilde format (supports new super-compact format and old b/a dot format)
   const elements: CanvasElement[] = [];
   const parts = trimmed.split('~');
 
   parts.forEach((part) => {
     const fields = part.split('.');
-    if (fields.length < 3) return;
+    if (fields.length === 0 || fields[0] === '') return;
 
     const type = fields[0];
-    if (type === 'b') {
+
+    // Check new formats first:
+    // W -> Wire
+    if (type === 'W') {
+      const fromShort = fields[1] || '';
+      const fromId = /^\d+$/.test(fromShort) ? `card-${fromShort}` : fromShort;
+      const fromSocket = codeToSocket(fields[2]);
+      
+      const toShort = fields[3] || '';
+      const toId = /^\d+$/.test(toShort) ? `card-${toShort}` : toShort;
+      const toSocket = codeToSocket(fields[4]);
+      
+      const color = fields[5] || 'slate';
+      const style = fields[6] || 'curved';
+      const label = fields[7] ? decodeURIComponent(fields[7]) : '';
+
+      elements.push({
+        id: `arrow-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        type: 'arrow',
+        fromId,
+        fromSocket,
+        toId,
+        toSocket,
+        color,
+        style,
+        label
+      } as ArrowElement);
+    }
+    // T -> Custom Card
+    else if (type === 'T') {
+      const shortId = fields[1] || '';
+      const id = /^\d+$/.test(shortId) ? `card-${shortId}` : shortId;
+      const x = parseInt(fields[2], 10) || 0;
+      const y = parseInt(fields[3], 10) || 0;
+      const width = fields[4] ? parseInt(fields[4], 10) : 200;
+      const height = fields[5] ? parseInt(fields[5], 10) : 120;
+      const color = fields[6] || 'amethyst';
+      const title = fields[7] ? decodeURIComponent(fields[7]) : undefined;
+      const content = fields[8] ? decodeURIComponent(fields[8]) : undefined;
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width,
+        height,
+        color,
+        title,
+        content
+      } as CardElement);
+    }
+    // R[num] -> Resistor
+    else if (/^R\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 1000;
+      
+      const color = fields[5] || 'amber';
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-right`, direction: 'right' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'resistor',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // C[num] -> Capacitor
+    else if (/^C\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 10e-6;
+      
+      const color = fields[5] || 'sapphire';
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-right`, direction: 'right' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'capacitor',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // L[num] -> Inductor
+    else if (/^L\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 10e-3;
+      
+      const color = fields[5] || 'emerald';
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-right`, direction: 'right' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'inductor',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // GND or GND[num] -> Ground
+    else if (/^GND\d*$/.test(type)) {
+      const id = type;
+      const instanceNumber = type.length > 3 ? (parseInt(type.substring(3), 10) || undefined) : undefined;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      const color = fields[4] || 'slate';
+
+      const ports = [
+        { id: `${id}-top`, direction: 'top' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'ground',
+        instanceNumber,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // Backward compatibility: Old 'b' (box) format
+    else if (type === 'b') {
       const id = fields[1];
       const x = parseInt(fields[2], 10) || 0;
       const y = parseInt(fields[3], 10) || 0;
       const width = fields[4] ? parseInt(fields[4], 10) : 60;
       const height = fields[5] ? parseInt(fields[5], 10) : 60;
       const color = fields[6] || 'slate';
-      const componentType = fields[7] || undefined;
+      const componentType = fields[7] as any || undefined;
       const instanceNumber = fields[8] ? parseInt(fields[8], 10) : undefined;
       const value = fields[9] ? parseFloat(fields[9]) : undefined;
       const rotation = fields[10] ? parseInt(fields[10], 10) : 0;
@@ -299,7 +571,9 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         title,
         content
       } as CardElement);
-    } else if (type === 'a') {
+    }
+    // Backward compatibility: Old 'a' (arrow) format
+    else if (type === 'a') {
       const id = fields[1];
       const fromId = fields[2];
       const fromSocket = fields[3] as any;
@@ -326,68 +600,4 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
   return elements;
 };
 
-export const useURLState = ({ loadElements, setToast }: UseURLStateProps) => {
-  const initialLoadDoneRef = useRef(false);
-  const elements = useCanvas((state) => state.elements);
 
-  // 1. One-time initial load from URL on mount
-  useEffect(() => {
-    if (initialLoadDoneRef.current) return;
-    initialLoadDoneRef.current = true;
-
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      let stateStr = urlParams.get('state');
-      
-      // Fallback to hash-based state
-      if (!stateStr && window.location.hash.startsWith('#state=')) {
-        stateStr = window.location.hash.substring(7);
-      } else if (!stateStr && window.location.hash.startsWith('#/state=')) {
-        stateStr = window.location.hash.substring(8);
-      }
-
-      if (stateStr) {
-        // Decode state from compact representation
-        const decodedElements = deserializeElements(decodeURIComponent(stateStr));
-        if (Array.isArray(decodedElements) && decodedElements.length > 0) {
-          loadElements(decodedElements);
-          setToast({
-            message: '🎉 Board successfully loaded from shared URL link!',
-            type: 'success'
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load state from URL:', err);
-    }
-  }, [loadElements, setToast]);
-
-  // 2. Synchronize store elements to URL bar in debug mode whenever elements change
-  useEffect(() => {
-    const hasDebugInPath = window.location.pathname.includes('/debug');
-    const hasDebugInQuery = window.location.search.includes('debug');
-    const hasDebugInHash = window.location.hash.includes('debug');
-
-    if (hasDebugInPath || hasDebugInQuery || hasDebugInHash) {
-      try {
-        const stateStr = serializeElements(elements);
-        const encodedState = encodeURIComponent(stateStr);
-
-        // Check if the URL parameter already matches to avoid redundant history replacement
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentStateParam = urlParams.get('state');
-
-        if (currentStateParam !== stateStr) {
-          const debugPath = window.location.pathname.includes('/debug')
-            ? window.location.pathname
-            : (window.location.pathname.endsWith('/') ? window.location.pathname + 'debug' : window.location.pathname + '/debug');
-          const shareUrl = window.location.origin + debugPath + '?state=' + encodedState;
-          
-          window.history.replaceState({}, document.title, shareUrl);
-        }
-      } catch (err) {
-        console.error('Failed to sync elements to URL:', err);
-      }
-    }
-  }, [elements]);
-};

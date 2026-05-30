@@ -32,6 +32,42 @@ export const getAbsoluteDirection = (
   return dirs[absoluteIndex >= 0 ? absoluteIndex : absoluteIndex + 4];
 };
 
+const simplifyPathPoints = (points: Point[]): Point[] => {
+  if (points.length === 0) return [];
+  const result: Point[] = [points[0]];
+  
+  // 1. Remove adjacent duplicate points
+  for (let i = 1; i < points.length; i++) {
+    const prev = result[result.length - 1];
+    const curr = points[i];
+    if (prev.x !== curr.x || prev.y !== curr.y) {
+      result.push(curr);
+    }
+  }
+
+  if (result.length < 3) return result;
+  
+  // 2. Remove collinear intermediate points
+  const simplified: Point[] = [result[0]];
+  for (let i = 1; i < result.length - 1; i++) {
+    const prev = simplified[simplified.length - 1];
+    const curr = result[i];
+    const next = result[i + 1];
+
+    const dx1 = curr.x - prev.x;
+    const dy1 = curr.y - prev.y;
+    const dx2 = next.x - curr.x;
+    const dy2 = next.y - curr.y;
+
+    const isCollinear = (dx1 === 0 && dx2 === 0) || (dy1 === 0 && dy2 === 0);
+    if (!isCollinear) {
+      simplified.push(curr);
+    }
+  }
+  simplified.push(result[result.length - 1]);
+  return simplified;
+};
+
 export const getOrthogonalPathPoints = (
   from: Point,
   to: Point,
@@ -101,7 +137,7 @@ export const getOrthogonalPathPoints = (
 
   path.push(p2);
   path.push(to);
-  return path;
+  return simplifyPathPoints(path);
 };
 
 export const calculateOrthogonalPath = (

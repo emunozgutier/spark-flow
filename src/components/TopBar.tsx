@@ -3,6 +3,7 @@ import type { ToolType, CanvasElement } from '../dataTypes/AnotateType';
 import { FileBar } from './TopBar/FileBar';
 import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
+import { DebugBar } from './TopBar/DebugBar';
 
 interface TopBarProps {
   activeTool: ToolType;
@@ -15,6 +16,8 @@ interface TopBarProps {
   exportJSON: () => void;
   exportSVG: () => void;
   loadElements: (elements: CanvasElement[]) => void;
+  elements: CanvasElement[];
+  setToast?: (toast: { message: string; type: 'success' | 'info' } | null) => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -28,8 +31,11 @@ export const TopBar: React.FC<TopBarProps> = ({
   exportJSON,
   exportSVG,
   loadElements,
+  elements,
+  setToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives'>('anotate');
+  const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives' | 'debug'>('anotate');
+  const [isDebug, setIsDebug] = useState(false);
 
   // Sync activeTab when the activeTool changes via global keyboard hotkeys
   useEffect(() => {
@@ -39,6 +45,18 @@ export const TopBar: React.FC<TopBarProps> = ({
       setActiveTab('passives');
     }
   }, [activeTool]);
+
+  // Detect /debug URL segment or parameters on mount
+  useEffect(() => {
+    const hasDebugInPath = window.location.pathname.includes('/debug');
+    const hasDebugInQuery = window.location.search.includes('debug');
+    const hasDebugInHash = window.location.hash.includes('debug');
+
+    if (hasDebugInPath || hasDebugInQuery || hasDebugInHash) {
+      setIsDebug(true);
+      setActiveTab('debug');
+    }
+  }, []);
 
   return (
     <div className="floating-overlay top-center user-select-none topbar-wrapper">
@@ -96,6 +114,23 @@ export const TopBar: React.FC<TopBarProps> = ({
             </svg>
             <span className="tooltip">Passive Elements</span>
           </button>
+
+          {/* Debug Tab (visible only in debug mode) */}
+          {isDebug && (
+            <button
+              className={`tool-btn tab-btn ${activeTab === 'debug' ? 'active' : ''}`}
+              onClick={() => setActiveTab('debug')}
+              aria-label="Debug Options"
+              style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '10px' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'var(--theme-coral)' }}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4" />
+                <path d="M12 16h.01" />
+              </svg>
+              <span className="tooltip" style={{ color: 'var(--theme-coral)' }}>Debug Panel</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -125,6 +160,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           <PassivesBar
             activeTool={activeTool}
             setActiveTool={setActiveTool}
+          />
+        )}
+
+        {activeTab === 'debug' && isDebug && (
+          <DebugBar
+            elements={elements}
+            loadElements={loadElements}
+            setToast={setToast}
           />
         )}
       </div>

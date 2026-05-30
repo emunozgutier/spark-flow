@@ -8,7 +8,7 @@ import { ElementSettings } from './components/ElementSettings';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import { formatEngineering } from './utils/math';
 import './App.css';
-import { useURLState } from './url';
+
 
 function App() {
   const {
@@ -57,8 +57,7 @@ function App() {
     }
   }, [toast]);
 
-  // Handle URL debug save & state loading via custom hook
-  useURLState({ loadElements, setToast });
+
 
   // Handle keyboard hotkeys globally
   useEffect(() => {
@@ -493,6 +492,8 @@ function App() {
         exportJSON={handleExportJSON}
         exportSVG={handleExportSVG}
         loadElements={loadElements}
+        elements={elements}
+        setToast={setToast}
       />
 
       {/* 3. Bottom HUD zoom panel */}
