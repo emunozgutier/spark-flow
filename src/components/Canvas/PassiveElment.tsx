@@ -40,18 +40,18 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
     >
       {/* Schematic SVG */}
       {card.componentType === 'resistor' && (
-        <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+        <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '5px', left: 0, filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
           <path d="M 0 15 L 20 15 L 25 5 L 35 25 L 45 5 L 55 25 L 65 5 L 75 25 L 80 15 L 100 15" />
         </svg>
       )}
       {card.componentType === 'capacitor' && (
-        <svg width="100%" height="40" viewBox="0 0 100 40" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+        <svg width="100%" height="30" viewBox="0 0 100 40" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '5px', left: 0, filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
           <path d="M 0 20 L 43 20 M 57 20 L 100 20" />
           <path d="M 43 5 L 43 35 M 57 5 L 57 35" />
         </svg>
       )}
       {card.componentType === 'inductor' && (
-        <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+        <svg width="100%" height="30" viewBox="0 0 100 30" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '5px', left: 0, filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
           <path d="M 0 15 L 20 15 C 20 5, 32 5, 32 15 C 32 5, 44 5, 44 15 C 44 5, 56 5, 56 15 C 56 5, 68 5, 68 15 C 68 5, 80 5, 80 15 L 100 15" />
         </svg>
       )}
@@ -173,6 +173,7 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
                 data-card-id={card.id}
                 data-socket-dir="left"
                 onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
+                style={{ top: '20px' }}
               />
 
               {/* Right Lead Port */}
@@ -189,6 +190,7 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
                 data-card-id={card.id}
                 data-socket-dir="right"
                 onMouseDown={(e) => initiateArrowDraw(card, 'right', e)}
+                style={{ top: '20px' }}
               />
             </>
           )}

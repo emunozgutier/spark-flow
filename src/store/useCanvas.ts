@@ -71,7 +71,26 @@ const loadInitialElements = (): CanvasElement[] => {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed.map((el) => {
+          if (el.type === 'box') {
+            const card = el as CardElement;
+            if (card.componentType && card.componentType !== 'ground') {
+              if (card.height === 90) {
+                return {
+                  ...card,
+                  height: 60,
+                  y: card.y + 25
+                };
+              } else if (card.height === 40) {
+                return {
+                  ...card,
+                  height: 60
+                };
+              }
+            }
+          }
+          return el;
+        });
       }
     }
   } catch (e) {
@@ -207,7 +226,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
                 color = 'emerald';
               }
               defaultWidth = 60;
-              defaultHeight = 90;
+              defaultHeight = 60;
             }
           } else {
             const colors: ThemeColor[] = ['amethyst', 'sapphire', 'emerald', 'amber', 'coral', 'slate'];
@@ -338,8 +357,28 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         },
         loadElements: (elements: CanvasElement[]) => {
           (useCanvas as any).temporal?.getState().resume();
-          set({ elements, selectedId: null });
-          saveToStorage(elements);
+          const migrated = elements.map((el) => {
+            if (el.type === 'box') {
+              const card = el as CardElement;
+              if (card.componentType && card.componentType !== 'ground') {
+                if (card.height === 90) {
+                  return {
+                    ...card,
+                    height: 60,
+                    y: card.y + 25
+                  };
+                } else if (card.height === 40) {
+                  return {
+                    ...card,
+                    height: 60
+                  };
+                }
+              }
+            }
+            return el;
+          });
+          set({ elements: migrated, selectedId: null });
+          saveToStorage(migrated);
         }
       };
     },

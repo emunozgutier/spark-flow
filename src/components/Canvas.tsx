@@ -126,18 +126,25 @@ export const Canvas: React.FC<CanvasProps> = ({
   // Calculate socket absolute coordinates on canvas
   const getSocketPosition = useCallback((card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
     let basePt = { x: 0, y: 0 };
+    const isPassive = !!card.componentType;
     switch (socket) {
       case 'top':
         basePt = { x: card.x + card.width / 2, y: card.y };
         break;
       case 'right':
-        basePt = { x: card.x + card.width, y: card.y + card.height / 2 };
+        basePt = {
+          x: card.x + card.width,
+          y: isPassive && card.componentType !== 'ground' ? card.y + 20 : card.y + card.height / 2
+        };
         break;
       case 'bottom':
         basePt = { x: card.x + card.width / 2, y: card.y + card.height };
         break;
       case 'left':
-        basePt = { x: card.x, y: card.y + card.height / 2 };
+        basePt = {
+          x: card.x,
+          y: isPassive && card.componentType !== 'ground' ? card.y + 20 : card.y + card.height / 2
+        };
         break;
     }
 
@@ -222,7 +229,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       if (activeTool === 'ground') {
         addCard(clickCoords.x - 30, clickCoords.y - 30, 60, 60, activeTool);
       } else {
-        addCard(clickCoords.x - 30, clickCoords.y - 45, 60, 90, activeTool);
+        addCard(clickCoords.x - 30, clickCoords.y - 20, 60, 60, activeTool);
       }
       e.preventDefault();
       return;
