@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useStyle } from '../store/useStyle';
+import { useCanvas } from '../store/useCanvas';
 import { PassiveElment } from './Canvas/PassiveElment';
 import { Anotations } from './Canvas/Anotations';
-import { Connections } from './Canvas/Connections';
+import { Connections, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Connections';
 import type {
   CanvasElement,
   CardElement,
@@ -13,6 +14,93 @@ import type {
   DraggingCardState,
   DrawingArrowState
 } from '../dataTypes/AnotateType';
+
+interface WireSnapResult {
+  wire: ArrowElement;
+  point: Point;
+  distance: number;
+}
+
+const getJoinSocketDirection = (joinCenter: Point, targetPt: Point): 'top' | 'right' | 'bottom' | 'left' => {
+  const dx = targetPt.x - joinCenter.x;
+  const dy = targetPt.y - joinCenter.y;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return dx > 0 ? 'right' : 'left';
+  } else {
+    return dy > 0 ? 'bottom' : 'top';
+  }
+};
+
+const findClosestWirePoint = (
+  mousePt: Point,
+  arrows: ArrowElement[],
+  cards: CardElement[],
+  getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point
+): WireSnapResult | null => {
+  let bestResult: WireSnapResult | null = null;
+  const threshold = 16; // Snap within 16px of wire path
+
+  arrows.forEach((arrow) => {
+    let startPt = arrow.fromPoint || { x: 0, y: 0 };
+    let endPt = arrow.toPoint || { x: 0, y: 0 };
+
+    const fromCard = cards.find((c) => c.id === arrow.fromId);
+    const toCard = cards.find((c) => c.id === arrow.toId);
+
+    if (arrow.fromId && fromCard && arrow.fromSocket) {
+      startPt = getSocketPosition(fromCard, arrow.fromSocket);
+    }
+    if (arrow.toId && toCard && arrow.toSocket) {
+      endPt = getSocketPosition(toCard, arrow.toSocket);
+    }
+
+    const absFromDir = getAbsoluteDirection(arrow.fromSocket, fromCard?.rotation || 0);
+    const absToDir = getAbsoluteDirection(arrow.toSocket, toCard?.rotation || 0);
+    const pathPoints = getOrthogonalPathPoints(startPt, endPt, absFromDir, absToDir, arrow.id);
+
+    for (let i = 0; i < pathPoints.length - 1; i++) {
+      const ptA = pathPoints[i];
+      const ptB = pathPoints[i + 1];
+
+      const isHorizontal = Math.abs(ptA.y - ptB.y) < 1;
+      const isVertical = Math.abs(ptA.x - ptB.x) < 1;
+
+      if (isHorizontal) {
+        const minX = Math.min(ptA.x, ptB.x);
+        const maxX = Math.max(ptA.x, ptB.x);
+        if (mousePt.x >= minX - 4 && mousePt.x <= maxX + 4) {
+          const dist = Math.abs(mousePt.y - ptA.y);
+          if (dist < threshold && (!bestResult || dist < bestResult.distance)) {
+            const snapX = Math.round(mousePt.x / 10) * 10;
+            const clampedX = Math.max(minX, Math.min(maxX, snapX));
+            bestResult = {
+              wire: arrow,
+              point: { x: clampedX, y: ptA.y },
+              distance: dist
+            };
+          }
+        }
+      } else if (isVertical) {
+        const minY = Math.min(ptA.y, ptB.y);
+        const maxY = Math.max(ptA.y, ptB.y);
+        if (mousePt.y >= minY - 4 && mousePt.y <= maxY + 4) {
+          const dist = Math.abs(mousePt.x - ptA.x);
+          if (dist < threshold && (!bestResult || dist < bestResult.distance)) {
+            const snapY = Math.round(mousePt.y / 10) * 10;
+            const clampedY = Math.max(minY, Math.min(maxY, snapY));
+            bestResult = {
+              wire: arrow,
+              point: { x: ptA.x, y: clampedY },
+              distance: dist
+            };
+          }
+        }
+      }
+    }
+  });
+
+  return bestResult;
+};
 
 // Canvas component definition starts here
 
@@ -34,6 +122,7 @@ interface CanvasProps {
   updateCardSize: (id: string, width: number, height: number) => void;
   finalizeDrag: () => void;
   deleteElement: (id: string) => void;
+  setToast?: (toast: { message: string; type: 'success' | 'info' } | null) => void;
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -54,6 +143,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   updateCardSize,
   finalizeDrag,
   deleteElement,
+  setToast,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -66,6 +156,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [panStart, setPanStart] = useState<Point>({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
   const [drawingSelectionBox, setDrawingSelectionBox] = useState<{ startPoint: Point; currentPoint: Point } | null>(null);
+  const [activeSnap, setActiveSnap] = useState<{ wire: ArrowElement; point: Point } | null>(null);
 
   // Monitor Spacebar key bindings for panning toggle and R key rotation
   useEffect(() => {
@@ -321,10 +412,24 @@ export const Canvas: React.FC<CanvasProps> = ({
     // 4. Drawing Connection Arrow state
     if (drawingArrow) {
       const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
-      setDrawingArrow({
-        ...drawingArrow,
-        currentPoint: mouseCanvas
-      });
+      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+      
+      const snapResult = findClosestWirePoint(mouseCanvas, arrows, cards, getSocketPosition);
+      
+      if (snapResult) {
+        setActiveSnap({ wire: snapResult.wire, point: snapResult.point });
+        setDrawingArrow({
+          ...drawingArrow,
+          currentPoint: snapResult.point
+        });
+      } else {
+        setActiveSnap(null);
+        setDrawingArrow({
+          ...drawingArrow,
+          currentPoint: mouseCanvas
+        });
+      }
       return;
     }
   };

@@ -478,6 +478,7 @@ function App() {
         updateCardSize={updateCardSize}
         finalizeDrag={finalizeDrag}
         deleteElement={deleteElement}
+        setToast={setToast}
       />
 
       {/* 2. Overlaid Floating TopBar (top-center) */}
