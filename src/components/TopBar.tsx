@@ -3,7 +3,7 @@ import type { ToolType, CanvasElement } from '../dataTypes/AnotateType';
 import { FileBar } from './TopBar/FileBar';
 import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
-import { DebugBar } from './TopBar/DebugBar';
+import { DebugPopup } from './TopBar/DebugPopup';
 
 interface TopBarProps {
   activeTool: ToolType;
@@ -162,15 +162,18 @@ export const TopBar: React.FC<TopBarProps> = ({
             setActiveTool={setActiveTool}
           />
         )}
-
-        {activeTab === 'debug' && isDebug && (
-          <DebugBar
-            elements={elements}
-            loadElements={loadElements}
-            setToast={setToast}
-          />
-        )}
       </div>
+
+      {/* Top-Level centered screen modal popup instead of a subbar */}
+      {activeTab === 'debug' && isDebug && (
+        <DebugPopup
+          isOpen={true}
+          onClose={() => setActiveTab('anotate')}
+          elements={elements}
+          loadElements={loadElements}
+          setToast={setToast}
+        />
+      )}
     </div>
   );
 };
