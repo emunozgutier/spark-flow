@@ -35,7 +35,10 @@ export const Wire: React.FC<WireProps> = ({
     endPt,
     arrow.style,
     arrow.fromSocket,
-    arrow.toSocket
+    arrow.toSocket,
+    fromCard?.rotation || 0,
+    toCard?.rotation || 0,
+    arrow.id
   );
 
   const isSelected = selectedId === arrow.id;

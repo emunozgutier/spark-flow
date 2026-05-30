@@ -20,43 +20,111 @@ const COLOR_THEMES = [
   { name: 'amber', value: '#f59e0b' },
 ];
 
+const getAbsoluteDirection = (
+  localDir?: 'top' | 'right' | 'bottom' | 'left',
+  rotation: number = 0
+): 'top' | 'right' | 'bottom' | 'left' | undefined => {
+  if (!localDir) return undefined;
+  const dirs: ('top' | 'right' | 'bottom' | 'left')[] = ['top', 'right', 'bottom', 'left'];
+  const localIndex = dirs.indexOf(localDir);
+  const steps = Math.round((rotation % 360) / 90);
+  const absoluteIndex = (localIndex + steps) % 4;
+  return dirs[absoluteIndex >= 0 ? absoluteIndex : absoluteIndex + 4];
+};
+
+export const calculateOrthogonalPath = (
+  from: Point,
+  to: Point,
+  absFromDir?: 'top' | 'right' | 'bottom' | 'left',
+  absToDir?: 'top' | 'right' | 'bottom' | 'left',
+  arrowId?: string
+): string => {
+  const minSegment = 24; // Distance to push wire away from component
+
+  // Get deterministic offset for this wire to prevent overlapping
+  let offset = 0;
+  if (arrowId) {
+    let hash = 0;
+    for (let i = 0; i < arrowId.length; i++) {
+      hash = arrowId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const lanes = [-12, -6, 0, 6, 12];
+    const laneIndex = Math.abs(hash) % lanes.length;
+    offset = lanes[laneIndex];
+  }
+  
+  // 1. Determine the actual lead-out point
+  let p1 = { ...from };
+  if (absFromDir === 'left') p1.x -= minSegment;
+  else if (absFromDir === 'right') p1.x += minSegment;
+  else if (absFromDir === 'top') p1.y -= minSegment;
+  else if (absFromDir === 'bottom') p1.y += minSegment;
+  else {
+    p1.x += (to.x > from.x ? minSegment : -minSegment);
+  }
+
+  // 2. Determine the actual lead-in point
+  let p2 = { ...to };
+  if (absToDir === 'left') p2.x -= minSegment;
+  else if (absToDir === 'right') p2.x += minSegment;
+  else if (absToDir === 'top') p2.y -= minSegment;
+  else if (absToDir === 'bottom') p2.y += minSegment;
+  else {
+    p2.x += (to.x > from.x ? -minSegment : minSegment);
+  }
+
+  // 3. Connect p1 and p2 using orthogonal steps
+  const path: Point[] = [from, p1];
+
+  const isP1ExitHorizontal = absFromDir === 'left' || absFromDir === 'right';
+  const isP2EntryHorizontal = absToDir === 'left' || absToDir === 'right';
+
+  if (isP1ExitHorizontal) {
+    if (isP2EntryHorizontal) {
+      const midX = (p1.x + p2.x) / 2 + offset;
+      path.push({ x: midX, y: p1.y });
+      path.push({ x: midX, y: p2.y });
+    } else {
+      path.push({ x: p2.x + offset, y: p1.y });
+      path.push({ x: p2.x + offset, y: p2.y });
+    }
+  } else {
+    if (!isP2EntryHorizontal) {
+      const midY = (p1.y + p2.y) / 2 + offset;
+      path.push({ x: p1.x, y: midY });
+      path.push({ x: p2.x, y: midY });
+    } else {
+      path.push({ x: p1.x, y: p2.y + offset });
+      path.push({ x: p2.x, y: p2.y + offset });
+    }
+  }
+
+  path.push(p2);
+  path.push(to);
+
+  // Generate SVG path string
+  return path.reduce((dStr, pt, index) => {
+    if (index === 0) return `M ${pt.x} ${pt.y}`;
+    const prev = path[index - 1];
+    if (prev.x === pt.x && prev.y === pt.y) return dStr;
+    return `${dStr} L ${pt.x} ${pt.y}`;
+  }, '');
+};
+
 export const calculatePath = (
   from: Point,
   to: Point,
-  style: 'straight' | 'curved' | 'dashed',
+  _style: 'straight' | 'curved' | 'dashed',
   fromDir?: 'top' | 'right' | 'bottom' | 'left',
-  toDir?: 'top' | 'right' | 'bottom' | 'left'
+  toDir?: 'top' | 'right' | 'bottom' | 'left',
+  fromRotation: number = 0,
+  toRotation: number = 0,
+  arrowId?: string
 ) => {
-  if (style === 'straight' || style === 'dashed') {
-    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-  }
-
-  let controlPoint1 = { ...from };
-  let controlPoint2 = { ...to };
+  const absFromDir = getAbsoluteDirection(fromDir, fromRotation);
+  const absToDir = getAbsoluteDirection(toDir, toRotation);
   
-  const dx = Math.abs(to.x - from.x);
-  const dy = Math.abs(to.y - from.y);
-  const handleOffset = Math.max(Math.min(dx, dy) * 0.75, 45);
-
-  if (fromDir) {
-    if (fromDir === 'right') controlPoint1.x += handleOffset;
-    if (fromDir === 'left') controlPoint1.x -= handleOffset;
-    if (fromDir === 'bottom') controlPoint1.y += handleOffset;
-    if (fromDir === 'top') controlPoint1.y -= handleOffset;
-  } else {
-    controlPoint1.x += handleOffset;
-  }
-
-  if (toDir) {
-    if (toDir === 'right') controlPoint2.x += handleOffset;
-    if (toDir === 'left') controlPoint2.x -= handleOffset;
-    if (toDir === 'bottom') controlPoint2.y += handleOffset;
-    if (toDir === 'top') controlPoint2.y -= handleOffset;
-  } else {
-    controlPoint2.x -= handleOffset;
-  }
-
-  return `M ${from.x} ${from.y} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${to.x} ${to.y}`;
+  return calculateOrthogonalPath(from, to, absFromDir, absToDir, arrowId);
 };
 
 export const Connections: React.FC<ConnectionsProps> = ({
@@ -67,6 +135,8 @@ export const Connections: React.FC<ConnectionsProps> = ({
   drawingArrow,
   getSocketPosition
 }) => {
+  const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
+
   return (
     <svg
       style={{
@@ -111,7 +181,7 @@ export const Connections: React.FC<ConnectionsProps> = ({
           />
         </marker>
       </defs>
-
+ 
       {/* Render established connector lines */}
       {arrows.map((arrow) => (
         <Wire
@@ -123,11 +193,19 @@ export const Connections: React.FC<ConnectionsProps> = ({
           getSocketPosition={getSocketPosition}
         />
       ))}
-
+ 
       {/* Render temporary live connector line preview when dragging socket */}
       {drawingArrow && drawingArrow.fromPoint && (
         <path
-          d={calculatePath(drawingArrow.fromPoint, drawingArrow.currentPoint, drawingArrow.style, drawingArrow.fromSocket)}
+          d={calculatePath(
+            drawingArrow.fromPoint,
+            drawingArrow.currentPoint,
+            drawingArrow.style,
+            drawingArrow.fromSocket,
+            undefined,
+            sourceCard?.rotation || 0,
+            0
+          )}
           fill="none"
           stroke="#64748b"
           strokeWidth="2.0"
