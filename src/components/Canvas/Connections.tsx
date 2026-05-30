@@ -109,21 +109,49 @@ export const getOrthogonalPathPoints = (
 
   if (isP1ExitHorizontal) {
     if (isP2EntryHorizontal) {
-      const midX = (p1.x + p2.x) / 2 + offset;
-      path.push({ x: midX, y: p1.y });
-      path.push({ x: midX, y: p2.y });
+      // Both horizontal (left/right)
+      let trunkX = (p1.x + p2.x) / 2 + offset;
+      if (absFromDir === absToDir) {
+        if (absFromDir === 'right') {
+          trunkX = p1.x > p2.x ? p1.x : p2.x;
+        } else if (absFromDir === 'left') {
+          trunkX = p1.x < p2.x ? p1.x : p2.x;
+        }
+      }
+      path.push({ x: trunkX, y: p1.y });
+      path.push({ x: trunkX, y: p2.y });
     } else {
-      path.push({ x: p2.x + offset, y: p1.y });
-      path.push({ x: p2.x + offset, y: p2.y });
+      // Exit is horizontal, Entry is vertical
+      const needsUturn = (absFromDir === 'right' && p2.x < from.x) || (absFromDir === 'left' && p2.x > from.x);
+      if (needsUturn) {
+        path.push({ x: p1.x, y: p2.y });
+      } else {
+        path.push({ x: p2.x + offset, y: p1.y });
+        path.push({ x: p2.x + offset, y: p2.y });
+      }
     }
   } else {
     if (!isP2EntryHorizontal) {
-      const midY = (p1.y + p2.y) / 2 + offset;
-      path.push({ x: p1.x, y: midY });
-      path.push({ x: p2.x, y: midY });
+      // Both vertical (top/bottom)
+      let trunkY = (p1.y + p2.y) / 2 + offset;
+      if (absFromDir === absToDir) {
+        if (absFromDir === 'bottom') {
+          trunkY = p1.y > p2.y ? p1.y : p2.y;
+        } else if (absFromDir === 'top') {
+          trunkY = p1.y < p2.y ? p1.y : p2.y;
+        }
+      }
+      path.push({ x: p1.x, y: trunkY });
+      path.push({ x: p2.x, y: trunkY });
     } else {
-      path.push({ x: p1.x, y: p2.y + offset });
-      path.push({ x: p2.x, y: p2.y + offset });
+      // Exit is vertical, Entry is horizontal
+      const needsUturn = (absFromDir === 'bottom' && p2.y < from.y) || (absFromDir === 'top' && p2.y > from.y);
+      if (needsUturn) {
+        path.push({ x: p2.x, y: p1.y });
+      } else {
+        path.push({ x: p1.x, y: p2.y + offset });
+        path.push({ x: p2.x, y: p2.y + offset });
+      }
     }
   }
 

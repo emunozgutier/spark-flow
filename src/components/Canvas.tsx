@@ -3,6 +3,7 @@ import { useStyle } from '../store/useStyle';
 import { useCanvas } from '../store/useCanvas';
 import { PassiveElment } from './Canvas/PassiveElment';
 import { Anotations } from './Canvas/Anotations';
+import { Join } from './Canvas/Wire/Join';
 import { Connections, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Connections';
 import type {
   CanvasElement,
@@ -826,6 +827,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         {cards.map((card) => {
           const isSelected = selectedId === card.id || selectedIds.includes(card.id);
           const isPassive = !!card.componentType;
+          const isJoin = card.id.startsWith('join') || card.title === 'join';
           
           if (isPassive) {
             return (
@@ -839,6 +841,19 @@ export const Canvas: React.FC<CanvasProps> = ({
                 initiateArrowDraw={initiateArrowDraw}
                 updateElement={updateElement}
                 finalizeDrag={finalizeDrag}
+              />
+            );
+          }
+
+          if (isJoin) {
+            return (
+              <Join
+                key={card.id}
+                card={card}
+                isSelected={isSelected}
+                activeTool={activeTool}
+                initiateCardDrag={initiateCardDrag}
+                initiateArrowDraw={initiateArrowDraw}
               />
             );
           }

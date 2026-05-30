@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ArrowElement, CardElement, Point } from '../../dataTypes/AnotateType';
 import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from './Connections';
+import { Vertices } from './Wire/Vertices';
 
 interface WireProps {
   arrow: ArrowElement;
@@ -89,19 +90,8 @@ export const Wire: React.FC<WireProps> = ({
         strokeDasharray={isDashed ? '6,6' : 'none'}
         style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
       />
-      {/* 90-Degree Turn Vertex Markers */}
-      {corners.map((corner, idx) => (
-        <circle
-          key={`corner-${idx}`}
-          cx={corner.x}
-          cy={corner.y}
-          r="3"
-          fill="var(--bg-canvas)"
-          stroke={strokeColorVal}
-          strokeWidth={isSelected ? '2.5' : '2'}
-          style={{ transition: 'stroke 0.15s, stroke-width 0.15s' }}
-        />
-      ))}
+      {/* 90-Degree Turn Vertex Markers (only shown when the wire is selected) */}
+      <Vertices corners={corners} isSelected={isSelected} strokeColorVal={strokeColorVal} />
       {arrow.label && (
         <g>
           <rect
