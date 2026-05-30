@@ -250,6 +250,52 @@ export const Connections: React.FC<ConnectionsProps> = ({
           strokeDasharray="4,4"
         />
       )}
+
+      {/* Render temporary live snap join indicator */}
+      {drawingArrow && activeSnap && (
+        <g style={{ pointerEvents: 'none' }}>
+          {/* Glowing pulse ring */}
+          <circle
+            cx={activeSnap.point.x}
+            cy={activeSnap.point.y}
+            r="8"
+            fill="rgba(244, 63, 94, 0.35)"
+            style={{ transformOrigin: `${activeSnap.point.x}px ${activeSnap.point.y}px` }}
+          />
+          {/* Core circular junction dot */}
+          <circle
+            cx={activeSnap.point.x}
+            cy={activeSnap.point.y}
+            r="4.5"
+            fill="#f43f5e"
+            stroke="#ffffff"
+            strokeWidth="1"
+          />
+          {/* Glow tooltip saying "JOIN" */}
+          <g transform={`translate(${activeSnap.point.x}, ${activeSnap.point.y - 15})`}>
+            <rect
+              x="-18"
+              y="-10"
+              width="36"
+              height="14"
+              rx="3"
+              fill="#f43f5e"
+              stroke="#ffffff"
+              strokeWidth="0.5"
+            />
+            <text
+              fill="#ffffff"
+              fontSize="8"
+              fontWeight="bold"
+              textAnchor="middle"
+              y="-1"
+              fontFamily="var(--font-sans)"
+            >
+              JOIN
+            </text>
+          </g>
+        </g>
+      )}
     </svg>
   );
 };

@@ -775,6 +775,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           setSelectedId={setSelectedId}
           drawingArrow={drawingArrow}
           getSocketPosition={getSocketPosition}
+          activeSnap={activeSnap}
         />
 
         {/* Render temporary live box drawing preview */}
