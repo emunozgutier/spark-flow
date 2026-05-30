@@ -9,6 +9,7 @@ interface ConnectionsProps {
   setSelectedId: (id: string | null) => void;
   drawingArrow: DrawingArrowState | null;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
+  activeSnap?: { wire: ArrowElement; point: Point } | null;
 }
 
 const COLOR_THEMES = [
@@ -169,7 +170,8 @@ export const Connections: React.FC<ConnectionsProps> = ({
   selectedId,
   setSelectedId,
   drawingArrow,
-  getSocketPosition
+  getSocketPosition,
+  activeSnap
 }) => {
   const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
 
