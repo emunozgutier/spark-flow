@@ -28,6 +28,12 @@ const getCompactId = (card: CardElement): string => {
   if (card.componentType === 'inductor') {
     return `L${card.instanceNumber || 1}`;
   }
+  if (card.componentType === 'voltage') {
+    return `V${card.instanceNumber || 1}`;
+  }
+  if (card.componentType === 'current') {
+    return `I${card.instanceNumber || 1}`;
+  }
   if (card.componentType === 'ground') {
     return card.instanceNumber ? `GND${card.instanceNumber}` : 'GND';
   }
@@ -76,6 +82,12 @@ export const serializeElements = (elements: CanvasElement[]): string => {
         } else if (card.componentType === 'inductor') {
           defaultVal = 10e-3;
           defaultColor = 'emerald';
+        } else if (card.componentType === 'voltage') {
+          defaultVal = 5;
+          defaultColor = 'coral';
+        } else if (card.componentType === 'current') {
+          defaultVal = 0.001;
+          defaultColor = 'amethyst';
         } else if (card.componentType === 'ground') {
           defaultColor = 'slate';
         }
@@ -241,11 +253,13 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       if (fields.length < 4) return;
 
       const type = fields[0];
-      if (type === 'R' || type === 'C' || type === 'L' || type === 'G') {
+      if (type === 'R' || type === 'C' || type === 'L' || type === 'G' || type === 'V' || type === 'I') {
         const componentType =
           type === 'R' ? 'resistor' :
           type === 'C' ? 'capacitor' :
-          type === 'L' ? 'inductor' : 'ground';
+          type === 'L' ? 'inductor' :
+          type === 'V' ? 'voltage' :
+          type === 'I' ? 'current' : 'ground';
         
         const instanceNumber = parseInt(fields[1], 10) || 1;
         const x = parseInt(fields[2], 10) || 0;
@@ -257,12 +271,14 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         if (componentType === 'resistor') { defaultVal = 1000; defaultColor = 'amber'; }
         else if (componentType === 'capacitor') { defaultVal = 10e-6; defaultColor = 'sapphire'; }
         else if (componentType === 'inductor') { defaultVal = 10e-3; defaultColor = 'emerald'; }
+        else if (componentType === 'voltage') { defaultVal = 5; defaultColor = 'coral'; }
+        else if (componentType === 'current') { defaultVal = 0.001; defaultColor = 'amethyst'; }
         else if (componentType === 'ground') { defaultColor = 'slate'; }
 
         const value = fields[5] ? parseFloat(fields[5]) : defaultVal;
         const color = (fields[6] || defaultColor) as any;
 
-        const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : 'GND';
+        const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : type === 'V' ? 'V' : type === 'I' ? 'I' : 'GND';
         const cardId = `${prefix}${instanceNumber}`;
 
         let ports = undefined;
@@ -495,6 +511,72 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         height: 60,
         color,
         componentType: 'inductor',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // V[num] -> Voltage Source
+    else if (/^V\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 5;
+      
+      const color = fields[5] || 'coral';
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-right`, direction: 'right' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'voltage',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // I[num] -> Current Source
+    else if (/^I\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 0.001;
+      
+      const color = fields[5] || 'amethyst';
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-right`, direction: 'right' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'current',
         instanceNumber,
         value,
         ports,

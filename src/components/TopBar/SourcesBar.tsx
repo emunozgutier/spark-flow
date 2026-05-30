@@ -1,54 +1,59 @@
 import React from 'react';
 import type { ToolType } from '../../dataTypes/AnotateType';
 
-interface PassivesBarProps {
+interface SourcesBarProps {
   activeTool: ToolType;
   setActiveTool: (tool: ToolType) => void;
 }
 
-export const PassivesBar: React.FC<PassivesBarProps> = ({ activeTool, setActiveTool }) => {
+export const SourcesBar: React.FC<SourcesBarProps> = ({ activeTool, setActiveTool }) => {
   return (
     <div className="interactive-panel glass-panel topbar-sub animate-slide-down">
-      {/* Resistor */}
+      {/* Voltage Source */}
       <button
-        className={`tool-btn text-btn ${activeTool === 'resistor' ? 'active' : ''}`}
-        onClick={() => setActiveTool('resistor')}
-        aria-label="Add Resistor"
+        className={`tool-btn text-btn ${activeTool === 'voltage' ? 'active' : ''}`}
+        onClick={() => setActiveTool('voltage')}
+        aria-label="Add Voltage Source"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M 2 12 L 6 12 L 8 6 L 12 18 L 16 6 L 18 12 L 22 12" />
+          <circle cx="12" cy="12" r="9" />
+          <path d="M 8 10 H 12 M 10 8 V 12" strokeWidth="2" /> {/* + sign */}
+          <path d="M 12 16 H 16" strokeWidth="2" /> {/* - sign */}
         </svg>
-        <span>resistor</span>
-        <span className="tooltip">Add Resistor Card (R)</span>
+        <span>voltage src</span>
+        <span className="tooltip">Add Voltage Source Card</span>
       </button>
 
-      {/* Capacitor */}
+      {/* Current Source */}
       <button
-        className={`tool-btn text-btn ${activeTool === 'capacitor' ? 'active' : ''}`}
-        onClick={() => setActiveTool('capacitor')}
-        aria-label="Add Capacitor"
+        className={`tool-btn text-btn ${activeTool === 'current' ? 'active' : ''}`}
+        onClick={() => setActiveTool('current')}
+        aria-label="Add Current Source"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M 2 12 L 10 12 M 14 12 L 22 12" />
-          <path d="M 10 5 L 10 19 M 14 5 L 14 19" />
+          <circle cx="12" cy="12" r="9" />
+          <path d="M 7 12 H 17" />
+          <path d="M 13 8 L 17 12 L 13 16" />
         </svg>
-        <span>capacitor</span>
-        <span className="tooltip">Add Capacitor Card (C)</span>
+        <span>current src</span>
+        <span className="tooltip">Add Current Source Card</span>
       </button>
 
-      {/* Inductor */}
+      {/* Ground */}
       <button
-        className={`tool-btn text-btn ${activeTool === 'inductor' ? 'active' : ''}`}
-        onClick={() => setActiveTool('inductor')}
-        aria-label="Add Inductor"
+        className={`tool-btn text-btn ${activeTool === 'ground' ? 'active' : ''}`}
+        onClick={() => setActiveTool('ground')}
+        aria-label="Add Ground"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M 2 12 L 5 12 C 5 7, 9 7, 9 12 C 9 7, 13 7, 13 12 C 13 7, 17 7, 17 12 L 22 12" />
+          <path d="M 12 4 L 12 14" />
+          <path d="M 5 14 L 19 14" />
+          <path d="M 8 18 L 16 18" />
+          <path d="M 10 22 L 14 22" />
         </svg>
-        <span>inductor</span>
-        <span className="tooltip">Add Inductor Card (I)</span>
+        <span>ground</span>
+        <span className="tooltip">Add Ground Card (G)</span>
       </button>
-
 
       <div className="toolbar-divider" />
 

@@ -3,6 +3,7 @@ import type { ToolType, CanvasElement } from '../dataTypes/AnotateType';
 import { FileBar } from './TopBar/FileBar';
 import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
+import { SourcesBar } from './TopBar/SourcesBar';
 import { DebugPopup } from './TopBar/DebugPopup';
 
 interface TopBarProps {
@@ -34,15 +35,17 @@ export const TopBar: React.FC<TopBarProps> = ({
   elements,
   setToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives' | 'debug'>('anotate');
+  const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives' | 'sources' | 'debug'>('anotate');
   const [isDebug, setIsDebug] = useState(false);
 
   // Sync activeTab when the activeTool changes via global keyboard hotkeys
   useEffect(() => {
     if (activeTool === 'text' || activeTool === 'arrow') {
       setActiveTab('anotate');
-    } else if (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor' || activeTool === 'ground') {
+    } else if (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor') {
       setActiveTab('passives');
+    } else if (activeTool === 'voltage' || activeTool === 'current' || activeTool === 'ground') {
+      setActiveTab('sources');
     }
   }, [activeTool]);
 
@@ -114,6 +117,19 @@ export const TopBar: React.FC<TopBarProps> = ({
             </svg>
             <span className="tooltip">Passive Elements</span>
           </button>
+ 
+          {/* Sources Tab */}
+          <button
+            className={`tool-btn tab-btn ${activeTab === 'sources' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sources')}
+            aria-label="Sources"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M 9 12 Q 10.5 8, 12 12 T 15 12" />
+            </svg>
+            <span className="tooltip">Sources & Ground</span>
+          </button>
 
           {/* Debug Tab (visible only in debug mode) */}
           {isDebug && (
@@ -158,6 +174,13 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {activeTab === 'passives' && (
           <PassivesBar
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+          />
+        )}
+ 
+        {activeTab === 'sources' && (
+          <SourcesBar
             activeTool={activeTool}
             setActiveTool={setActiveTool}
           />

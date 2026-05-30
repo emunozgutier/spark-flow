@@ -109,7 +109,7 @@ interface CanvasState {
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -180,7 +180,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground') => {
+        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current') => {
           (useCanvas as any).temporal?.getState().resume();
           
           let defaultWidth = 200;
@@ -224,6 +224,12 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
               } else if (componentType === 'inductor') {
                 val = 10e-3; // 10mH
                 color = 'emerald';
+              } else if (componentType === 'voltage') {
+                val = 5; // 5V
+                color = 'coral';
+              } else if (componentType === 'current') {
+                val = 0.001; // 1mA
+                color = 'amethyst';
               }
               defaultWidth = 60;
               defaultHeight = 60;

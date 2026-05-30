@@ -63,6 +63,22 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
           <path d="M 28 41 L 32 41" />
         </svg>
       )}
+      {card.componentType === 'voltage' && (
+        <svg width="100%" height="30" viewBox="0 0 100 40" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '5px', left: 0, filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+          <path d="M 0 20 L 35 20 M 65 20 L 100 20" />
+          <circle cx="50" cy="20" r="15" />
+          <path d="M 40 20 H 46 M 43 17 V 23" strokeWidth="2.5" />
+          <path d="M 54 20 H 60" strokeWidth="2.5" />
+        </svg>
+      )}
+      {card.componentType === 'current' && (
+        <svg width="100%" height="30" viewBox="0 0 100 40" fill="none" stroke="var(--theme-color)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '5px', left: 0, filter: 'drop-shadow(0 0 4px var(--theme-color-glow))' }}>
+          <path d="M 0 20 L 35 20 M 65 20 L 100 20" />
+          <circle cx="50" cy="20" r="15" />
+          <path d="M 42 20 H 58" strokeWidth="2.5" />
+          <path d="M 52 15 L 58 20 L 52 25" strokeWidth="2.5" strokeLinejoin="miter" />
+        </svg>
+      )}
 
       {/* Vertically Stacked Component Labels at the bottom */}
       <div
@@ -84,9 +100,9 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
         <input
           type="text"
           className="passive-title-input"
-          value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND'}${card.instanceNumber || 1}`}
+          value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND'}${card.instanceNumber || 1}`}
           onChange={(e) => {
-            const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND';
+            const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND';
             const num = parseInstanceNumber(e.target.value, prefix);
             updateElement(card.id, { instanceNumber: num }, false);
           }}
