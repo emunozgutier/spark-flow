@@ -5,6 +5,7 @@ import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
 import { SourcesBar } from './TopBar/SourcesBar';
 import { DebugPopup } from './TopBar/DebugPopup';
+import { SimulationPanel } from './Canvas/SimulationPanel';
 
 interface TopBarProps {
   activeTool: ToolType;
@@ -35,7 +36,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   elements,
   setToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives' | 'sources' | 'debug'>('anotate');
+  const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives' | 'sources' | 'simulate' | 'debug'>('anotate');
   const [isDebug, setIsDebug] = useState(false);
 
   // Sync activeTab when the activeTool changes via global keyboard hotkeys
@@ -130,6 +131,18 @@ export const TopBar: React.FC<TopBarProps> = ({
             </svg>
             <span className="tooltip">Sources & Ground</span>
           </button>
+ 
+          {/* Simulate Tab */}
+          <button
+            className={`tool-btn tab-btn ${activeTab === 'simulate' ? 'active' : ''}`}
+            onClick={() => setActiveTab('simulate')}
+            aria-label="Run Simulation"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3" fill={activeTab === 'simulate' ? 'var(--theme-sapphire)' : 'none'} style={{ stroke: 'var(--theme-sapphire)' }} />
+            </svg>
+            <span className="tooltip">Simulate Circuit</span>
+          </button>
 
           {/* Debug Tab (visible only in debug mode) */}
           {isDebug && (
@@ -194,6 +207,16 @@ export const TopBar: React.FC<TopBarProps> = ({
           onClose={() => setActiveTab('anotate')}
           elements={elements}
           loadElements={loadElements}
+          setToast={setToast}
+        />
+      )}
+ 
+      {/* Live Simulation Panel Dashboard overlay */}
+      {activeTab === 'simulate' && (
+        <SimulationPanel
+          isOpen={true}
+          onClose={() => setActiveTab('anotate')}
+          elements={elements}
           setToast={setToast}
         />
       )}
