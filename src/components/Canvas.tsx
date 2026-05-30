@@ -504,8 +504,109 @@ export const Canvas: React.FC<CanvasProps> = ({
       const realTarget = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
       const targetElement = realTarget || (e.target as HTMLElement);
       const isSocket = targetElement?.classList.contains('card-socket');
+      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
       
-      if (isSocket) {
+      if (activeSnap) {
+        // --- WIRE SPLIT AND JOIN TRANSACTION ---
+        const fromId = drawingArrow.fromId;
+        const fromSocket = drawingArrow.fromSocket;
+        
+        if (fromId && fromSocket) {
+          const snapPt = activeSnap.point;
+          const targetWire = activeSnap.wire;
+
+          // 1. Generate unique IDs
+          const joinId = `join-${Date.now()}`;
+          const wireAId = `arrow-${Date.now()}-a`;
+          const wireBId = `arrow-${Date.now()}-b`;
+          const wireCId = `arrow-${Date.now()}-c`;
+
+          const origFromCard = cards.find((c) => c.id === targetWire.fromId);
+          const origToCard = cards.find((c) => c.id === targetWire.toId);
+
+          if (origFromCard && origToCard && targetWire.fromSocket && targetWire.toSocket) {
+            const origFromSocketPt = getSocketPosition(origFromCard, targetWire.fromSocket);
+            const origToSocketPt = getSocketPosition(origToCard, targetWire.toSocket);
+
+            // 2. Create the join junction card/box (centered at snapPt, size 16x16)
+            const joinCard: CardElement = {
+              id: joinId,
+              type: 'box',
+              x: snapPt.x - 8,
+              y: snapPt.y - 8,
+              width: 16,
+              height: 16,
+              color: targetWire.color || 'slate',
+              title: 'join',
+              content: ''
+            };
+
+            // 3. Calculate socket directions on the join node
+            const joinCenter = snapPt;
+            const socketForOrigFrom = getJoinSocketDirection(joinCenter, origFromSocketPt);
+            const socketForOrigTo = getJoinSocketDirection(joinCenter, origToSocketPt);
+            
+            const sourceCard = cards.find((c) => c.id === fromId);
+            const sourceSocketPt = sourceCard ? getSocketPosition(sourceCard, fromSocket) : snapPt;
+            const socketForNewSource = getJoinSocketDirection(joinCenter, sourceSocketPt);
+
+            // 4. Create the three new wires
+            const wireA: ArrowElement = {
+              id: wireAId,
+              type: 'arrow',
+              fromId: targetWire.fromId,
+              fromSocket: targetWire.fromSocket,
+              toId: joinId,
+              toSocket: socketForOrigFrom,
+              color: targetWire.color,
+              style: targetWire.style,
+              label: ''
+            };
+
+            const wireB: ArrowElement = {
+              id: wireBId,
+              type: 'arrow',
+              fromId: joinId,
+              fromSocket: socketForOrigTo,
+              toId: targetWire.toId,
+              toSocket: targetWire.toSocket,
+              color: targetWire.color,
+              style: targetWire.style,
+              label: ''
+            };
+
+            const wireC: ArrowElement = {
+              id: wireCId,
+              type: 'arrow',
+              fromId: fromId,
+              fromSocket: fromSocket,
+              toId: joinId,
+              toSocket: socketForNewSource,
+              color: drawingArrow.color || 'slate',
+              style: drawingArrow.style || 'curved',
+              label: ''
+            };
+
+            // 5. Update Zustand store atomically
+            const filteredElements = elements.filter((el) => el.id !== targetWire.id);
+            const nextElements = [...filteredElements, joinCard, wireA, wireB, wireC];
+
+            const temporalApi = (useCanvas as any).temporal?.getState();
+            temporalApi?.resume();
+
+            useCanvas.setState({ elements: nextElements });
+            localStorage.setItem('spark-flow:board-elements', JSON.stringify(nextElements));
+
+            if (setToast) {
+              setToast({
+                message: '🔗 Wire successfully joined and split into 3 segments!',
+                type: 'success'
+              });
+            }
+          }
+        }
+        setActiveSnap(null);
+      } else if (isSocket) {
         const toCardId = targetElement.getAttribute('data-card-id');
         const toSocketDir = targetElement.getAttribute('data-socket-dir') as 'top' | 'right' | 'bottom' | 'left';
         
