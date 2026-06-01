@@ -64,91 +64,104 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
   const v1Val = v1Card?.value !== undefined ? v1Card.value : 5.0;
 
   const solvedV1 = (r1Val / (r1Val + r2Val)) * v1Val;
+  const solvedIR1mA = (v1Val / (r1Val + r2Val)) * 1000;
+  const solvedIR2mA = -(v1Val / (r1Val + r2Val)) * 1000;
   const solvedIV1mA = -(v1Val / (r1Val + r2Val)) * 1000;
-  const g1 = 1 / r1Val;
-  const g2 = 1 / r2Val;
-
 
   const variableLabels = nmaStep === 5
     ? [
         '0.00 V',
         `${solvedV1.toFixed(2)} V`,
         `${v1Val.toFixed(2)} V`,
+        `${solvedIR1mA.toFixed(2)}mA`,
+        `${solvedIR2mA.toFixed(2)}mA`,
         `${solvedIV1mA.toFixed(2)}mA`
       ]
-    : ['V0', 'V1', 'V2', 'i(V1)'];
+    : ['V0', 'V1', 'V2', 'i(R1)', 'i(R2)', 'i(V1)'];
 
   const nmaSteps = [
     {
       title: 'Step 1: Size & Labels',
-      desc: `We construct a 4x4 Modified Nodal Analysis (MNA) matrix system to solve for the unknown node voltages V0, V1, V2, and the voltage source branch current i(V1). The variables vector is [V0, V1, V2, i(V1)]. All cells start at 0.`,
+      desc: `We construct a 6x6 Modified Nodal Analysis (MNA) matrix system to solve for the unknown node voltages V0, V1, V2, and the branch currents i(R1), i(R2), and i(V1). The variables vector is [V0, V1, V2, i(R1), i(R2), i(V1)]. All cells start at 0.`,
       matrix: [
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0]
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0]
       ],
-      rhs: [0, 0, 0, 0],
+      rhs: [0, 0, 0, 0, 0, 0],
       highlights: [] as string[]
     },
     {
       title: 'Step 2a: Add R1 Stamp',
-      desc: `Resistor R1 (${r1Val} ohms, conductance g1 = ${g1.toFixed(5)} S) connects Node 1 and Node 0. We apply the standard resistor stamp: +g1 on diagonals (Row 0 Col 0, Row 1 Col 1) and -g1 on cross-terms (Row 0 Col 1, Row 1 Col 0).`,
+      desc: `Resistor R1 (${r1Val} ohms) connects Node 1 and Node 0, introducing branch current i(R1). We stamp: +1 in Node 1 KCL (Row 1 Col 3), -1 in Node 0 KCL (Row 0 Col 3), and add the branch relation V1 - V0 - R1*i(R1) = 0 in Row 3 (Col 1 = 1, Col 0 = -1, Col 3 = -${r1Val}).`,
       matrix: [
-        [g1, -g1, 0, 0],
-        [-g1, g1, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0]
+        [0, 0, 0, -1, 0, 0],
+        [0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [-1, 1, 0, -r1Val, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0]
       ],
-      rhs: [0, 0, 0, 0],
-      highlights: ['0-0', '0-1', '1-0', '1-1']
+      rhs: [0, 0, 0, 0, 0, 0],
+      highlights: ['0-3', '1-3', '3-0', '3-1', '3-3']
     },
     {
       title: 'Step 2b: Add R2 Stamp',
-      desc: `Resistor R2 (${r2Val} ohms, conductance g2 = ${g2.toFixed(5)} S) connects Node 1 and Node 2. We apply the resistor stamp: +g2 on diagonals (Row 1 Col 1, Row 2 Col 2) and -g2 on cross-terms (Row 1 Col 2, Row 2 Col 1).`,
+      desc: `Resistor R2 (${r2Val} ohms) connects Node 1 and Node 2, introducing branch current i(R2). We stamp: +1 in Node 1 KCL (Row 1 Col 4), -1 in Node 2 KCL (Row 2 Col 4), and add the branch relation V1 - V2 - R2*i(R2) = 0 in Row 4 (Col 1 = 1, Col 2 = -1, Col 4 = -${r2Val}).`,
       matrix: [
-        [g1, -g1, 0, 0],
-        [-g1, g1 + g2, -g2, 0],
-        [0, -g2, g2, 0],
-        [0, 0, 0, 0]
+        [0, 0, 0, -1, 0, 0],
+        [0, 0, 0, 1, 1, 0],
+        [0, 0, 0, 0, -1, 0],
+        [-1, 1, 0, -r1Val, 0, 0],
+        [0, 1, -1, 0, -r2Val, 0],
+        [0, 0, 0, 0, 0, 0]
       ],
-      rhs: [0, 0, 0, 0],
-      highlights: ['1-1', '1-2', '2-1', '2-2']
+      rhs: [0, 0, 0, 0, 0, 0],
+      highlights: ['1-4', '2-4', '4-1', '4-2', '4-4']
     },
     {
-      title: 'Step 2c: Add V1 MNA Stamp',
-      desc: `Voltage source V1 (${v1Val}V) connects Node 2 (+) to Node 0 (-) introducing branch current i(V1). It stamps: m[v+][i] = +1 (Row 2 Col 3) and m[v-][i] = -1 (Row 0 Col 3) in KCL, and m[i][v+] = 1 (Row 3 Col 2) and m[i][v-] = -1 (Row 3 Col 0) in the branch relation V2 - V0 = ${v1Val}V, with RHS Row 3 = ${v1Val}.`,
+      title: 'Step 2c: Add V1 Stamp',
+      desc: `Voltage source V1 (${v1Val}V) connects Node 2 (+) to Node 0 (-), introducing branch current i(V1). We stamp: +1 in Node 2 KCL (Row 2 Col 5), -1 in Node 0 KCL (Row 0 Col 5), and add the branch relation V2 - V0 = ${v1Val}V in Row 5 (Col 2 = 1, Col 0 = -1, and RHS Row 5 = ${v1Val}).`,
       matrix: [
-        [g1, -g1, 0, -1],
-        [-g1, g1 + g2, -g2, 0],
-        [0, -g2, g2, 1],
-        [-1, 0, 1, 0]
+        [0, 0, 0, -1, 0, -1],
+        [0, 0, 0, 1, 1, 0],
+        [0, 0, 0, 0, -1, 1],
+        [-1, 1, 0, -r1Val, 0, 0],
+        [0, 1, -1, 0, -r2Val, 0],
+        [-1, 0, 1, 0, 0, 0]
       ],
-      rhs: [0, 0, 0, v1Val],
-      highlights: ['0-3', '2-3', '3-0', '3-2', 'rhs-3']
+      rhs: [0, 0, 0, 0, 0, v1Val],
+      highlights: ['0-5', '2-5', '5-0', '5-2', 'rhs-5']
     },
     {
       title: 'Step 3: Ground Constraint',
-      desc: `To solve the singular system, we substitute Ground V0 = 0, overwriting Row 0 with [1, 0, 0, 0] and RHS Row 0 with 0 (enforcing the equation 1*V0 = 0).`,
+      desc: `To solve the singular system, we substitute Ground V0 = 0. We overwrite Row 0 of the matrix with [1, 0, 0, 0, 0, 0] and RHS Row 0 with 0 (enforcing the equation 1*V0 = 0).`,
       matrix: [
-        [1, 0, 0, 0],
-        [-g1, g1 + g2, -g2, 0],
-        [0, -g2, g2, 1],
-        [-1, 0, 1, 0]
+        [1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0],
+        [0, 0, 0, 0, -1, 1],
+        [-1, 1, 0, -r1Val, 0, 0],
+        [0, 1, -1, 0, -r2Val, 0],
+        [-1, 0, 1, 0, 0, 0]
       ],
-      rhs: [0, 0, 0, v1Val],
-      highlights: ['0-0', '0-1', '0-2', '0-3', 'rhs-0']
+      rhs: [0, 0, 0, 0, 0, v1Val],
+      highlights: ['0-0', '0-1', '0-2', '0-3', '0-4', '0-5', 'rhs-0']
     },
     {
       title: 'Step 4: Solved Variables',
-      desc: `Solving the complete 4x4 matrix equation yields the exact electrical values for all of our unknown variables: voltages V0, V1, V2, and the branch current i(V1). The solved values are populated in the variables vector below.`,
+      desc: `Solving the complete 6x6 matrix equation yields the exact electrical values for all of our unknown variables: voltages V0, V1, V2, and the branch currents i(R1), i(R2), i(V1). The solved values are populated in the variables vector below.`,
       matrix: [
-        [1, 0, 0, 0],
-        [-g1, g1 + g2, -g2, 0],
-        [0, -g2, g2, 1],
-        [-1, 0, 1, 0]
+        [1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 1, 0],
+        [0, 0, 0, 0, -1, 1],
+        [-1, 1, 0, -r1Val, 0, 0],
+        [0, 1, -1, 0, -r2Val, 0],
+        [-1, 0, 1, 0, 0, 0]
       ],
-      rhs: [0, 0, 0, v1Val],
+      rhs: [0, 0, 0, 0, 0, v1Val],
       highlights: [] as string[]
     }
   ];
@@ -228,15 +241,20 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
       // 4. MNA SOLVER MATRICES BUILDER
       const nodeCount = nodeCounter - 1; // Nodes 1 to N
       const voltageSources = cards.filter((c) => c.componentType === 'voltage');
-      const mnaSize = nodeCount + voltageSources.length;
+      const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
+      const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
 
       const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
       const B = new Array(mnaSize).fill(0);
 
-      // Map voltage sources to their indices in MNA
-      const vSourceMap: Record<string, number> = {};
-      voltageSources.forEach((vSrc, idx) => {
-        vSourceMap[vSrc.id] = idx;
+      // Map Group 2 elements to their indices in MNA
+      const g2ElementMap: Record<string, number> = {};
+      let g2Index = nodeCount;
+      voltageSources.forEach((vSrc) => {
+        g2ElementMap[vSrc.id] = g2Index++;
+      });
+      group2Resistors.forEach((rGrp2) => {
+        g2ElementMap[rGrp2.id] = g2Index++;
       });
 
       // Fill Resistors conductances in G matrix
@@ -247,35 +265,45 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
           const n1 = parseInt(n1Str, 10);
           const n2 = parseInt(n2Str, 10);
           const rVal = card.value || 1000;
-          const g = 1 / rVal;
 
-          if (n1 > 0) A[n1 - 1][n1 - 1] += g;
-          if (n2 > 0) A[n2 - 1][n2 - 1] += g;
-          if (n1 > 0 && n2 > 0) {
-            A[n1 - 1][n2 - 1] -= g;
-            A[n2 - 1][n1 - 1] -= g;
+          if (card.isGroup2) {
+            const idx = g2ElementMap[card.id];
+            if (n1 > 0) A[n1 - 1][idx] += 1;
+            if (n2 > 0) A[n2 - 1][idx] -= 1;
+            if (n1 > 0) A[idx][n1 - 1] += 1;
+            if (n2 > 0) A[idx][n2 - 1] -= 1;
+            A[idx][idx] -= rVal;
+          } else {
+            const g = 1 / rVal;
+            if (n1 > 0) A[n1 - 1][n1 - 1] += g;
+            if (n2 > 0) A[n2 - 1][n2 - 1] += g;
+            if (n1 > 0 && n2 > 0) {
+              A[n1 - 1][n2 - 1] -= g;
+              A[n2 - 1][n1 - 1] -= g;
+            }
           }
         }
       });
 
       // Fill Voltage sources in MNA
-      voltageSources.forEach((vSrc, idx) => {
+      voltageSources.forEach((vSrc) => {
         const n1Str = getPinNode(vSrc.id, 'left');  // + terminal
         const n2Str = getPinNode(vSrc.id, 'right'); // - terminal
         const n1 = parseInt(n1Str, 10);
         const n2 = parseInt(n2Str, 10);
         const val = vSrc.value !== undefined ? vSrc.value : 5;
+        const idx = g2ElementMap[vSrc.id];
 
         // B matrix coefficients
-        if (n1 > 0) A[n1 - 1][nodeCount + idx] += 1;
-        if (n2 > 0) A[n2 - 1][nodeCount + idx] -= 1;
+        if (n1 > 0) A[n1 - 1][idx] += 1;
+        if (n2 > 0) A[n2 - 1][idx] -= 1;
 
         // C matrix coefficients (Transpose of B)
-        if (n1 > 0) A[nodeCount + idx][n1 - 1] += 1;
-        if (n2 > 0) A[nodeCount + idx][n2 - 1] -= 1;
+        if (n1 > 0) A[idx][n1 - 1] += 1;
+        if (n2 > 0) A[idx][n2 - 1] -= 1;
 
         // Voltage values
-        B[nodeCount + idx] = val;
+        B[idx] = val;
       });
 
       // Solve System: A * X = B
@@ -306,7 +334,8 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
       let netlist = `* SparkFlow Live SPICE Netlist\n`;
       cards.forEach((card) => {
         if (card.componentType === 'resistor') {
-          netlist += `R${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
+          const g2Str = card.isGroup2 ? ' G2' : '';
+          netlist += `R${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}${g2Str}\n`;
         } else if (card.componentType === 'capacitor') {
           netlist += `C${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
         } else if (card.componentType === 'inductor') {
@@ -682,7 +711,7 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                     padding: '2px 6px',
                     background: 'rgba(255, 255, 255, 0.01)'
                   }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nmaSteps[nmaStep].matrix[0].length}, 56px)`, gap: '4px', textAlign: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nmaSteps[nmaStep].matrix[0].length}, 48px)`, gap: '4px', textAlign: 'center' }}>
                       {nmaSteps[nmaStep].matrix.map((row, rIdx) =>
                         row.map((val, cIdx) => {
                           const isHighlighted = nmaSteps[nmaStep].highlights.includes(`${rIdx}-${cIdx}`);
@@ -696,10 +725,10 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                                 borderRadius: '4px',
                                 color: isHighlighted ? 'var(--theme-amber)' : '#ffffff',
                                 fontWeight: isHighlighted ? 'bold' : 'normal',
-                                fontSize: '10.5px'
+                                fontSize: '10px'
                               }}
                             >
-                              {val.toFixed(4)}
+                              {val.toFixed(2)}
                             </div>
                           );
                         })
@@ -723,7 +752,7 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                         <div
                           key={vLabel}
                           style={{
-                            width: nmaStep === 5 ? '60px' : '42px',
+                            width: nmaStep === 5 ? '62px' : '44px',
                             padding: '5px 0',
                             background: nmaStep === 5 ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)',
                             border: nmaStep === 5 ? '1px solid var(--theme-emerald)' : '1px solid rgba(255,255,255,0.06)',
@@ -766,7 +795,7 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                               color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
                               textAlign: 'center',
                               fontWeight: isHighlighted ? 'bold' : 'normal',
-                              fontSize: '10.5px'
+                              fontSize: '10px'
                             }}
                           >
                             {rhsVal.toFixed(2)}
@@ -787,18 +816,20 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                     fontSize: '10.5px'
                   }}>
                     <div style={{ color: 'var(--theme-emerald)', fontWeight: 'bold', marginBottom: '4px', fontSize: '11px' }}>
-                      🏁 Complete MNA Solutions (Voltage & Branch Current):
+                      🏁 Complete 6x6 MNA Solutions (Voltages & Branch Currents):
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', marginBottom: '4px' }}>
-                      <div>V0 (GND) = <span style={{ color: '#fff', fontWeight: 'bold' }}>0.000 V</span></div>
-                      <div>V2 (Source) = <span style={{ color: '#fff', fontWeight: 'bold' }}>{v1Val.toFixed(3)} V</span></div>
-                      <div>V1 (Divider) = <span style={{ color: '#fff', fontWeight: 'bold' }}>{((r1Val / (r1Val + r2Val)) * v1Val).toFixed(3)} V</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', marginBottom: '4px', fontSize: '10px' }}>
+                      <div>V0 = <span style={{ color: '#fff', fontWeight: 'bold' }}>0.000 V</span></div>
+                      <div>V1 = <span style={{ color: '#fff', fontWeight: 'bold' }}>{solvedV1.toFixed(3)} V</span></div>
+                      <div>V2 = <span style={{ color: '#fff', fontWeight: 'bold' }}>{v1Val.toFixed(3)} V</span></div>
                     </div>
-                    <div style={{ color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', fontSize: '10.5px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px', textAlign: 'center' }}>
-                      i(V1) Branch Current = <span style={{ color: 'var(--theme-coral)', fontWeight: 'bold' }}>-{((v1Val / (r1Val + r2Val)) * 1000).toFixed(3)} mA</span> ({(-v1Val / (r1Val + r2Val)).toExponential(3)} A)
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', fontSize: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px', marginBottom: '4px' }}>
+                      <div>i(R1) = <span style={{ color: 'var(--theme-emerald)', fontWeight: 'bold' }}>{solvedIR1mA.toFixed(3)} mA</span></div>
+                      <div>i(R2) = <span style={{ color: 'var(--theme-coral)', fontWeight: 'bold' }}>{solvedIR2mA.toFixed(3)} mA</span></div>
+                      <div>i(V1) = <span style={{ color: 'var(--theme-coral)', fontWeight: 'bold' }}>{solvedIV1mA.toFixed(3)} mA</span></div>
                     </div>
-                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8.5px', marginTop: '4px', textAlign: 'center' }}>
-                      Formulas: V1 = V2 * R1 / (R1 + R2), i(V1) = -V2 / (R1 + R2)
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8px', textAlign: 'center' }}>
+                      Equations: i(R1) = (V1-V0)/R1, i(R2) = (V1-V2)/R2, i(V1) = -i(R1) - i(R2)
                     </div>
                   </div>
                 )}

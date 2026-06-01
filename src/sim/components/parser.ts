@@ -35,7 +35,7 @@ export const parseSpiceNetlistToElements = (spiceDeck: string): ParsedNetlist =>
     if (rMatch) {
       const [, name, node1, node2, valToken, g2Token] = rMatch;
       const value = parseEngineeringValue(valToken);
-      const isGroup2 = !!g2Token;
+      const isGroup2 = g2Token ? g2Token.toUpperCase().includes('G2') : true;
       element = new ResistorElement(name, node1, node2, value, isGroup2);
       n1 = node1;
       n2 = node2;

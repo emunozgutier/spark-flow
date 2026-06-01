@@ -126,31 +126,38 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
 
         {/* Technical Value */}
         {card.componentType !== 'ground' && (
-          <input
-            type="text"
-            className="passive-value-input"
-            value={formatEngineering(card.value)}
-            onChange={(e) => {
-              const num = parseEngineering(e.target.value);
-              updateElement(card.id, { value: num }, false);
-            }}
-            onBlur={finalizeDrag}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--theme-color)',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
-              fontSize: '10px',
-              textAlign: 'center',
-              outline: 'none',
-              width: '100%',
-              pointerEvents: 'auto',
-              height: '13px',
-              lineHeight: '13px'
-            }}
-            placeholder="Value"
-          />
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <input
+              type="text"
+              className="passive-value-input"
+              value={formatEngineering(card.value)}
+              onChange={(e) => {
+                const num = parseEngineering(e.target.value);
+                updateElement(card.id, { value: num }, false);
+              }}
+              onBlur={finalizeDrag}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--theme-color)',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                fontSize: '10px',
+                textAlign: 'center',
+                outline: 'none',
+                width: '100%',
+                pointerEvents: 'auto',
+                height: '13px',
+                lineHeight: '13px'
+              }}
+              placeholder="Value"
+            />
+            {card.componentType === 'resistor' && card.isGroup2 && (
+              <span style={{ fontSize: '8px', fontWeight: 'bold', color: 'var(--theme-sapphire)', textShadow: '0 0 3px var(--theme-sapphire-glow)', marginTop: '2px', textTransform: 'uppercase' }}>
+                MNA G2
+              </span>
+            )}
+          </div>
         )}
       </div>
 

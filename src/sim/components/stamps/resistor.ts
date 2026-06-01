@@ -15,7 +15,7 @@ export class ResistorElement implements BaseElement {
   value: number;
   isGroup2: boolean;
 
-  constructor(name: string, node1: string, node2: string, value: number, isGroup2 = false) {
+  constructor(name: string, node1: string, node2: string, value: number, isGroup2 = true) {
     this.name = name;
     this.node1 = node1;
     this.node2 = node2;

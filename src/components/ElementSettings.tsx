@@ -97,6 +97,29 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
                 </div>
               )}
 
+              {/* Group 2 Toggle (For Resistors) */}
+              {card.componentType === 'resistor' && (
+                <div className="sidebar-section" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '12px' }}>
+                  <label className="sidebar-section-title" style={{ margin: 0, cursor: 'pointer' }} htmlFor="comp-g2">
+                    MNA Group 2 (i_res)
+                  </label>
+                  <input
+                    id="comp-g2"
+                    type="checkbox"
+                    checked={!!card.isGroup2}
+                    onChange={(e) => {
+                      onUpdateElement(card.id, { isGroup2: e.target.checked });
+                    }}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      accentColor: 'var(--theme-sapphire)',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Passive Component Rotation */}
               <div className="sidebar-section">
                 <label className="sidebar-section-title">Component Rotation</label>
