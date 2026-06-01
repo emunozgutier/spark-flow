@@ -139,7 +139,9 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
       // Identify the ground node group
       let gndRoot: string | null = null;
       Object.keys(groups).forEach((root) => {
-        const hasGndPin = groups[root].some((pin) => pin.includes('-ground-top'));
+        const hasGndPin = groups[root].some((pin) => 
+          pin.toLowerCase().includes('ground') || pin.toLowerCase().includes('gnd')
+        );
         if (hasGndPin) {
           gndRoot = root;
         }
