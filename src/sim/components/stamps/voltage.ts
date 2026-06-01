@@ -4,9 +4,11 @@
  */
 
 import type { BaseElement } from './BaseElement';
-import type { MnaMatrix } from './Matrix';
+import type { MnaModel } from '../../../utils/mnaModel';
 
 export class VoltageSourceElement implements BaseElement {
+  static pattern = /^(V\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
+
   name: string;
   type: 'voltage' = 'voltage';
   node1: string; // Positive terminal
@@ -25,7 +27,7 @@ export class VoltageSourceElement implements BaseElement {
     return 1;
   }
 
-  applyStamp(matrix: MnaMatrix, nodeMap: Map<string, number>, group2Idx: number): void {
+  applyStamp(matrix: MnaModel, nodeMap: Map<string, number>, group2Idx: number): void {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;

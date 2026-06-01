@@ -1,9 +1,9 @@
 /**
- * Matrix.ts
- * MnaMatrix class representing the system coefficient matrix and RHS vector for Modified Nodal Analysis (MNA).
+ * mnaModel.ts
+ * MnaModel class representing the system coefficient matrix and RHS vector for Modified Nodal Analysis (MNA).
  */
 
-export class MnaMatrix {
+export class MnaModel {
   private size: number;
   private matrix: number[][];
   private rhs: number[];

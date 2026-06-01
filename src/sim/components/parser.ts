@@ -49,48 +49,60 @@ export const parseSpiceNetlistToElements = (spiceDeck: string): ParsedNetlist =>
       continue; // Ignore comments and empty lines
     }
 
-    const tokens = line.split(/\s+/);
-    if (tokens.length < 4) {
-      continue; // Need Name, Node1, Node2, Value
-    }
-
-    const name = tokens[0];
-    const node1 = tokens[1];
-    const node2 = tokens[2];
-    
-    let valToken = tokens[3];
-    // Skip DC/AC prefixes
-    if ((valToken.toUpperCase() === 'DC' || valToken.toUpperCase() === 'AC') && tokens.length > 4) {
-      valToken = tokens[4];
-    }
-
-    const value = parseEngineeringValue(valToken);
     let element: BaseElement | null = null;
+    let n1 = '';
+    let n2 = '';
 
-    if (/^R/i.test(name)) {
-      // Check for Group 2 G2 flag
-      let isGroup2 = false;
-      for (let i = 4; i < tokens.length; i++) {
-        const t = tokens[i].toUpperCase();
-        if (t === 'G2' || t === '[G2]') {
-          isGroup2 = true;
+    const rMatch = line.match(ResistorElement.pattern);
+    if (rMatch) {
+      const [, name, node1, node2, valToken, g2Token] = rMatch;
+      const value = parseEngineeringValue(valToken);
+      const isGroup2 = !!g2Token;
+      element = new ResistorElement(name, node1, node2, value, isGroup2);
+      n1 = node1;
+      n2 = node2;
+    } else {
+      const lMatch = line.match(InductorElement.pattern);
+      if (lMatch) {
+        const [, name, node1, node2, valToken] = lMatch;
+        const value = parseEngineeringValue(valToken);
+        element = new InductorElement(name, node1, node2, value);
+        n1 = node1;
+        n2 = node2;
+      } else {
+        const cMatch = line.match(CapacitorElement.pattern);
+        if (cMatch) {
+          const [, name, node1, node2, valToken] = cMatch;
+          const value = parseEngineeringValue(valToken);
+          element = new CapacitorElement(name, node1, node2, value);
+          n1 = node1;
+          n2 = node2;
+        } else {
+          const vMatch = line.match(VoltageSourceElement.pattern);
+          if (vMatch) {
+            const [, name, node1, node2, valToken] = vMatch;
+            const value = parseEngineeringValue(valToken);
+            element = new VoltageSourceElement(name, node1, node2, value);
+            n1 = node1;
+            n2 = node2;
+          } else {
+            const iMatch = line.match(CurrentSourceElement.pattern);
+            if (iMatch) {
+              const [, name, node1, node2, valToken] = iMatch;
+              const value = parseEngineeringValue(valToken);
+              element = new CurrentSourceElement(name, node1, node2, value);
+              n1 = node1;
+              n2 = node2;
+            }
+          }
         }
       }
-      element = new ResistorElement(name, node1, node2, value, isGroup2);
-    } else if (/^L/i.test(name)) {
-      element = new InductorElement(name, node1, node2, value);
-    } else if (/^C/i.test(name)) {
-      element = new CapacitorElement(name, node1, node2, value);
-    } else if (/^V/i.test(name)) {
-      element = new VoltageSourceElement(name, node1, node2, value);
-    } else if (/^I/i.test(name)) {
-      element = new CurrentSourceElement(name, node1, node2, value);
     }
 
     if (element) {
       elementsList.push(element);
-      uniqueNodes.add(node1);
-      uniqueNodes.add(node2);
+      uniqueNodes.add(n1);
+      uniqueNodes.add(n2);
     }
   }
 

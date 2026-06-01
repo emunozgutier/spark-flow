@@ -5,7 +5,7 @@
 
 import type { BaseElement } from './components/stamps/BaseElement';
 import { parseSpiceNetlistToElements } from './components/parser';
-import { MnaMatrix } from './components/stamps/Matrix';
+import { buildMna } from './components/mnaBuilder';
 /**
  * Solves a system of equations A * x = B using Gaussian Elimination with Partial (Row) Pivoting.
  * Performs deep copy to avoid modifying the input matrices.
@@ -107,37 +107,10 @@ export class Spice {
    * Compiles the MNA matrix A and RHS vector B using elementsList' stamps.
    */
   compile(): { A: number[][]; B: number[]; nodeMap: Map<string, number>; group2Elements: BaseElement[] } {
-    // Map active nodes (nodes excluding "0") to 1-based indices
-    const activeNodes = this.nodes.filter(n => n !== '0' && n.toUpperCase() !== 'GND');
-    const nodeMap = new Map<string, number>();
-    activeNodes.forEach((nodeName, index) => {
-      nodeMap.set(nodeName, index + 1);
-    });
-
-    const N = activeNodes.length;
-
-    // Filter elements that introduce Group 2 variables
-    const group2Elements: BaseElement[] = [];
-    this.elementsList.forEach(el => {
-      if (el.getGroup2Count() > 0) {
-        group2Elements.push(el);
-      }
-    });
-
-    const M = group2Elements.length;
-
-    // Instantiate MnaMatrix to manage system matrix size and stamps
-    const mnaMatrix = new MnaMatrix(N, M);
-
-    // Apply stamps for each element
-    this.elementsList.forEach(el => {
-      const g2Idx = el.getGroup2Count() > 0 ? N + group2Elements.indexOf(el) : 0;
-      el.applyStamp(mnaMatrix, nodeMap, g2Idx);
-    });
-
+    const { mnaModel, nodeMap, group2Elements } = buildMna(this.elementsList, this.nodes);
     return {
-      A: mnaMatrix.getMatrix(),
-      B: mnaMatrix.getRhs(),
+      A: mnaModel.getMatrix(),
+      B: mnaModel.getRhs(),
       nodeMap,
       group2Elements
     };

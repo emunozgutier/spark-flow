@@ -3,7 +3,7 @@
  * Defines the common interface for all modular SPICE element stamp classes.
  */
 
-import type { MnaMatrix } from './Matrix';
+import type { MnaModel } from '../../../utils/mnaModel';
 
 export interface BaseElement {
   name: string;
@@ -20,9 +20,9 @@ export interface BaseElement {
 
   /**
    * Stamps the element's coefficients into the global MNA system matrices.
-   * @param matrix The MnaMatrix coordinator managing the matrix and RHS entries
+   * @param matrix The MnaModel coordinator managing the matrix and RHS entries
    * @param nodeMap Map from active node name to 1-based index
    * @param group2Idx The index of the auxiliary equation row/column dedicated to this element's first branch variable
    */
-  applyStamp(matrix: MnaMatrix, nodeMap: Map<string, number>, group2Idx: number): void;
+  applyStamp(matrix: MnaModel, nodeMap: Map<string, number>, group2Idx: number): void;
 }
