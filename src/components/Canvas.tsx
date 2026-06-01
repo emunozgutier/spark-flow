@@ -5,6 +5,31 @@ import { PassiveElment } from './Canvas/PassiveElment';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Connections, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Connections';
+import { solveLinearSystem } from '../sim/components/mnaSolver';
+
+// DSU helper to group connected pins into electrical nodes
+class UnionFind {
+  parent: Record<string, string> = {};
+  
+  find(id: string): string {
+    if (!this.parent[id]) {
+      this.parent[id] = id;
+    }
+    if (this.parent[id] === id) {
+      return id;
+    }
+    this.parent[id] = this.find(this.parent[id]);
+    return this.parent[id];
+  }
+  
+  union(x: string, y: string) {
+    const rootX = this.find(x);
+    const rootY = this.find(y);
+    if (rootX !== rootY) {
+      this.parent[rootX] = rootY;
+    }
+  }
+}
 import type {
   CanvasElement,
   CardElement,
@@ -147,7 +172,198 @@ export const Canvas: React.FC<CanvasProps> = ({
   setToast,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  
+  const { liveDCOn } = useCanvas();
+
+  // --- REAL-TIME MNA DC OPERATING POINT SOLVER ---
+  const solvedDCOperatingPoint = React.useMemo(() => {
+    if (!liveDCOn) return {};
+    try {
+      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+      
+      const uf = new UnionFind();
+
+      // 1. Union ports belonging to join elements
+      cards.forEach((card) => {
+        if (card.id.startsWith('join') || card.title === 'join') {
+          uf.union(`${card.id}-top`, `${card.id}-right`);
+          uf.union(`${card.id}-top`, `${card.id}-bottom`);
+          uf.union(`${card.id}-top`, `${card.id}-left`);
+        }
+      });
+
+      // 2. Union ports connected by wires
+      arrows.forEach((w) => {
+        if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
+          uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
+        }
+      });
+
+      // 3. Map sets to node keys
+      const groups: Record<string, string[]> = {};
+      cards.forEach((card) => {
+        const isGround = card.componentType === 'ground';
+        const portsList = isGround ? ['top'] : ['left', 'right'];
+        
+        portsList.forEach((socket) => {
+          const pin = `${card.id}-${socket}`;
+          const root = uf.find(pin);
+          if (!groups[root]) groups[root] = [];
+          groups[root].push(pin);
+        });
+      });
+
+      // Identify the ground node group
+      let gndRoot: string | null = null;
+      Object.keys(groups).forEach((root) => {
+        const hasGndPin = groups[root].some((pin) => 
+          pin.toLowerCase().includes('ground') || pin.toLowerCase().includes('gnd')
+        );
+        if (hasGndPin) {
+          gndRoot = root;
+        }
+      });
+
+      // Map roots to standard SPICE node numbers (GND is always "0")
+      const rootToNodeName: Record<string, string> = {};
+      let nodeCounter = 1;
+      
+      if (gndRoot) {
+        rootToNodeName[gndRoot] = '0';
+      }
+
+      Object.keys(groups).forEach((root) => {
+        if (root === gndRoot) return;
+        rootToNodeName[root] = String(nodeCounter++);
+      });
+
+      const getPinNode = (cardId: string, socket: string): string => {
+        const root = uf.find(`${cardId}-${socket}`);
+        return rootToNodeName[root] || '0';
+      };
+
+      const nodeCount = nodeCounter - 1; // Nodes 1 to N
+      const voltageSources = cards.filter((c) => c.componentType === 'voltage');
+      const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
+      const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
+
+      if (mnaSize === 0) return {};
+
+      const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
+      const B = new Array(mnaSize).fill(0);
+
+      // Map Group 2 elements to their indices in MNA
+      const g2ElementMap: Record<string, number> = {};
+      let g2Index = nodeCount;
+      voltageSources.forEach((vSrc) => {
+        g2ElementMap[vSrc.id] = g2Index++;
+      });
+      group2Resistors.forEach((rGrp2) => {
+        g2ElementMap[rGrp2.id] = g2Index++;
+      });
+
+      // Fill Resistors conductances in G matrix
+      cards.forEach((card) => {
+        if (card.componentType === 'resistor') {
+          const n1Str = getPinNode(card.id, 'left');
+          const n2Str = getPinNode(card.id, 'right');
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          const rVal = card.value || 1000;
+
+          if (card.isGroup2) {
+            const idx = g2ElementMap[card.id];
+            if (n1 > 0) A[n1 - 1][idx] += 1;
+            if (n2 > 0) A[n2 - 1][idx] -= 1;
+            if (n1 > 0) A[idx][n1 - 1] += 1;
+            if (n2 > 0) A[idx][n2 - 1] -= 1;
+            A[idx][idx] -= rVal;
+          } else {
+            const g = 1 / rVal;
+            if (n1 > 0) A[n1 - 1][n1 - 1] += g;
+            if (n2 > 0) A[n2 - 1][n2 - 1] += g;
+            if (n1 > 0 && n2 > 0) {
+              A[n1 - 1][n2 - 1] -= g;
+              A[n2 - 1][n1 - 1] -= g;
+            }
+          }
+        }
+      });
+
+      // Fill Voltage sources in MNA
+      voltageSources.forEach((vSrc) => {
+        const n1Str = getPinNode(vSrc.id, 'left');  // + terminal
+        const n2Str = getPinNode(vSrc.id, 'right'); // - terminal
+        const n1 = parseInt(n1Str, 10);
+        const n2 = parseInt(n2Str, 10);
+        const val = vSrc.value !== undefined ? vSrc.value : 5;
+        const idx = g2ElementMap[vSrc.id];
+
+        // B matrix coefficients
+        if (n1 > 0) A[n1 - 1][idx] += 1;
+        if (n2 > 0) A[n2 - 1][idx] -= 1;
+
+        // C matrix coefficients (Transpose of B)
+        if (n1 > 0) A[idx][n1 - 1] += 1;
+        if (n2 > 0) A[idx][n2 - 1] -= 1;
+
+        // Voltage values
+        B[idx] = val;
+      });
+
+      // Solve System: A * X = B
+      const X = solveLinearSystem(A, B);
+
+      // Build node voltages map
+      const voltages: Record<string, number> = { '0': 0 };
+      for (let i = 1; i <= nodeCount; i++) {
+        voltages[String(i)] = X[i - 1] || 0;
+      }
+
+      // Compile stats per card
+      const results: Record<string, { voltageDrop: number; branchCurrent: number }> = {};
+      cards.forEach((card) => {
+        if (!card.componentType) return;
+        if (card.componentType === 'ground') {
+          results[card.id] = { voltageDrop: 0, branchCurrent: 0 };
+          return;
+        }
+
+        const n1Str = getPinNode(card.id, 'left');
+        const n2Str = getPinNode(card.id, 'right');
+        const v1 = voltages[n1Str] || 0;
+        const v2 = voltages[n2Str] || 0;
+        const vDrop = v1 - v2;
+
+        let iBranch = 0;
+        if (card.componentType === 'resistor') {
+          if (card.isGroup2) {
+            const idx = g2ElementMap[card.id];
+            iBranch = X[idx] || 0;
+          } else {
+            iBranch = vDrop / (card.value || 1000);
+          }
+        } else if (card.componentType === 'voltage') {
+          const idx = g2ElementMap[card.id];
+          iBranch = X[idx] || 0;
+        } else if (card.componentType === 'capacitor') {
+          iBranch = 0; // DC open
+        } else if (card.componentType === 'inductor') {
+          iBranch = 0; // Inductor branch current could be solved but DC short defaults vDrop=0
+        }
+
+        results[card.id] = {
+          voltageDrop: vDrop,
+          branchCurrent: iBranch
+        };
+      });
+
+      return results;
+    } catch (e) {
+      return {};
+    }
+  }, [elements, liveDCOn]);
+
   // Interactive Drag states
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null);
   const [resizingCard, setResizingCard] = useState<{ id: string; startWidth: number; startHeight: number; startMouseX: number; startMouseY: number } | null>(null);
@@ -832,6 +1048,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           const isJoin = card.id.startsWith('join') || card.title === 'join';
           
           if (isPassive) {
+            const opData = solvedDCOperatingPoint[card.id];
             return (
               <PassiveElment
                 key={card.id}
@@ -843,6 +1060,8 @@ export const Canvas: React.FC<CanvasProps> = ({
                 initiateArrowDraw={initiateArrowDraw}
                 updateElement={updateElement}
                 finalizeDrag={finalizeDrag}
+                liveDCOn={liveDCOn}
+                dcStats={opData}
               />
             );
           }

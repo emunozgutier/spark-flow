@@ -104,11 +104,13 @@ interface CanvasState {
   selectedId: string | null;
   selectedIds: string[];
   activeTool: ToolType;
+  liveDCOn: boolean;
   
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
+  setLiveDCOn: (on: boolean) => void;
   addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
@@ -138,8 +140,10 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         selectedId: null as string | null,
         selectedIds: [] as string[],
         activeTool: 'select' as ToolType,
+        liveDCOn: true,
 
         setActiveTool: (tool: ToolType) => set({ activeTool: tool }),
+        setLiveDCOn: (on: boolean) => set({ liveDCOn: on }),
         
         setSelectedId: (id: string | null) => set(() => {
           if (id === null) {

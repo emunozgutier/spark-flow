@@ -748,9 +748,9 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                     background: 'rgba(255, 255, 255, 0.01)'
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
-                      {variableLabels.map((vLabel) => (
+                      {variableLabels.map((vLabel, idx) => (
                         <div
-                          key={vLabel}
+                          key={idx}
                           style={{
                             width: nmaStep === 5 ? '62px' : '44px',
                             padding: '5px 0',

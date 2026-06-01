@@ -6,6 +6,7 @@ import { PassivesBar } from './TopBar/PassivesBar';
 import { SourcesBar } from './TopBar/SourcesBar';
 import { DebugPopup } from './TopBar/DebugPopup';
 import { SimulationPanel } from './Canvas/SimulationPanel';
+import { useCanvas } from '../store/useCanvas';
 
 interface TopBarProps {
   activeTool: ToolType;
@@ -38,6 +39,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'file' | 'anotate' | 'passives' | 'sources' | 'simulate' | 'debug'>('anotate');
   const [isDebug, setIsDebug] = useState(false);
+  const { liveDCOn, setLiveDCOn } = useCanvas();
 
   // Sync activeTab when the activeTool changes via global keyboard hotkeys
   useEffect(() => {
@@ -142,6 +144,32 @@ export const TopBar: React.FC<TopBarProps> = ({
               <polygon points="5 3 19 12 5 21 5 3" fill={activeTab === 'simulate' ? 'var(--theme-sapphire)' : 'none'} style={{ stroke: 'var(--theme-sapphire)' }} />
             </svg>
             <span className="tooltip">Simulate Circuit</span>
+          </button>
+
+          {/* Live DC Toggle Button */}
+          <button
+            className={`tool-btn tab-btn ${liveDCOn ? 'active' : ''}`}
+            onClick={() => {
+              setLiveDCOn(!liveDCOn);
+              if (setToast) {
+                setToast({
+                  message: !liveDCOn ? '⚡ Live DC Operating Point Solver enabled!' : '🔌 Live DC Operating Point Solver disabled.',
+                  type: 'info'
+                });
+              }
+            }}
+            aria-label="Toggle Live DC Solver"
+            style={{
+              borderColor: liveDCOn ? 'var(--theme-emerald)' : 'rgba(255,255,255,0.08)',
+              color: liveDCOn ? 'var(--theme-emerald)' : 'rgba(255,255,255,0.5)',
+              boxShadow: liveDCOn ? '0 0 10px var(--theme-emerald-glow)' : 'none',
+              marginLeft: '8px'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: liveDCOn ? 'var(--theme-emerald)' : 'currentColor' }}>
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={liveDCOn ? 'var(--theme-emerald)' : 'none'} />
+            </svg>
+            <span className="tooltip" style={{ color: liveDCOn ? 'var(--theme-emerald)' : 'inherit' }}>Live DC Operating Pt</span>
           </button>
 
           {/* Debug Tab (visible only in debug mode) */}
