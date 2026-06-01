@@ -62,3 +62,26 @@ export const parseInstanceNumber = (str: string, prefixChar: string): number => 
   const parsed = parseInt(numStr, 10);
   return isNaN(parsed) ? 1 : parsed;
 };
+
+/**
+ * Parses a string representing an electrical value with engineering notations.
+ * Translates SPICE-specific case-insensitive 'meg' to standard 'M' and delegates to parseEngineering.
+ */
+export const parseEngineeringValue = (str: string): number => {
+  let normalized = str.trim();
+  if (!normalized) return 0;
+  
+  // SPICE mega suffix is 'meg' (case-insensitive)
+  if (normalized.toLowerCase().endsWith('meg')) {
+    normalized = normalized.substring(0, normalized.length - 3) + 'M';
+  } else if (normalized.toLowerCase().endsWith('k')) {
+    normalized = normalized.substring(0, normalized.length - 1) + 'k';
+  } else if (normalized.toLowerCase().endsWith('m')) {
+    // In SPICE, 'm' represents milli, which maps to 'm' in parseEngineering.
+    // 'M' in parseEngineering represents Mega. 
+    normalized = normalized.substring(0, normalized.length - 1) + 'm';
+  }
+  
+  return parseEngineering(normalized);
+};
+
