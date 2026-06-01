@@ -27,7 +27,7 @@ export class ResistorElement implements BaseElement {
     return this.isGroup2 ? 1 : 0;
   }
 
-  getStamp(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
+  getStampGroup1(nodeMap: Map<string, number>): ElementStamp {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;
@@ -39,24 +39,35 @@ export class ResistorElement implements BaseElement {
     const g1 = i1 > 0 ? i1 - 1 : -1;
     const g2 = i2 > 0 ? i2 - 1 : -1;
 
-    if (this.isGroup2) {
-      const A = [
-        [0, 0, 1],
-        [0, 0, -1],
-        [1, -1, -this.value]
-      ];
-      const B = [0, 0, 0];
-      const globalIndices = [g1, g2, group2Idx];
-      return { A, B, globalIndices };
-    } else {
-      const g = 1 / this.value;
-      const A = [
-        [g, -g],
-        [-g, g]
-      ];
-      const B = [0, 0];
-      const globalIndices = [g1, g2];
-      return { A, B, globalIndices };
-    }
+    const g = 1 / this.value;
+    const A = [
+      [g, -g],
+      [-g, g]
+    ];
+    const B = [0, 0];
+    const globalIndices = [g1, g2];
+    return { A, B, globalIndices };
+  }
+
+  getStampGroup2(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
+    const getNodeIdx = (node: string): number => {
+      if (node === '0' || node.toUpperCase() === 'GND') return 0;
+      return nodeMap.get(node) || 0;
+    };
+
+    const i1 = getNodeIdx(this.node1);
+    const i2 = getNodeIdx(this.node2);
+
+    const g1 = i1 > 0 ? i1 - 1 : -1;
+    const g2 = i2 > 0 ? i2 - 1 : -1;
+
+    const A = [
+      [0, 0, 1],
+      [0, 0, -1],
+      [1, -1, -this.value]
+    ];
+    const B = [0, 0, 0];
+    const globalIndices = [g1, g2, group2Idx];
+    return { A, B, globalIndices };
   }
 }

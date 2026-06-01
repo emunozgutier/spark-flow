@@ -5,7 +5,7 @@
  */
 
 import { MnaModel } from '../../utils/mnaModel';
-import type { BaseElement } from './stamps/BaseElement';
+import type { BaseElement, ElementStamp } from './stamps/BaseElement';
 
 export interface MnaBuildResult {
   mnaModel: MnaModel;
@@ -41,8 +41,13 @@ export function buildMna(elementsList: BaseElement[], nodes: string[]): MnaBuild
 
   // Apply stamps for each element by adding their separate local matrices and RHS vectors
   elementsList.forEach(el => {
-    const g2Idx = el.getGroup2Count() > 0 ? N + group2Elements.indexOf(el) : 0;
-    const stamp = el.getStamp(nodeMap, g2Idx);
+    let stamp: ElementStamp;
+    if (el.getGroup2Count() > 0) {
+      const g2Idx = N + group2Elements.indexOf(el);
+      stamp = el.getStampGroup2(nodeMap, g2Idx);
+    } else {
+      stamp = el.getStampGroup1(nodeMap);
+    }
 
     for (let r = 0; r < stamp.A.length; r++) {
       const globalRow = stamp.globalIndices[r];

@@ -112,66 +112,97 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
   const r2Val = r2Card?.value !== undefined ? r2Card.value : 300.0;
   const v1Val = v1Card?.value !== undefined ? v1Card.value : 5.0;
 
+  const solvedV1 = (r1Val / (r1Val + r2Val)) * v1Val;
+  const solvedIV1mA = -(v1Val / (r1Val + r2Val)) * 1000;
   const g1 = 1 / r1Val;
   const g2 = 1 / r2Val;
+
+
+  const variableLabels = nmaStep === 5
+    ? [
+        '0.00 V',
+        `${solvedV1.toFixed(2)} V`,
+        `${v1Val.toFixed(2)} V`,
+        `${solvedIV1mA.toFixed(2)}mA`
+      ]
+    : ['V0', 'V1', 'V2', 'i(V1)'];
 
   const nmaSteps = [
     {
       title: 'Step 1: Size & Labels',
-      desc: `The highest node index in the SPICE deck was Node 3, but the Ground reference (GND) merges these pathways into Node 0. Thus, we have exactly 3 physical voltage variables: V0 (GND), V1, and V2. Since we are formulating a node-only system, we initialize an empty 3x3 matrix and 3x1 vectors.`,
+      desc: `We construct a 4x4 Modified Nodal Analysis (MNA) matrix system to solve for the unknown node voltages V0, V1, V2, and the voltage source branch current i(V1). The variables vector is [V0, V1, V2, i(V1)]. All cells start at 0.`,
       matrix: [
-        [0, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0]
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
       ],
-      rhs: [0, 0, 0],
+      rhs: [0, 0, 0, 0],
       highlights: [] as string[]
     },
     {
-      title: 'Step 2: GND Condition',
-      desc: `Node 0 (V0) is our reference ground. We set V0 = 0 by placing a 1 on the row 0 diagonal. The first equation becomes 1 * V0 = 0.`,
+      title: 'Step 2a: Add R1 Stamp',
+      desc: `Resistor R1 (${r1Val} ohms, conductance g1 = ${g1.toFixed(5)} S) connects Node 1 and Node 0. We apply the standard resistor stamp: +g1 on diagonals (Row 0 Col 0, Row 1 Col 1) and -g1 on cross-terms (Row 0 Col 1, Row 1 Col 0).`,
       matrix: [
-        [1, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0]
+        [g1, -g1, 0, 0],
+        [-g1, g1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
       ],
-      rhs: [0, 0, 0],
-      highlights: ['0-0']
+      rhs: [0, 0, 0, 0],
+      highlights: ['0-0', '0-1', '1-0', '1-1']
     },
     {
-      title: 'Step 3: Add R1 Stamp',
-      desc: `Resistor R1 (${r1Val} ohms, conductance g1 = ${g1.toFixed(5)} S) connects Node 1 and Node 0 (GND). We stamp its conductance g1 at Row 1, Col 1, and -g1 at Row 1, Col 0.`,
+      title: 'Step 2b: Add R2 Stamp',
+      desc: `Resistor R2 (${r2Val} ohms, conductance g2 = ${g2.toFixed(5)} S) connects Node 1 and Node 2. We apply the resistor stamp: +g2 on diagonals (Row 1 Col 1, Row 2 Col 2) and -g2 on cross-terms (Row 1 Col 2, Row 2 Col 1).`,
       matrix: [
-        [1, 0, 0],
-        [-g1, g1, 0],
-        [0, 0, 0]
+        [g1, -g1, 0, 0],
+        [-g1, g1 + g2, -g2, 0],
+        [0, -g2, g2, 0],
+        [0, 0, 0, 0]
       ],
-      rhs: [0, 0, 0],
-      highlights: ['1-0', '1-1']
-    },
-    {
-      title: 'Step 4: Add R2 Stamp',
-      desc: `Resistor R2 (${r2Val} ohms, conductance g2 = ${g2.toFixed(5)} S) connects Node 1 and Node 2. We apply the standard resistor stamp: +g2 on the Node 1 and Node 2 diagonals, and -g2 on the cross-terms.`,
-      matrix: [
-        [1, 0, 0],
-        [-g1, g1 + g2, -g2],
-        [0, -g2, g2]
-      ],
-      rhs: [0, 0, 0],
+      rhs: [0, 0, 0, 0],
       highlights: ['1-1', '1-2', '2-1', '2-2']
     },
     {
-      title: 'Step 5: Replace with V1',
-      desc: `Voltage Source V1 (${v1Val}V) connects Node 2 and Node 0 (GND). Because we are not solving for branch currents, V1 imposes the direct boundary condition V2 - V0 = ${v1Val}V. We replace Row 2 with this equation.`,
+      title: 'Step 2c: Add V1 MNA Stamp',
+      desc: `Voltage source V1 (${v1Val}V) connects Node 2 (+) to Node 0 (-) introducing branch current i(V1). It stamps: m[v+][i] = +1 (Row 2 Col 3) and m[v-][i] = -1 (Row 0 Col 3) in KCL, and m[i][v+] = 1 (Row 3 Col 2) and m[i][v-] = -1 (Row 3 Col 0) in the branch relation V2 - V0 = ${v1Val}V, with RHS Row 3 = ${v1Val}.`,
       matrix: [
-        [1, 0, 0],
-        [-g1, g1 + g2, -g2],
-        [-1, 0, 1]
+        [g1, -g1, 0, -1],
+        [-g1, g1 + g2, -g2, 0],
+        [0, -g2, g2, 1],
+        [-1, 0, 1, 0]
       ],
-      rhs: [0, 0, v1Val],
-      highlights: ['2-0', '2-1', '2-2', 'rhs-2']
+      rhs: [0, 0, 0, v1Val],
+      highlights: ['0-3', '2-3', '3-0', '3-2', 'rhs-3']
+    },
+    {
+      title: 'Step 3: Ground Constraint',
+      desc: `To solve the singular system, we substitute Ground V0 = 0, overwriting Row 0 with [1, 0, 0, 0] and RHS Row 0 with 0 (enforcing the equation 1*V0 = 0).`,
+      matrix: [
+        [1, 0, 0, 0],
+        [-g1, g1 + g2, -g2, 0],
+        [0, -g2, g2, 1],
+        [-1, 0, 1, 0]
+      ],
+      rhs: [0, 0, 0, v1Val],
+      highlights: ['0-0', '0-1', '0-2', '0-3', 'rhs-0']
+    },
+    {
+      title: 'Step 4: Solved Variables',
+      desc: `Solving the complete 4x4 matrix equation yields the exact electrical values for all of our unknown variables: voltages V0, V1, V2, and the branch current i(V1). The solved values are populated in the variables vector below.`,
+      matrix: [
+        [1, 0, 0, 0],
+        [-g1, g1 + g2, -g2, 0],
+        [0, -g2, g2, 1],
+        [-1, 0, 1, 0]
+      ],
+      rhs: [0, 0, 0, v1Val],
+      highlights: [] as string[]
     }
   ];
+
+
 
   useEffect(() => {
     if (!isOpen) return;
@@ -387,7 +418,7 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'relative',
-            width: '520px',
+            width: '680px',
             height: '480px',
             background: 'rgba(15, 23, 42, 0.93)',
             border: '1.5px solid var(--theme-sapphire)',
@@ -682,97 +713,121 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   margin: '8px 0',
                   fontFamily: 'monospace',
                   fontSize: '11px',
                   background: 'rgba(0,0,0,0.1)',
-                  padding: '10px 4px',
+                  padding: '12px 10px',
                   borderRadius: '10px',
                   border: '1px solid rgba(255,255,255,0.03)'
                 }}>
-                  <div style={{ fontSize: '64px', color: 'rgba(255,255,255,0.15)', fontWeight: 100, userSelect: 'none', transform: 'scaleY(1.15)', marginTop: '-8px' }}>[</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 64px)', gap: '4px', textAlign: 'center' }}>
-                    {nmaSteps[nmaStep].matrix.map((row, rIdx) =>
-                      row.map((val, cIdx) => {
-                        const isHighlighted = nmaSteps[nmaStep].highlights.includes(`${rIdx}-${cIdx}`);
+                  {/* Matrix A with Brackets */}
+                  <div style={{
+                    display: 'flex',
+                    borderLeft: '1.5px solid rgba(255,255,255,0.3)',
+                    borderRight: '1.5px solid rgba(255,255,255,0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    background: 'rgba(255, 255, 255, 0.01)'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nmaSteps[nmaStep].matrix[0].length}, 56px)`, gap: '4px', textAlign: 'center' }}>
+                      {nmaSteps[nmaStep].matrix.map((row, rIdx) =>
+                        row.map((val, cIdx) => {
+                          const isHighlighted = nmaSteps[nmaStep].highlights.includes(`${rIdx}-${cIdx}`);
+                          return (
+                            <div
+                              key={`${rIdx}-${cIdx}`}
+                              style={{
+                                padding: '5px 2px',
+                                background: isHighlighted ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)',
+                                border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.04)',
+                                borderRadius: '4px',
+                                color: isHighlighted ? 'var(--theme-amber)' : '#ffffff',
+                                fontWeight: isHighlighted ? 'bold' : 'normal',
+                                fontSize: '10.5px'
+                              }}
+                            >
+                              {val.toFixed(4)}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ color: 'rgba(255,255,255,0.4)', padding: '0 2px', fontSize: '12px' }}>&bull;</div>
+
+                  {/* Variables Vector X with Brackets */}
+                  <div style={{
+                    display: 'flex',
+                    borderLeft: '1.5px solid rgba(255,255,255,0.3)',
+                    borderRight: '1.5px solid rgba(255,255,255,0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    background: 'rgba(255, 255, 255, 0.01)'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
+                      {variableLabels.map((vLabel) => (
+                        <div
+                          key={vLabel}
+                          style={{
+                            width: nmaStep === 5 ? '60px' : '42px',
+                            padding: '5px 0',
+                            background: nmaStep === 5 ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)',
+                            border: nmaStep === 5 ? '1px solid var(--theme-emerald)' : '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: '4px',
+                            color: nmaStep === 5 ? 'var(--theme-emerald)' : 'var(--theme-sapphire)',
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            fontSize: nmaStep === 5 ? '9px' : '10px'
+                          }}
+                        >
+                          {vLabel}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ color: 'rgba(255,255,255,0.4)', padding: '0 2px', fontSize: '12px' }}>=</div>
+
+                  {/* RHS Vector B with Brackets */}
+                  <div style={{
+                    display: 'flex',
+                    borderLeft: '1.5px solid rgba(255,255,255,0.3)',
+                    borderRight: '1.5px solid rgba(255,255,255,0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    background: 'rgba(255, 255, 255, 0.01)'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
+                      {nmaSteps[nmaStep].rhs.map((rhsVal, rIdx) => {
+                        const isHighlighted = nmaSteps[nmaStep].highlights.includes(`rhs-${rIdx}`);
                         return (
                           <div
-                            key={`${rIdx}-${cIdx}`}
+                            key={rIdx}
                             style={{
-                              padding: '5px 2px',
-                              background: isHighlighted ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)',
-                              border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.04)',
+                              width: '46px',
+                              padding: '5px 0',
+                              background: isHighlighted ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255,255,255,0.02)',
+                              border: isHighlighted ? '1px solid var(--theme-coral)' : '1px solid rgba(255,255,255,0.04)',
                               borderRadius: '4px',
-                              color: isHighlighted ? 'var(--theme-amber)' : '#ffffff',
+                              color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
+                              textAlign: 'center',
                               fontWeight: isHighlighted ? 'bold' : 'normal',
                               fontSize: '10.5px'
                             }}
                           >
-                            {val.toFixed(4)}
+                            {rhsVal.toFixed(2)}
                           </div>
                         );
-                      })
-                    )}
+                      })}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '64px', color: 'rgba(255,255,255,0.15)', fontWeight: 100, userSelect: 'none', transform: 'scaleY(1.15)', marginTop: '-8px' }}>]</div>
-
-                  <div style={{ color: 'rgba(255,255,255,0.4)', padding: '0 2px', fontSize: '12px' }}>&bull;</div>
-
-                  <div style={{ fontSize: '64px', color: 'rgba(255,255,255,0.15)', fontWeight: 100, userSelect: 'none', transform: 'scaleY(1.15)', marginTop: '-8px' }}>[</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {['V0', 'V1', 'V2'].map((vLabel) => (
-                      <div
-                        key={vLabel}
-                        style={{
-                          width: '28px',
-                          padding: '5px 0',
-                          background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '4px',
-                          color: 'var(--theme-sapphire)',
-                          textAlign: 'center',
-                          fontWeight: 'bold',
-                          fontSize: '10px'
-                        }}
-                      >
-                        {vLabel}
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: '64px', color: 'rgba(255,255,255,0.15)', fontWeight: 100, userSelect: 'none', transform: 'scaleY(1.15)', marginTop: '-8px' }}>]</div>
-
-                  <div style={{ color: 'rgba(255,255,255,0.4)', padding: '0 2px', fontSize: '12px' }}>=</div>
-
-                  <div style={{ fontSize: '64px', color: 'rgba(255,255,255,0.15)', fontWeight: 100, userSelect: 'none', transform: 'scaleY(1.15)', marginTop: '-8px' }}>[</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {nmaSteps[nmaStep].rhs.map((rhsVal, rIdx) => {
-                      const isHighlighted = nmaSteps[nmaStep].highlights.includes(`rhs-${rIdx}`);
-                      return (
-                        <div
-                          key={rIdx}
-                          style={{
-                            width: '46px',
-                            padding: '5px 0',
-                            background: isHighlighted ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255,255,255,0.02)',
-                            border: isHighlighted ? '1px solid var(--theme-coral)' : '1px solid rgba(255,255,255,0.04)',
-                            borderRadius: '4px',
-                            color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
-                            textAlign: 'center',
-                            fontWeight: isHighlighted ? 'bold' : 'normal',
-                            fontSize: '10.5px'
-                          }}
-                        >
-                          {rhsVal.toFixed(2)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ fontSize: '64px', color: 'rgba(255,255,255,0.15)', fontWeight: 100, userSelect: 'none', transform: 'scaleY(1.15)', marginTop: '-8px' }}>]</div>
                 </div>
 
                 {/* Final step voltage divider numerical solutions */}
-                {nmaStep === 4 && (
+                {nmaStep === 5 && (
                   <div style={{
                     background: 'rgba(52, 211, 153, 0.04)',
                     border: '1px solid rgba(52, 211, 153, 0.12)',
@@ -781,15 +836,18 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
                     fontSize: '10.5px'
                   }}>
                     <div style={{ color: 'var(--theme-emerald)', fontWeight: 'bold', marginBottom: '4px', fontSize: '11px' }}>
-                      🏁 Voltage Divider Solutions:
+                      🏁 Complete MNA Solutions (Voltage & Branch Current):
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', marginBottom: '4px' }}>
                       <div>V0 (GND) = <span style={{ color: '#fff', fontWeight: 'bold' }}>0.000 V</span></div>
                       <div>V2 (Source) = <span style={{ color: '#fff', fontWeight: 'bold' }}>{v1Val.toFixed(3)} V</span></div>
                       <div>V1 (Divider) = <span style={{ color: '#fff', fontWeight: 'bold' }}>{((r1Val / (r1Val + r2Val)) * v1Val).toFixed(3)} V</span></div>
                     </div>
-                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px', marginTop: '4px', textAlign: 'center' }}>
-                      Formula: V1 = V2 * R1 / (R1 + R2) = {v1Val}V * {r1Val} / ({r1Val} + {r2Val})
+                    <div style={{ color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', fontSize: '10.5px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px', textAlign: 'center' }}>
+                      i(V1) Branch Current = <span style={{ color: 'var(--theme-coral)', fontWeight: 'bold' }}>-{((v1Val / (r1Val + r2Val)) * 1000).toFixed(3)} mA</span> ({(-v1Val / (r1Val + r2Val)).toExponential(3)} A)
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8.5px', marginTop: '4px', textAlign: 'center' }}>
+                      Formulas: V1 = V2 * R1 / (R1 + R2), i(V1) = -V2 / (R1 + R2)
                     </div>
                   </div>
                 )}

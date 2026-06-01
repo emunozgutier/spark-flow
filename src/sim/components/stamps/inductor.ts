@@ -26,7 +26,11 @@ export class InductorElement implements BaseElement {
     return 1;
   }
 
-  getStamp(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
+  getStampGroup1(_nodeMap: Map<string, number>): ElementStamp {
+    return { A: [], B: [], globalIndices: [] };
+  }
+
+  getStampGroup2(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;

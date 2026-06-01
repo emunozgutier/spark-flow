@@ -26,7 +26,7 @@ export class CapacitorElement implements BaseElement {
     return 0;
   }
 
-  getStamp(nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
+  getStampGroup1(nodeMap: Map<string, number>): ElementStamp {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;
@@ -46,5 +46,9 @@ export class CapacitorElement implements BaseElement {
     const B = [0, 0];
     const globalIndices = [g1, g2];
     return { A, B, globalIndices };
+  }
+
+  getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
+    return { A: [], B: [], globalIndices: [] };
   }
 }
