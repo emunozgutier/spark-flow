@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { CanvasElement, CardElement, ArrowElement } from '../../dataTypes/AnotateType';
 import { formatEngineering } from '../../utils/math';
+import { solveLinearSystem } from '../../sim/components/mnaSolver';
 
 interface SimulationPanelProps {
   elements: CanvasElement[];
@@ -34,56 +35,6 @@ class UnionFind {
   }
 }
 
-// 30-line Gaussian Elimination linear system solver
-const solveLinearSystem = (A: number[][], B: number[]): number[] => {
-  const n = B.length;
-  for (let i = 0; i < n; i++) {
-    let maxEl = Math.abs(A[i][i]);
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(A[k][i]) > maxEl) {
-        maxEl = Math.abs(A[k][i]);
-        maxRow = k;
-      }
-    }
-    
-    // Swap rows
-    for (let k = i; k < n; k++) {
-      const tmp = A[maxRow][k];
-      A[maxRow][k] = A[i][k];
-      A[i][k] = tmp;
-    }
-    const tmp = B[maxRow];
-    B[maxRow] = B[i];
-    B[i] = tmp;
-    
-    if (Math.abs(A[i][i]) < 1e-12) {
-      // Singular matrix, return zeros as fallback
-      return new Array(n).fill(0);
-    }
-    
-    for (let k = i + 1; k < n; k++) {
-      const c = -A[k][i] / A[i][i];
-      for (let j = i; j < n; j++) {
-        if (i === j) {
-          A[k][j] = 0;
-        } else {
-          A[k][j] += c * A[i][j];
-        }
-      }
-      B[k] += c * B[i];
-    }
-  }
-  
-  const x = new Array(n).fill(0);
-  for (let i = n - 1; i >= 0; i--) {
-    x[i] = B[i] / A[i][i];
-    for (let k = i - 1; k >= 0; k--) {
-      B[k] -= A[k][i] * x[i];
-    }
-  }
-  return x;
-};
 
 export const SimulationPanel: React.FC<SimulationPanelProps> = ({
   elements,

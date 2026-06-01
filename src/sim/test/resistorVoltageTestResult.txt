@@ -1,0 +1,56 @@
+--- Instantiating Modular SPICE Simulator with Resistor Voltage Netlist ---
+
+--- Parsed Component Elements ---
+- Element: V1, Type: voltage [Group 2], Nodes: [5, 0], Value: 2
+- Element: V2, Type: voltage [Group 2], Nodes: [3, 2], Value: 0.2
+- Element: V3, Type: voltage [Group 2], Nodes: [7, 6], Value: 2
+- Element: I1, Type: current, Nodes: [4, 8], Value: 0.001
+- Element: I2, Type: current, Nodes: [0, 6], Value: 0.001
+- Element: R1, Type: resistor, Nodes: [1, 5], Value: 1.5
+- Element: R2, Type: resistor, Nodes: [1, 2], Value: 1
+- Element: R3, Type: resistor [Group 2], Nodes: [5, 2], Value: 50
+- Element: R4, Type: resistor, Nodes: [5, 6], Value: 0.1
+- Element: R5, Type: resistor, Nodes: [2, 6], Value: 1.5
+- Element: R6, Type: resistor, Nodes: [3, 4], Value: 0.1
+- Element: R7, Type: resistor, Nodes: [8, 0], Value: 1000
+- Element: R8, Type: resistor [Group 2], Nodes: [4, 0], Value: 10
+
+--- Running DC Operating Point Simulation ---
+=== MODULAR SPICE MNA SYSTEM stamp compilation ===
+
+Matrix Dimension: 13 x 13
+Variables x: [v(5), v(3), v(2), v(7), v(6), v(4), v(8), v(1), i(V1), i(V2), i(V3), i(R3), i(R8)]
+
+Matrix A | RHS Vector B:
+--------------------------------------------------
+[  10.6667    0.0000    0.0000    0.0000  -10.0000    0.0000    0.0000   -0.6667    1.0000    0.0000    0.0000    1.0000    0.0000 ] [   0.0000]  <-- Equation: Node 5
+[   0.0000   10.0000    0.0000    0.0000    0.0000  -10.0000    0.0000    0.0000    0.0000    1.0000    0.0000    0.0000    0.0000 ] [   0.0000]  <-- Equation: Node 3
+[   0.0000    0.0000    1.6667    0.0000   -0.6667    0.0000    0.0000   -1.0000    0.0000   -1.0000    0.0000   -1.0000    0.0000 ] [   0.0000]  <-- Equation: Node 2
+[   0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    1.0000    0.0000    0.0000 ] [   0.0000]  <-- Equation: Node 7
+[ -10.0000    0.0000   -0.6667    0.0000   10.6667    0.0000    0.0000    0.0000    0.0000    0.0000   -1.0000    0.0000    0.0000 ] [   0.0010]  <-- Equation: Node 6
+[   0.0000  -10.0000    0.0000    0.0000    0.0000   10.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    1.0000 ] [  -0.0010]  <-- Equation: Node 4
+[   0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0010    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000 ] [   0.0010]  <-- Equation: Node 8
+[  -0.6667    0.0000   -1.0000    0.0000    0.0000    0.0000    0.0000    1.6667    0.0000    0.0000    0.0000    0.0000    0.0000 ] [   0.0000]  <-- Equation: Node 1
+[   1.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000 ] [   2.0000]  <-- Equation: Branch V1
+[   0.0000    1.0000   -1.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000 ] [   0.2000]  <-- Equation: Branch V2
+[   0.0000    0.0000    0.0000    1.0000   -1.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000 ] [   2.0000]  <-- Equation: Branch V3
+[   1.0000    0.0000   -1.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000  -50.0000    0.0000 ] [   0.0000]  <-- Equation: Branch R3
+[   0.0000    0.0000    0.0000    0.0000    0.0000    1.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000  -10.0000 ] [   0.0000]  <-- Equation: Branch R8
+--------------------------------------------------
+
+Solution vector x:
+  v(5)       =     2.000000 
+  v(3)       =     2.008787 
+  v(2)       =     1.808787 
+  v(7)       =     3.988143 
+  v(6)       =     1.988143 
+  v(4)       =     1.988799 
+  v(8)       =     1.000000 
+  v(1)       =     1.885272 
+  i(V1)      =    -0.198880 
+  i(V2)      =    -0.199880 
+  i(V3)      =     0.000000 
+  i(R3)      =     0.003824 
+  i(R8)      =     0.198880 
+
+--- Solver Successful! ---
