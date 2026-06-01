@@ -3,8 +3,7 @@
  * CapacitorElement class implementation.
  */
 
-import type { BaseElement } from './BaseElement';
-import type { MnaModel } from '../../../utils/mnaModel';
+import type { BaseElement, ElementStamp } from './BaseElement';
 
 export class CapacitorElement implements BaseElement {
   static pattern = /^(C\S*)\s+(\S+)\s+(\S+)\s+(\S+)/i;
@@ -27,8 +26,25 @@ export class CapacitorElement implements BaseElement {
     return 0;
   }
 
-  applyStamp(_matrix: MnaModel, _nodeMap: Map<string, number>, _group2Idx: number): void {
+  getStamp(nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
+    const getNodeIdx = (node: string): number => {
+      if (node === '0' || node.toUpperCase() === 'GND') return 0;
+      return nodeMap.get(node) || 0;
+    };
+
+    const i1 = getNodeIdx(this.node1);
+    const i2 = getNodeIdx(this.node2);
+
+    const g1 = i1 > 0 ? i1 - 1 : -1;
+    const g2 = i2 > 0 ? i2 - 1 : -1;
+
     // CAPACITOR DC OP OPEN-CIRCUIT STAMP
-    // Behaves as ideal open circuit, so it contributes 0 to all matrix entries.
+    const A = [
+      [0, 0],
+      [0, 0]
+    ];
+    const B = [0, 0];
+    const globalIndices = [g1, g2];
+    return { A, B, globalIndices };
   }
 }

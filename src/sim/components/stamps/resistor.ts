@@ -3,8 +3,7 @@
  * ResistorElement class implementation.
  */
 
-import type { BaseElement } from './BaseElement';
-import type { MnaModel } from '../../../utils/mnaModel';
+import type { BaseElement, ElementStamp } from './BaseElement';
 
 export class ResistorElement implements BaseElement {
   static pattern = /^(R\S*)\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(G2|\[G2\]))?/i;
@@ -28,7 +27,7 @@ export class ResistorElement implements BaseElement {
     return this.isGroup2 ? 1 : 0;
   }
 
-  applyStamp(matrix: MnaModel, nodeMap: Map<string, number>, group2Idx: number): void {
+  getStamp(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;
@@ -37,26 +36,27 @@ export class ResistorElement implements BaseElement {
     const i1 = getNodeIdx(this.node1);
     const i2 = getNodeIdx(this.node2);
 
-    if (this.isGroup2) {
-      // GROUP 2 RESISTOR STAMP
-      // Current i_R variable at column group2Idx, and branch equation at row group2Idx
-      // Node current equations contribution
-      if (i1 > 0) matrix.add(i1 - 1, group2Idx, 1);
-      if (i2 > 0) matrix.add(i2 - 1, group2Idx, -1);
+    const g1 = i1 > 0 ? i1 - 1 : -1;
+    const g2 = i2 > 0 ? i2 - 1 : -1;
 
-      // Branch voltage equation: v(node1) - v(node2) - R * i_R = 0
-      if (i1 > 0) matrix.add(group2Idx, i1 - 1, 1);
-      if (i2 > 0) matrix.add(group2Idx, i2 - 1, -1);
-      matrix.add(group2Idx, group2Idx, -this.value);
+    if (this.isGroup2) {
+      const A = [
+        [0, 0, 1],
+        [0, 0, -1],
+        [1, -1, -this.value]
+      ];
+      const B = [0, 0, 0];
+      const globalIndices = [g1, g2, group2Idx];
+      return { A, B, globalIndices };
     } else {
-      // GROUP 1 RESISTOR STAMP
       const g = 1 / this.value;
-      if (i1 > 0) matrix.add(i1 - 1, i1 - 1, g);
-      if (i2 > 0) matrix.add(i2 - 1, i2 - 1, g);
-      if (i1 > 0 && i2 > 0) {
-        matrix.add(i1 - 1, i2 - 1, -g);
-        matrix.add(i2 - 1, i1 - 1, -g);
-      }
+      const A = [
+        [g, -g],
+        [-g, g]
+      ];
+      const B = [0, 0];
+      const globalIndices = [g1, g2];
+      return { A, B, globalIndices };
     }
   }
 }

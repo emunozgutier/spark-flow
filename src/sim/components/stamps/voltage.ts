@@ -3,8 +3,7 @@
  * VoltageSourceElement class implementation.
  */
 
-import type { BaseElement } from './BaseElement';
-import type { MnaModel } from '../../../utils/mnaModel';
+import type { BaseElement, ElementStamp } from './BaseElement';
 
 export class VoltageSourceElement implements BaseElement {
   static pattern = /^(V\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
@@ -27,7 +26,7 @@ export class VoltageSourceElement implements BaseElement {
     return 1;
   }
 
-  applyStamp(matrix: MnaModel, nodeMap: Map<string, number>, group2Idx: number): void {
+  getStamp(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;
@@ -36,16 +35,17 @@ export class VoltageSourceElement implements BaseElement {
     const i1 = getNodeIdx(this.node1);
     const i2 = getNodeIdx(this.node2);
 
+    const g1 = i1 > 0 ? i1 - 1 : -1;
+    const g2 = i2 > 0 ? i2 - 1 : -1;
+
     // VOLTAGE SOURCE MNA STAMP (Group 2)
-    // Node current equations contribution
-    if (i1 > 0) matrix.add(i1 - 1, group2Idx, 1);
-    if (i2 > 0) matrix.add(i2 - 1, group2Idx, -1);
-
-    // Branch voltage equation: v(node1) - v(node2) = V_val
-    if (i1 > 0) matrix.add(group2Idx, i1 - 1, 1);
-    if (i2 > 0) matrix.add(group2Idx, i2 - 1, -1);
-
-    matrix.set(group2Idx, group2Idx, 0);
-    matrix.addRhs(group2Idx, this.value);
+    const A = [
+      [0, 0, 1],
+      [0, 0, -1],
+      [1, -1, 0]
+    ];
+    const B = [0, 0, this.value];
+    const globalIndices = [g1, g2, group2Idx];
+    return { A, B, globalIndices };
   }
 }

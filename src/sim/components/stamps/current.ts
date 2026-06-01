@@ -3,8 +3,7 @@
  * CurrentSourceElement class implementation.
  */
 
-import type { BaseElement } from './BaseElement';
-import type { MnaModel } from '../../../utils/mnaModel';
+import type { BaseElement, ElementStamp } from './BaseElement';
 
 export class CurrentSourceElement implements BaseElement {
   static pattern = /^(I\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
@@ -27,7 +26,7 @@ export class CurrentSourceElement implements BaseElement {
     return 0;
   }
 
-  applyStamp(matrix: MnaModel, nodeMap: Map<string, number>, _group2Idx: number): void {
+  getStamp(nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
     const getNodeIdx = (node: string): number => {
       if (node === '0' || node.toUpperCase() === 'GND') return 0;
       return nodeMap.get(node) || 0;
@@ -36,8 +35,16 @@ export class CurrentSourceElement implements BaseElement {
     const i1 = getNodeIdx(this.node1);
     const i2 = getNodeIdx(this.node2);
 
+    const g1 = i1 > 0 ? i1 - 1 : -1;
+    const g2 = i2 > 0 ? i2 - 1 : -1;
+
     // CURRENT SOURCE MNA STAMP (Group 1 - stamp RHS only)
-    if (i1 > 0) matrix.addRhs(i1 - 1, -this.value);
-    if (i2 > 0) matrix.addRhs(i2 - 1, this.value);
+    const A = [
+      [0, 0],
+      [0, 0]
+    ];
+    const B = [-this.value, this.value];
+    const globalIndices = [g1, g2];
+    return { A, B, globalIndices };
   }
 }
