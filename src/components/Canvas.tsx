@@ -43,6 +43,106 @@ import type {
   DrawingArrowState
 } from '../dataTypes/AnotateType';
 
+const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
+  const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+  const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+
+  const uf = new UnionFind();
+  const joinCards = cards.filter((c) => c.id.startsWith('join') || c.title === 'join');
+  const compCards = cards.filter((c) => c.componentType !== undefined);
+
+  // Collect all sockets
+  const socketKeys: string[] = [];
+  compCards.forEach((c) => {
+    if (c.componentType === 'ground') {
+      socketKeys.push(`${c.id}-top`);
+    } else {
+      socketKeys.push(`${c.id}-left`, `${c.id}-right`);
+    }
+  });
+  joinCards.forEach((j) => {
+    socketKeys.push(`${j.id}-top`, `${j.id}-right`, `${j.id}-bottom`, `${j.id}-left`);
+  });
+
+  // Union join sockets
+  joinCards.forEach((j) => {
+    uf.union(`${j.id}-top`, `${j.id}-right`);
+    uf.union(`${j.id}-top`, `${j.id}-bottom`);
+    uf.union(`${j.id}-top`, `${j.id}-left`);
+  });
+
+  // Union connected wires
+  arrows.forEach((w) => {
+    if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
+      uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
+    }
+  });
+
+  // Group wires by root
+  const wiresByRoot: Record<string, ArrowElement[]> = {};
+  arrows.forEach((w) => {
+    let rootKey = w.id;
+    if (w.fromId && w.fromSocket) {
+      rootKey = uf.find(`${w.fromId}-${w.fromSocket}`);
+    } else if (w.toId && w.toSocket) {
+      rootKey = uf.find(`${w.toId}-${w.toSocket}`);
+    }
+    if (!wiresByRoot[rootKey]) {
+      wiresByRoot[rootKey] = [];
+    }
+    wiresByRoot[rootKey].push(w);
+  });
+
+  // Find all existing net names
+  const allExistingNames = new Set(
+    arrows.map((w) => w.netName).filter(Boolean) as string[]
+  );
+
+  // Set up random starting number
+  let nextNum = Math.floor(Math.random() * 8999) + 1000;
+  const generateUniqueNetName = (): string => {
+    while (true) {
+      const formatted = `N${String(nextNum).padStart(4, '0')}`;
+      nextNum++;
+      if (!allExistingNames.has(formatted)) {
+        allExistingNames.add(formatted);
+        return formatted;
+      }
+    }
+  };
+
+  const rootToNetName: Record<string, string> = {};
+  Object.keys(wiresByRoot).forEach((rootKey) => {
+    const groupWires = wiresByRoot[rootKey];
+    const existingGroupNames = groupWires.map((w) => w.netName).filter(Boolean) as string[];
+
+    let chosenName = '';
+    if (existingGroupNames.length > 0) {
+      chosenName = existingGroupNames[0];
+    } else {
+      chosenName = generateUniqueNetName();
+    }
+    rootToNetName[rootKey] = chosenName;
+  });
+
+  return elements.map((el) => {
+    if (el.type === 'arrow') {
+      const w = el as ArrowElement;
+      let rootKey = w.id;
+      if (w.fromId && w.fromSocket) {
+        rootKey = uf.find(`${w.fromId}-${w.fromSocket}`);
+      } else if (w.toId && w.toSocket) {
+        rootKey = uf.find(`${w.toId}-${w.toSocket}`);
+      }
+      const netName = rootToNetName[rootKey] || '';
+      if (w.netName !== netName) {
+        return { ...w, netName };
+      }
+    }
+    return el;
+  });
+};
+
 interface WireSnapResult {
   wire: ArrowElement;
   point: Point;
@@ -175,6 +275,29 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { liveDCOn } = useCanvas();
+
+  // Auto-assign net names to all wires in the circuit
+  useEffect(() => {
+    const nextElements = ensureNetNames(elements);
+    
+    // Check if any netName actually changed
+    let changed = false;
+    for (let i = 0; i < elements.length; i++) {
+      if (elements[i].type === 'arrow') {
+        const oldArrow = elements[i] as ArrowElement;
+        const newArrow = nextElements[i] as ArrowElement;
+        if (oldArrow.netName !== newArrow.netName) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    if (changed) {
+      useCanvas.setState({ elements: nextElements });
+      localStorage.setItem('spark-flow:board-elements', JSON.stringify(nextElements));
+    }
+  }, [elements]);
 
   // --- REAL-TIME MNA DC OPERATING POINT SOLVER ---
   const solvedDCOperatingPoint = React.useMemo(() => {
@@ -1040,7 +1163,18 @@ export const Canvas: React.FC<CanvasProps> = ({
           arrows={arrows}
           cards={cards}
           selectedId={selectedId}
-          setSelectedId={setSelectedId}
+          setSelectedId={(id) => {
+            setSelectedId(id);
+            if (id) {
+              const clickedArrow = arrows.find((a) => a.id === id);
+              if (clickedArrow && setToast) {
+                setToast({
+                  message: `🔌 Net Name: ${clickedArrow.netName || 'Unassigned'}`,
+                  type: 'info'
+                });
+              }
+            }
+          }}
           drawingArrow={drawingArrow}
           getSocketPosition={getSocketPosition}
           activeSnap={activeSnap}
