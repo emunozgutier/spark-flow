@@ -359,39 +359,42 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
         chain.reverse();
       }
 
+      let currPinName = reverseChain ? pinEnd : pinStart;
+
       const elementPaths: Point[][] = [];
       chain.forEach((item) => {
         if (item.type === 'wire') {
           const w = item.element as ArrowElement;
-          const sStart = `${w.fromId}-${w.fromSocket}`;
-          const scoreStartW = scoreMap[sStart] ?? 0;
-          const scoreEndW = scoreMap[`${w.toId}-${w.toSocket}`] ?? 0;
-          const isForward = scoreStartW <= scoreEndW;
+          const wStartPin = `${w.fromId}-${w.fromSocket}`;
+          const wEndPin = `${w.toId}-${w.toSocket}`;
           
-          const pathDirection = reverseChain ? !isForward : isForward;
-          elementPaths.push(getWirePoints(w, pathDirection, cards));
-        } else {
-          const comp = item.element as CardElement;
-          const ptLeft = getSocketPosition(comp, 'left');
-          const ptRight = getSocketPosition(comp, 'right');
-          const solved = solvedResults[comp.id];
-          const vLeft = solved?.vLeft || 0;
-          const vRight = solved?.vRight || 0;
-          const signedI = solved?.signedCurrent || 0;
-          
-          let leftToRight = true;
-          if (vLeft > vRight) {
-            leftToRight = true;
-          } else if (vRight > vLeft) {
-            leftToRight = false;
+          let isForward = true;
+          if (currPinName === wStartPin) {
+            isForward = true;
+            currPinName = wEndPin;
           } else {
-            leftToRight = signedI > 0;
+            isForward = false;
+            currPinName = wStartPin;
           }
           
-          const pathDirection = reverseChain ? !leftToRight : leftToRight;
-          elementPaths.push(pathDirection ? [ptLeft, ptRight] : [ptRight, ptLeft]);
+          elementPaths.push(getWirePoints(w, isForward, cards));
+        } else {
+          const comp = item.element as CardElement;
+          const compLeftPin = `${comp.id}-left`;
+          
+          const ptLeft = getSocketPosition(comp, 'left');
+          const ptRight = getSocketPosition(comp, 'right');
+          
+          if (currPinName === compLeftPin) {
+            elementPaths.push([ptLeft, ptRight]);
+            currPinName = `${comp.id}-right`;
+          } else {
+            elementPaths.push([ptRight, ptLeft]);
+            currPinName = compLeftPin;
+          }
         }
       });
+      
       
       const mergedPath = mergePaths(elementPaths);
       const length = getPathLength(mergedPath);

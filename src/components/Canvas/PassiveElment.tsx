@@ -165,48 +165,7 @@ export const PassiveElment: React.FC<PassiveElmentProps> = ({
         )}
       </div>
 
-      {liveDCOn && dcStats && card.componentType !== 'ground' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-24px',
-            left: 0,
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            pointerEvents: 'none',
-            transform: `rotate(-${card.rotation || 0}deg)`,
-            transformOrigin: '50% 50%',
-            zIndex: 10
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.88)',
-              border: '1.2px solid var(--theme-color)',
-              boxShadow: '0 4px 10px rgba(0, 0, 0, 0.4), 0 0 6px var(--theme-color-glow)',
-              borderRadius: '5px',
-              padding: '1.5px 5px',
-              display: 'flex',
-              gap: '4px',
-              fontSize: '8px',
-              fontFamily: 'monospace',
-              fontWeight: 'bold',
-              whiteSpace: 'nowrap',
-              color: '#ffffff'
-            }}
-          >
-            <span>
-              V: <span style={{ color: 'var(--theme-amber)' }}>{formatEngineering(dcStats.voltageDrop)}V</span>
-            </span>
-            <span style={{ color: 'var(--theme-color)', opacity: 0.35 }}>|</span>
-            <span>
-              I: <span style={{ color: 'var(--theme-emerald)' }}>{formatEngineering(dcStats.branchCurrent)}A</span>
-            </span>
-          </div>
-        </div>
-      )}
+
 
       {/* Sockets for Wire connections */}
       {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (
