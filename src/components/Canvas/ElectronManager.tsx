@@ -230,6 +230,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
     path: Point[];
     length: number;
     speed: number;
+    spawnAccumulator: number;
   }[]>([]);
 
   const electronsRef = useRef<{
@@ -463,7 +464,8 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
         id: `${r3Card.id}-combined`,
         path: mergedPath,
         length,
-        speed
+        speed,
+        spawnAccumulator: 0
       };
     }
 
@@ -511,7 +513,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const length = getPathLength(path);
       const speed = getSpeedForCurrent(branchI, maxI);
 
-      newSegments.push({ id: card.id, path, length, speed });
+      newSegments.push({ id: card.id, path, length, speed, spawnAccumulator: 0 });
     });
 
     // Add Wire segments
@@ -519,6 +521,13 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       if (!w.fromId || !w.fromSocket || !w.toId || !w.toSocket) return;
 
       if (combinedSegment && (w.id === wLeft?.id || w.id === wRight?.id)) {
+        return;
+      }
+
+      // No electrons on net 0.0 or any wire directly connected to GND component
+      const isGndWire = w.netName === '0.0' || 
+                        cards.some((c) => c.componentType === 'ground' && (w.fromId === c.id || w.toId === c.id));
+      if (isGndWire) {
         return;
       }
 
@@ -551,7 +560,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
 
       const speed = getSpeedForCurrent(current, maxI);
 
-      newSegments.push({ id: w.id, path, length, speed });
+      newSegments.push({ id: w.id, path, length, speed, spawnAccumulator: 0 });
     });
 
     if (combinedSegment) {
@@ -569,6 +578,11 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
 
     const newElectrons: { segmentId: string; progress: number }[] = [];
     newSegments.forEach((seg) => {
+      const existing = segmentsRef.current.find((s) => s.id === seg.id);
+      if (existing) {
+        seg.spawnAccumulator = existing.spawnAccumulator;
+      }
+
       const oldProgresses = oldElectronsBySegment.get(seg.id);
       const numElectrons = Math.max(1, Math.floor(seg.length / 40));
 
@@ -603,13 +617,30 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const segments = segmentsRef.current;
       const segmentMap = new Map(segments.map((s) => [s.id, s]));
 
-      // Update positions
-      electronsRef.current.forEach((e) => {
+      // 1. Update positions and filter out completed electrons (delete on joints)
+      const activeElectrons = electronsRef.current.filter((e) => {
         const seg = segmentMap.get(e.segmentId);
-        if (seg && seg.speed > 0) {
-          e.progress = (e.progress + seg.speed * dt) % seg.length;
+        if (!seg || seg.speed <= 0) return false;
+        
+        e.progress += seg.speed * dt;
+        return e.progress < seg.length; // delete once it reaches the end joint
+      });
+
+      // 2. Spawn new electrons at the start joint based on distance traveled
+      segments.forEach((seg) => {
+        if (seg.speed <= 0) return;
+        
+        seg.spawnAccumulator = (seg.spawnAccumulator || 0) + seg.speed * dt;
+        while (seg.spawnAccumulator >= 40) {
+          seg.spawnAccumulator -= 40;
+          activeElectrons.push({
+            segmentId: seg.id,
+            progress: seg.spawnAccumulator
+          });
         }
       });
+
+      electronsRef.current = activeElectrons;
 
       // Render
       const canvas = canvasRef.current;
