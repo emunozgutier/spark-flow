@@ -1,7 +1,7 @@
 import React from 'react';
-import type { ArrowElement, Point, CardElement } from '../../dataTypes/AnotateType';
-import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from './Connections';
-import { Vertices } from './Wire/Vertices';
+import type { ArrowElement, Point, CardElement } from '../../../dataTypes/AnotateType';
+import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from '../Wires';
+import { Vertices } from './Vertices';
 
 interface WireProps {
   arrow: ArrowElement;

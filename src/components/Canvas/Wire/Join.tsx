@@ -76,23 +76,7 @@ export const Join: React.FC<JoinProps> = ({
       {/* Hollow, vertex-like circular junction dot */}
       <svg width="100%" height="100%" viewBox="0 0 16 16" style={{ overflow: 'visible' }}>
         <circle cx="8" cy="8" />
-        {card.jointNumber && (
-          <text
-            x="16"
-            y="12"
-            fill="var(--theme-amber)"
-            fontSize="9px"
-            fontWeight="bold"
-            fontFamily="monospace"
-            style={{
-              textShadow: '0 0 4px rgba(0,0,0,0.8)',
-              pointerEvents: 'none',
-              userSelect: 'none'
-            }}
-          >
-            {card.jointNumber}
-          </text>
-        )}
+
       </svg>
 
       {/* Junction sockets - invisible or tiny lead-out rings that appear on hover! */}

@@ -1,5 +1,5 @@
 import type { Point, ArrowElement, CardElement } from '../../../dataTypes/AnotateType';
-import { getAbsoluteDirection, getOrthogonalPathPoints } from '../Connections';
+import { getAbsoluteDirection, getOrthogonalPathPoints } from '../Wires';
 
 export interface Segment {
   id: string;

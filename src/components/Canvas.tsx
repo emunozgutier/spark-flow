@@ -4,7 +4,7 @@ import { useCanvas } from '../store/useCanvas';
 import { PassiveElment } from './Canvas/PassiveElment';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
-import { Connections, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Connections';
+import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Wires';
 import { solveLinearSystem } from '../sim/components/mnaSolver';
 import { AnimationManager } from './Canvas/AnimationManager';
 
@@ -1041,7 +1041,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         }}
       >
         {/* 2. SVG Overlay Layer (Connectors) */}
-        <Connections
+        <Wires
           arrows={arrows}
           cards={cards}
           selectedId={selectedId}

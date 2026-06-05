@@ -1,8 +1,8 @@
 import React from 'react';
 import type { ArrowElement, CardElement, DrawingArrowState, Point } from '../../dataTypes/AnotateType';
-import { Wire } from './Wire';
+import { Wire } from './Wire/WirePath';
 
-interface ConnectionsProps {
+interface WiresProps {
   arrows: ArrowElement[];
   cards: CardElement[];
   selectedId: string | null;
@@ -166,14 +166,8 @@ export const calculateOrthogonalPath = (
   absFromDir?: 'top' | 'right' | 'bottom' | 'left',
   absToDir?: 'top' | 'right' | 'bottom' | 'left',
   arrowId?: string
-): string => {
-  const points = getOrthogonalPathPoints(from, to, absFromDir, absToDir, arrowId);
-  return points.reduce((dStr, pt, index) => {
-    if (index === 0) return `M ${pt.x} ${pt.y}`;
-    const prev = points[index - 1];
-    if (prev.x === pt.x && prev.y === pt.y) return dStr;
-    return `${dStr} L ${pt.x} ${pt.y}`;
-  }, '');
+): Point[] => {
+  return getOrthogonalPathPoints(from, to, absFromDir, absToDir, arrowId);
 };
 
 export const calculatePath = (
@@ -188,11 +182,16 @@ export const calculatePath = (
 ) => {
   const absFromDir = getAbsoluteDirection(fromDir, fromRotation);
   const absToDir = getAbsoluteDirection(toDir, toRotation);
-  
-  return calculateOrthogonalPath(from, to, absFromDir, absToDir, arrowId);
+  const points = getOrthogonalPathPoints(from, to, absFromDir, absToDir, arrowId);
+  return points.reduce((dStr, pt, index) => {
+    if (index === 0) return `M ${pt.x} ${pt.y}`;
+    const prev = points[index - 1];
+    if (prev.x === pt.x && prev.y === pt.y) return dStr;
+    return `${dStr} L ${pt.x} ${pt.y}`;
+  }, '');
 };
 
-export const Connections: React.FC<ConnectionsProps> = ({
+export const Wires: React.FC<WiresProps> = ({
   arrows,
   cards,
   selectedId,
@@ -278,7 +277,7 @@ export const Connections: React.FC<ConnectionsProps> = ({
           strokeDasharray="4,4"
         />
       )}
-
+ 
       {/* Render temporary live snap join indicator */}
       {drawingArrow && activeSnap && (
         <g style={{ pointerEvents: 'none' }}>
