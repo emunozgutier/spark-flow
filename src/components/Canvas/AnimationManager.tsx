@@ -578,7 +578,8 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     let lastTime = performance.now();
 
     const tick = (timestamp: number) => {
-      const dt = (timestamp - lastTime) / 1000;
+      // Safely cap dt at 0.1s to prevent infinite spawn loops on tab wakeup, slow renders, or HMR reloads
+      const dt = Math.min(0.1, (timestamp - lastTime) / 1000);
       lastTime = timestamp;
 
       const segments = segmentsRef.current;
