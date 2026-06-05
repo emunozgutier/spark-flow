@@ -37,6 +37,7 @@ export interface BoxAnnotation extends BaseType {
   borderRadius?: number;
   rotation?: number;
   isGroup2?: boolean;
+  jointNumber?: string;
 }
 
 /**

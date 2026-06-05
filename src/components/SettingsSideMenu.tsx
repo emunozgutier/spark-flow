@@ -51,7 +51,13 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
       {/* Header */}
       <div className="sidebar-header">
         <span className="sidebar-title">
-          {isCard ? '📝 Card Inspector' : '🔗 Link Inspector'}
+          {isCard ? (
+            (card.id.startsWith('join') || card.title === 'join')
+              ? '🔗 Joint Inspector'
+              : card.componentType
+              ? '⚡ Component Inspector'
+              : '📝 Card Inspector'
+          ) : '🔗 Link Inspector'}
         </span>
         <button className="sidebar-close-btn" onClick={onClose} aria-label="Close Inspector">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -138,6 +144,30 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
                       {angle}°
                     </button>
                   ))}
+                </div>
+              </div>
+            </>
+          ) : (card.id.startsWith('join') || card.title === 'join') ? (
+            <>
+              {/* Joint Info */}
+              <div className="sidebar-section">
+                <label className="sidebar-section-title">Joint Node Number</label>
+                <div style={{
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: '1.2px solid var(--theme-amber)',
+                  boxShadow: '0 0 8px var(--theme-amber-glow)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ color: 'var(--theme-amber)' }}>🔗</span>
+                  <span>{card.jointNumber || 'Unassigned'}</span>
                 </div>
               </div>
             </>

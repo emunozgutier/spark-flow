@@ -101,7 +101,8 @@ function App() {
       const groups: Record<string, string[]> = {};
       cards.forEach((card) => {
         const isGround = card.componentType === 'ground';
-        const portsList = isGround ? ['top'] : ['left', 'right'];
+        const isJoin = card.id.startsWith('join') || card.title === 'join';
+        const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : ['left', 'right']);
         
         portsList.forEach((socket) => {
           const pin = `${card.id}-${socket}`;
@@ -111,8 +112,8 @@ function App() {
         });
       });
 
-      // Identify the ground node group
-      let gndRoot: string | null = null;
+      // Identify all ground roots
+      const gndRoots = new Set<string>();
       Object.keys(groups).forEach((root) => {
         const hasGndPin = groups[root].some((pin) => {
           const cardId = pin.substring(0, pin.lastIndexOf('-'));
@@ -120,23 +121,25 @@ function App() {
           return card?.componentType === 'ground';
         });
         if (hasGndPin) {
-          gndRoot = root;
+          gndRoots.add(root);
         }
       });
-
-      if (!gndRoot && Object.keys(groups).length > 0) {
-        gndRoot = Object.keys(groups)[0];
-      }
 
       const rootToNodeName: Record<string, string> = {};
       let nodeCounter = 1;
       
-      if (gndRoot) {
-        rootToNodeName[gndRoot] = '0';
+      gndRoots.forEach((root) => {
+        rootToNodeName[root] = '0';
+      });
+
+      if (gndRoots.size === 0 && Object.keys(groups).length > 0) {
+        const defaultGnd = Object.keys(groups)[0];
+        rootToNodeName[defaultGnd] = '0';
+        gndRoots.add(defaultGnd);
       }
 
       Object.keys(groups).forEach((root) => {
-        if (root === gndRoot) return;
+        if (gndRoots.has(root)) return;
         rootToNodeName[root] = String(nodeCounter++);
       });
 

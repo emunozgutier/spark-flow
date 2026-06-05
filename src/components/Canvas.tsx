@@ -82,7 +82,8 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   const groups: Record<string, string[]> = {};
   cards.forEach((card) => {
     const isGround = card.componentType === 'ground';
-    const portsList = isGround ? ['top'] : ['left', 'right'];
+    const isJoin = card.id.startsWith('join') || card.title === 'join';
+    const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : ['left', 'right']);
     
     portsList.forEach((socket) => {
       const pin = `${card.id}-${socket}`;
@@ -107,8 +108,8 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
     }
   });
 
-  // Identify ground group root
-  let gndRoot: string | null = null;
+  // Identify all ground roots
+  const gndRoots = new Set<string>();
   Object.keys(groups).forEach((root) => {
     const hasGndPin = groups[root].some((pin) => {
       const cardId = pin.substring(0, pin.lastIndexOf('-'));
@@ -116,23 +117,25 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
       return card?.componentType === 'ground';
     });
     if (hasGndPin) {
-      gndRoot = root;
+      gndRoots.add(root);
     }
   });
-
-  if (!gndRoot && Object.keys(groups).length > 0) {
-    gndRoot = Object.keys(groups)[0];
-  }
 
   const rootToNodeName: Record<string, string> = {};
   let nodeCounter = 1;
   
-  if (gndRoot) {
-    rootToNodeName[gndRoot] = '0';
+  gndRoots.forEach((root) => {
+    rootToNodeName[root] = '0';
+  });
+
+  if (gndRoots.size === 0 && Object.keys(groups).length > 0) {
+    const defaultGnd = Object.keys(groups)[0];
+    rootToNodeName[defaultGnd] = '0';
+    gndRoots.add(defaultGnd);
   }
 
   Object.keys(groups).forEach((root) => {
-    if (root === gndRoot) return;
+    if (gndRoots.has(root)) return;
     rootToNodeName[root] = String(nodeCounter++);
   });
 
@@ -167,12 +170,42 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
     }
   });
 
+  // Assign joint numbers to join cards deterministically (top-to-bottom, left-to-right)
+  const jointCounters: Record<string, number> = {};
+  const joinToNumber: Record<string, string> = {};
+  
+  const sortedJoinCards = [...joinCards].sort((a, b) => {
+    if (Math.abs(a.y - b.y) > 1) {
+      return a.y - b.y;
+    }
+    return a.x - b.x;
+  });
+
+  sortedJoinCards.forEach((j) => {
+    const root = uf.find(`${j.id}-top`);
+    const baseNodeName = rootToNodeName[root] || '0';
+    if (jointCounters[baseNodeName] === undefined) {
+      jointCounters[baseNodeName] = 0;
+    }
+    const idx = jointCounters[baseNodeName]++;
+    joinToNumber[j.id] = `${baseNodeName}.${idx}`;
+  });
+
   return elements.map((el) => {
     if (el.type === 'arrow') {
       const w = el as ArrowElement;
       const netName = wireToNetName[w.id] || '';
       if (w.netName !== netName) {
         return { ...w, netName };
+      }
+    } else if (el.type === 'box') {
+      const card = el as CardElement;
+      const isJoin = card.id.startsWith('join') || card.title === 'join';
+      if (isJoin) {
+        const jointNumber = joinToNumber[card.id] || '';
+        if (card.jointNumber !== jointNumber) {
+          return { ...card, jointNumber };
+        }
       }
     }
     return el;
@@ -327,15 +360,34 @@ export const Canvas: React.FC<CanvasProps> = ({
   useEffect(() => {
     const nextElements = ensureNetNames(elements);
     
-    // Check if any netName actually changed
+    // Check if any netName or jointNumber actually changed, or elements array shape differs
     let changed = false;
-    for (let i = 0; i < elements.length; i++) {
-      if (elements[i].type === 'arrow') {
-        const oldArrow = elements[i] as ArrowElement;
-        const newArrow = nextElements[i] as ArrowElement;
-        if (oldArrow.netName !== newArrow.netName) {
+    if (elements.length !== nextElements.length) {
+      changed = true;
+    } else {
+      for (let i = 0; i < elements.length; i++) {
+        const oldEl = elements[i];
+        const newEl = nextElements[i];
+        
+        if (oldEl.type !== newEl.type || oldEl.id !== newEl.id) {
           changed = true;
           break;
+        }
+        
+        if (oldEl.type === 'arrow') {
+          const oldArrow = oldEl as ArrowElement;
+          const newArrow = newEl as ArrowElement;
+          if (oldArrow.netName !== newArrow.netName) {
+            changed = true;
+            break;
+          }
+        } else if (oldEl.type === 'box') {
+          const oldBox = oldEl as CardElement;
+          const newBox = newEl as CardElement;
+          if (oldBox.jointNumber !== newBox.jointNumber) {
+            changed = true;
+            break;
+          }
         }
       }
     }
