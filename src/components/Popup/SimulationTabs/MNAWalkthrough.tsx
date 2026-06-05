@@ -571,6 +571,34 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           {nmaSteps[currentStep].desc}
         </div>
 
+        {/* Mathematical Formulation Badge */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '2px',
+          margin: '2px 0'
+        }}>
+          <div style={{
+            fontSize: '12.5px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            color: 'var(--theme-sapphire)',
+            background: 'rgba(59, 130, 246, 0.05)',
+            border: '1px solid rgba(59, 130, 246, 0.15)',
+            padding: '5px 12px',
+            borderRadius: '6px',
+            textShadow: '0 0 8px var(--theme-sapphire-glow)'
+          }}>
+            f(x) = G·x + H·g(x) - s = 0
+          </div>
+          <div style={{ fontSize: '8.5px', color: 'rgba(255,255,255,0.45)', fontStyle: 'italic' }}>
+            {hasDiodes 
+              ? 'Non-linear system solved iteratively using Newton-Raphson companion stamps' 
+              : 'Linear system (where non-linear vector g(x) = 0, simplifying to G·x = s)'}
+          </div>
+        </div>
+
         {/* Grid bracket math equations viewer */}
         <div style={{
           display: 'flex',
