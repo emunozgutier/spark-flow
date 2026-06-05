@@ -168,8 +168,8 @@ export const TopBar: React.FC<TopBarProps> = ({
               const nextLive = !liveDCOn;
               setLiveDCOn(nextLive);
               if (nextLive) {
-                if (activeTab === 'anotate') {
-                  setActiveTab('passives');
+                if (activeTab === 'anotate' || activeTab === 'passives') {
+                  setActiveTab('sources');
                 }
                 if (activeTool === 'text' || activeTool === 'arrow') {
                   setActiveTool('select');
@@ -251,7 +251,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           />
         )}
 
-        {liveDCOn && activeTab !== 'anotate' && (
+        {liveDCOn && activeTab !== 'anotate' && activeTab !== 'passives' && (
           <Animation />
         )}
       </div>
