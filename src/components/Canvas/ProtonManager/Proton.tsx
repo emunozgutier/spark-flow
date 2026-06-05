@@ -1,6 +1,6 @@
 import type { Point, CardElement, ArrowElement } from '../../../dataTypes/AnotateType';
 
-export class Electron {
+export class Proton {
   id: string;
   points: Point[];
   pointIndex: number;
@@ -18,7 +18,7 @@ export class Electron {
     nextPort: string,
     visitedCards: Set<string>
   ) {
-    this.id = `el-${Date.now()}-${Math.random()}`;
+    this.id = `pr-${Date.now()}-${Math.random()}`;
     this.points = points;
     this.pointIndex = 1;
     this.currentX = points[0]?.x || 0;
@@ -29,7 +29,7 @@ export class Electron {
     this.visitedCards = visitedCards;
   }
 
-  // Draw the electron as a glowing particle on the canvas context
+  // Draw the proton as a glowing particle on the canvas context
   draw(ctx: CanvasRenderingContext2D) {
     ctx.beginPath();
     ctx.arc(this.currentX, this.currentY, 3.2, 0, Math.PI * 2);
@@ -59,17 +59,17 @@ export class Electron {
     }
   }
 
-  // Updates the electron's position. Returns false if the electron is destroyed/sinked.
+  // Updates the proton's position. Returns false if the proton is destroyed/sinked.
   update(
     dt: number,
     cards: CardElement[],
     arrows: ArrowElement[],
-    solvedResults: Record<string, { voltageDrop: number; branchCurrent: number }>,
+    solvedResults: Record<string, { voltageDrop: number; branchCurrent: number; vLeft?: number; vRight?: number; signedCurrent?: number }>,
     maxI: number,
     getSocketPos: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point,
     getWirePoints: (wire: ArrowElement, isForward: boolean) => Point[],
     calculateSpeedForWire: (wire: ArrowElement) => number,
-    onSplit: (newElectrons: Electron[]) => void
+    onSplit: (newProtons: Proton[]) => void
   ): boolean {
     let moveDist = this.speed * dt;
 
@@ -112,17 +112,17 @@ export class Electron {
     return this.pointIndex < this.points.length;
   }
 
-  // Transitions the electron into the next connected element
+  // Transitions the proton into the next connected element
   private transition(
     extraDist: number,
     cards: CardElement[],
     arrows: ArrowElement[],
-    solvedResults: Record<string, { voltageDrop: number; branchCurrent: number }>,
-    maxI: number,
+    _solvedResults: Record<string, { voltageDrop: number; branchCurrent: number; vLeft?: number; vRight?: number; signedCurrent?: number }>,
+    _maxI: number,
     getSocketPos: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point,
     getWirePoints: (wire: ArrowElement, isForward: boolean) => Point[],
     calculateSpeedForWire: (wire: ArrowElement) => number,
-    onSplit: (newElectrons: Electron[]) => void
+    onSplit: (newProtons: Proton[]) => void
   ): boolean {
     const nextCard = cards.find((c) => c.id === this.nextCardId);
     if (!nextCard || !nextCard.componentType) return false;
@@ -140,13 +140,14 @@ export class Electron {
         (w) => w.fromId === nextCard.id || w.toId === nextCard.id
       );
 
-      const splitElectrons: Electron[] = [];
+      const splitProtons: Proton[] = [];
 
       otherWires.forEach((w) => {
         const isForward = w.fromId === nextCard.id;
         const otherCardId = isForward ? w.toId : w.fromId;
         const otherPort = isForward ? w.toSocket : w.fromSocket;
 
+        if (!otherCardId || !otherPort) return;
         if (this.visitedCards.has(otherCardId)) return;
 
         const points = getWirePoints(w, isForward);
@@ -155,7 +156,7 @@ export class Electron {
         const newSpeed = calculateSpeedForWire(w);
         if (newSpeed < 5) return;
 
-        const splitEl = new Electron(
+        const splitPr = new Proton(
           points,
           newSpeed,
           otherCardId,
@@ -163,14 +164,14 @@ export class Electron {
           new Set(this.visitedCards)
         );
 
-        splitEl.move(extraDist);
-        splitElectrons.push(splitEl);
+        splitPr.move(extraDist);
+        splitProtons.push(splitPr);
       });
 
-      if (splitElectrons.length > 0) {
-        onSplit(splitElectrons);
+      if (splitProtons.length > 0) {
+        onSplit(splitProtons);
       }
-      return false; // Parent electron is destroyed/replaced by splits
+      return false; // Parent proton is destroyed/replaced by splits
     }
 
     // Two-terminal component traversal (resistor, capacitor, inductor, sources)
@@ -190,6 +191,7 @@ export class Electron {
     const otherCardId = isForward ? outgoingWire.toId : outgoingWire.fromId;
     const otherPort = isForward ? outgoingWire.toSocket : outgoingWire.fromSocket;
 
+    if (!otherCardId || !otherPort) return false;
     if (this.visitedCards.has(otherCardId)) return false;
 
     const wirePoints = getWirePoints(outgoingWire, isForward);

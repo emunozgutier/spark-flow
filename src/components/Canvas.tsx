@@ -6,7 +6,7 @@ import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Connections, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Connections';
 import { solveLinearSystem } from '../sim/components/mnaSolver';
-import { ElectronManager } from './Canvas/ElectronManager';
+import { ProtonManager } from './Canvas/ProtonManager';
 
 
 // DSU helper to group connected pins into electrical nodes
@@ -350,7 +350,16 @@ export const Canvas: React.FC<CanvasProps> = ({
       }
 
       // Compile stats per card
-      const results: Record<string, { voltageDrop: number; branchCurrent: number }> = {};
+      const results: Record<
+        string,
+        {
+          voltageDrop: number;
+          branchCurrent: number;
+          vLeft?: number;
+          vRight?: number;
+          signedCurrent?: number;
+        }
+      > = {};
       cards.forEach((card) => {
         if (!card.componentType) return;
         if (card.componentType === 'ground') {
@@ -391,7 +400,10 @@ export const Canvas: React.FC<CanvasProps> = ({
 
         results[card.id] = {
           voltageDrop: displayVDrop,
-          branchCurrent: displayIBranch
+          branchCurrent: displayIBranch,
+          vLeft: v1,
+          vRight: v2,
+          signedCurrent: iBranch
         };
       });
 
@@ -1133,7 +1145,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       </div>
 
       {liveDCOn && (
-        <ElectronManager
+        <ProtonManager
           elements={elements}
           solvedResults={solvedDCOperatingPoint}
           pan={pan}

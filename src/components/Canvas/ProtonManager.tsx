@@ -1,21 +1,30 @@
 import React, { useRef, useEffect } from 'react';
 import type { Point, CanvasElement, CardElement, ArrowElement } from '../../dataTypes/AnotateType';
 import { getAbsoluteDirection, getOrthogonalPathPoints } from './Connections';
-import { Electron } from './ElectronManager/Electron';
+import { Proton } from './ProtonManager/Proton';
 
-interface ElectronManagerProps {
+interface ProtonManagerProps {
   elements: CanvasElement[];
-  solvedResults: Record<string, { voltageDrop: number; branchCurrent: number }>;
+  solvedResults: Record<
+    string,
+    {
+      voltageDrop: number;
+      branchCurrent: number;
+      vLeft?: number;
+      vRight?: number;
+      signedCurrent?: number;
+    }
+  >;
   pan: Point;
   zoom: number;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const MAX_SPEED = 180; // pixels per second
 const MIN_SPEED = 30;  // pixels per second (for low but non-zero currents)
 
-export const ElectronManager: React.FC<ElectronManagerProps> = ({
+export const ProtonManager: React.FC<ProtonManagerProps> = ({
   elements,
   solvedResults,
   pan,
@@ -24,7 +33,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
   containerRef
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const electronsRef = useRef<Electron[]>([]);
+  const protonsRef = useRef<Proton[]>([]);
   const lastSpawnTimes = useRef<Record<string, number>>({});
 
   // Keep references to latest values to avoid recreating the animation frame loop
@@ -43,9 +52,9 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
     getSocketPositionRef.current = getSocketPosition;
   }, [pan, zoom, elements, solvedResults, getSocketPosition]);
 
-  // Clear active electrons when circuit components or simulation results change
+  // Clear active protons when circuit components or simulation results change
   useEffect(() => {
-    electronsRef.current = [];
+    protonsRef.current = [];
   }, [elements, solvedResults]);
 
   // Resize handler for Retina-sharp drawing context
@@ -112,7 +121,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       wire: ArrowElement,
       cards: CardElement[],
       arrows: ArrowElement[],
-      results: Record<string, { voltageDrop: number; branchCurrent: number }>,
+      results: Record<string, { voltageDrop: number; branchCurrent: number; vLeft?: number; vRight?: number; signedCurrent?: number }>,
       visitedJoins: Set<string> = new Set()
     ): number => {
       const c1 = cards.find((c) => c.id === wire.fromId);
@@ -120,7 +129,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
 
       const checkCard = (card: CardElement | undefined): number => {
         if (!card) return 0;
-        if (card.componentType && card.componentType !== 'ground' && card.componentType !== 'join') {
+        if (card.componentType && card.componentType !== 'ground') {
           return Math.abs(results[card.id]?.branchCurrent || 0);
         }
         if (card.id.startsWith('join') || card.title === 'join') {
@@ -147,7 +156,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       wire: ArrowElement,
       cards: CardElement[],
       arrows: ArrowElement[],
-      results: Record<string, { voltageDrop: number; branchCurrent: number }>,
+      results: Record<string, { voltageDrop: number; branchCurrent: number; vLeft?: number; vRight?: number; signedCurrent?: number }>,
       maxI: number
     ): number => {
       const wireCurrent = getWireCurrentRecursive(wire, cards, arrows, results);
@@ -195,13 +204,21 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
         if (now - lastSpawn >= spawnInterval) {
           lastSpawnTimes.current[src.id] = now;
 
-          // Outflow port (conventional current leaves the positive node)
-          // For voltage sources, current flows out of 'left' (positive) if branchCurrent <= 0
-          // For current sources, current flows out of 'left' if branchCurrent >= 0
+          // Outflow port (conventional current - protons - leaves the positive node)
           const isVoltage = src.componentType === 'voltage';
-          const outflowPort = isVoltage
-            ? (current <= 0 ? 'left' : 'right')
-            : (current >= 0 ? 'left' : 'right');
+          let outflowPort: 'left' | 'right' = 'left';
+
+          if (isVoltage) {
+            // For voltage source, positive terminal is higher potential
+            const vLeft = solved.vLeft || 0;
+            const vRight = solved.vRight || 0;
+            outflowPort = vLeft >= vRight ? 'left' : 'right';
+          } else {
+            // For current sources, arrow points from left to right, so current leaves right
+            // if source value is positive, else left
+            const val = src.value !== undefined ? src.value : 0.001;
+            outflowPort = val >= 0 ? 'right' : 'left';
+          }
 
           const connectedWires = arrows.filter(
             (w) =>
@@ -214,32 +231,34 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
             const otherCardId = isForward ? w.toId : w.fromId;
             const otherPort = isForward ? w.toSocket : w.fromSocket;
 
+            if (!otherCardId || !otherPort) return;
+
             const points = getWirePoints(w, isForward, cards);
             if (points.length < 2) return;
 
             const initialSpeed = calculateSpeedForWire(w, cards, arrows, results, maxI);
             if (initialSpeed < 5) return;
 
-            if (electronsRef.current.length < 300) {
-              const newEl = new Electron(
+            if (protonsRef.current.length < 300) {
+              const newPr = new Proton(
                 points,
                 initialSpeed,
                 otherCardId,
                 otherPort,
                 new Set([src.id])
               );
-              electronsRef.current.push(newEl);
+              protonsRef.current.push(newPr);
             }
           });
         }
       });
 
       // 2. Physics & Routing Update
-      const updatedElectrons: Electron[] = [];
+      const updatedProtons: Proton[] = [];
       const getSocketPos = getSocketPositionRef.current;
 
-      electronsRef.current.forEach((el) => {
-        const active = el.update(
+      protonsRef.current.forEach((pr) => {
+        const active = pr.update(
           dt,
           cards,
           arrows,
@@ -248,15 +267,15 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
           getSocketPos,
           (wire, isFwd) => getWirePoints(wire, isFwd, cards),
           (wire) => calculateSpeedForWire(wire, cards, arrows, results, maxI),
-          (splits) => updatedElectrons.push(...splits)
+          (splits) => updatedProtons.push(...splits)
         );
 
         if (active) {
-          updatedElectrons.push(el);
+          updatedProtons.push(pr);
         }
       });
 
-      electronsRef.current = updatedElectrons;
+      protonsRef.current = updatedProtons;
 
       // 3. Render Canvas Frame
       const canvas = canvasRef.current;
@@ -275,13 +294,13 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
           ctx.translate(panVal.x, panVal.y);
           ctx.scale(zoomVal, zoomVal);
 
-          // Draw Glowing Neon Electron Particles
-          ctx.fillStyle = '#67e8f9'; // High-intensity cyan-blue core
+          // Draw Glowing Neon Proton Particles (Red-coral glow)
+          ctx.fillStyle = '#ff4b6e'; // High-intensity red-coral core
           ctx.shadowBlur = 8;
-          ctx.shadowColor = '#06b6d4'; // Cyan glowing bloom outline
+          ctx.shadowColor = '#f43f5e'; // Red-coral glowing bloom outline
 
-          electronsRef.current.forEach((el) => {
-            el.draw(ctx);
+          protonsRef.current.forEach((pr) => {
+            pr.draw(ctx);
           });
 
           ctx.restore();
