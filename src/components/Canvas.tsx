@@ -78,57 +78,89 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
     }
   });
 
+  // Map sets to node keys
+  const groups: Record<string, string[]> = {};
+  cards.forEach((card) => {
+    const isGround = card.componentType === 'ground';
+    const portsList = isGround ? ['top'] : ['left', 'right'];
+    
+    portsList.forEach((socket) => {
+      const pin = `${card.id}-${socket}`;
+      const root = uf.find(pin);
+      if (!groups[root]) groups[root] = [];
+      groups[root].push(pin);
+    });
+  });
+
+  // Ensure all wires roots are in groups to avoid unmapped wires
+  arrows.forEach((w) => {
+    let wRoot = '';
+    if (w.fromId && w.fromSocket) {
+      wRoot = uf.find(`${w.fromId}-${w.fromSocket}`);
+    } else if (w.toId && w.toSocket) {
+      wRoot = uf.find(`${w.toId}-${w.toSocket}`);
+    } else {
+      wRoot = uf.find(w.id);
+    }
+    if (!groups[wRoot]) {
+      groups[wRoot] = [w.id];
+    }
+  });
+
+  // Identify ground group root
+  let gndRoot: string | null = null;
+  Object.keys(groups).forEach((root) => {
+    const hasGndPin = groups[root].some((pin) => {
+      const cardId = pin.substring(0, pin.lastIndexOf('-'));
+      const card = cards.find((c) => c.id === cardId);
+      return card?.componentType === 'ground';
+    });
+    if (hasGndPin) {
+      gndRoot = root;
+    }
+  });
+
+  if (!gndRoot && Object.keys(groups).length > 0) {
+    gndRoot = Object.keys(groups)[0];
+  }
+
+  const rootToNodeName: Record<string, string> = {};
+  let nodeCounter = 1;
+  
+  if (gndRoot) {
+    rootToNodeName[gndRoot] = '0';
+  }
+
+  Object.keys(groups).forEach((root) => {
+    if (root === gndRoot) return;
+    rootToNodeName[root] = String(nodeCounter++);
+  });
+
   // Group wires by root
   const wiresByRoot: Record<string, ArrowElement[]> = {};
   arrows.forEach((w) => {
-    let rootKey = w.id;
+    let wRoot = '';
     if (w.fromId && w.fromSocket) {
-      rootKey = uf.find(`${w.fromId}-${w.fromSocket}`);
+      wRoot = uf.find(`${w.fromId}-${w.fromSocket}`);
     } else if (w.toId && w.toSocket) {
-      rootKey = uf.find(`${w.toId}-${w.toSocket}`);
+      wRoot = uf.find(`${w.toId}-${w.toSocket}`);
+    } else {
+      wRoot = uf.find(w.id);
     }
-    if (!wiresByRoot[rootKey]) {
-      wiresByRoot[rootKey] = [];
+    if (!wiresByRoot[wRoot]) {
+      wiresByRoot[wRoot] = [];
     }
-    wiresByRoot[rootKey].push(w);
+    wiresByRoot[wRoot].push(w);
   });
-
-  // Find all existing net names
-  const allExistingNames = new Set(
-    arrows.map((w) => w.netName).filter(Boolean) as string[]
-  );
-
-  // Set up random starting number
-  let nextNum = Math.floor(Math.random() * 8999) + 1000;
-  const generateUniqueNetName = (): string => {
-    while (true) {
-      const formatted = `N${String(nextNum).padStart(4, '0')}`;
-      nextNum++;
-      if (!allExistingNames.has(formatted)) {
-        allExistingNames.add(formatted);
-        return formatted;
-      }
-    }
-  };
 
   const wireToNetName: Record<string, string> = {};
   Object.keys(wiresByRoot).forEach((rootKey) => {
+    const baseName = rootToNodeName[rootKey] || '0';
     const groupWires = wiresByRoot[rootKey];
     
-    // Find any existing net name in the group and strip suffix if it has one
-    let baseName = '';
-    const existingGroupNames = groupWires.map((w) => w.netName).filter(Boolean) as string[];
-    if (existingGroupNames.length > 0) {
-      const firstExistingName = existingGroupNames[0];
-      const underscoreIndex = firstExistingName.indexOf('_');
-      baseName = underscoreIndex !== -1 ? firstExistingName.substring(0, underscoreIndex) : firstExistingName;
-    } else {
-      baseName = generateUniqueNetName();
-    }
-
     if (groupWires.length > 1) {
       groupWires.forEach((w, index) => {
-        wireToNetName[w.id] = `${baseName}_${index + 1}`;
+        wireToNetName[w.id] = `${baseName}.${index}`;
       });
     } else if (groupWires.length === 1) {
       wireToNetName[groupWires[0].id] = baseName;

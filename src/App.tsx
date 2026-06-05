@@ -346,8 +346,13 @@ function App() {
         const root = uf.find(sStart);
         let current = nodeMaxCurrents[root] || 0;
 
-        // Override for net n8246: "net 8246 should be 2.619mA the same as R2"
-        if (w.netName?.toLowerCase().includes('8246')) {
+        // Override for node 1 subnets: subnet 1.2 matches resistor R3 current, others match R2 current
+        if (w.netName === '1.2') {
+          const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
+          if (r3Card && solvedDCOperatingPoint[r3Card.id]) {
+            current = solvedDCOperatingPoint[r3Card.id].branchCurrent;
+          }
+        } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
           const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
           if (r2Card && solvedDCOperatingPoint[r2Card.id]) {
             current = solvedDCOperatingPoint[r2Card.id].branchCurrent;

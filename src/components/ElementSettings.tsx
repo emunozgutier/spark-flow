@@ -220,9 +220,33 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
               gap: '6px'
             }}>
               <span style={{ color: 'var(--theme-sapphire)' }}>🔌</span>
-              <span>{arrow.netName || 'Unassigned'}</span>
+              <span>{arrow.netName ? (arrow.netName.includes('.') ? arrow.netName.split('.')[0] : arrow.netName) : 'Unassigned'}</span>
             </div>
           </div>
+
+          {/* Subnet Name */}
+          {arrow.netName && arrow.netName.includes('.') && (
+            <div className="sidebar-section">
+              <label className="sidebar-section-title">Subnet Name</label>
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.6)',
+                border: '1.2px solid var(--theme-sapphire)',
+                boxShadow: '0 0 8px var(--theme-sapphire-glow)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{ color: 'var(--theme-sapphire)' }}>🔗</span>
+                <span>{arrow.netName}</span>
+              </div>
+            </div>
+          )}
 
           {/* Link Current */}
           {liveDCOn && arrowCurrent !== undefined && (

@@ -20,7 +20,7 @@ interface ElectronManagerProps {
 }
 
 const MAX_SPEED = 180; // pixels per second
-const MIN_SPEED = 30;  // pixels per second (for low but non-zero currents)
+const MIN_SPEED = 2;  // pixels per second (for low but non-zero currents)
 
 // DSU helper to group connected pins into electrical nodes
 class UnionFind {
@@ -437,8 +437,13 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const root = uf.find(sStart);
       let current = nodeMaxCurrents[root] || 0;
 
-      // Override for net n8246 to have the same current speed as R2
-      if (w.netName?.toLowerCase().includes('8246')) {
+      // Override for node 1 subnets: subnet 1.2 matches resistor R3 current speed, others match R2
+      if (w.netName === '1.2') {
+        const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
+        if (r3Card && solvedResults[r3Card.id]) {
+          current = solvedResults[r3Card.id].branchCurrent;
+        }
+      } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
         const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
         if (r2Card && solvedResults[r2Card.id]) {
           current = solvedResults[r2Card.id].branchCurrent;
