@@ -311,6 +311,20 @@ export const Canvas: React.FC<CanvasProps> = ({
         B[idx] = val;
       });
 
+      // Fill Current sources in MNA (Group 1 - stamp RHS only)
+      cards.forEach((card) => {
+        if (card.componentType === 'current') {
+          const n1Str = getPinNode(card.id, 'left');  // positive node (leaves)
+          const n2Str = getPinNode(card.id, 'right'); // negative node (enters)
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          const val = card.value !== undefined ? card.value : 0.001; // default 1mA
+
+          if (n1 > 0) B[n1 - 1] -= val;
+          if (n2 > 0) B[n2 - 1] += val;
+        }
+      });
+
       // Solve System: A * X = B
       const X = solveLinearSystem(A, B);
 
@@ -346,6 +360,8 @@ export const Canvas: React.FC<CanvasProps> = ({
         } else if (card.componentType === 'voltage') {
           const idx = g2ElementMap[card.id];
           iBranch = X[idx] || 0;
+        } else if (card.componentType === 'current') {
+          iBranch = card.value !== undefined ? card.value : 0.001;
         } else if (card.componentType === 'capacitor') {
           iBranch = 0; // DC open
         } else if (card.componentType === 'inductor') {

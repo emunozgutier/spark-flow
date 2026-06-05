@@ -69,9 +69,9 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
                   id="comp-designator"
                   type="text"
                   className="inspector-input"
-                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND'}${card.instanceNumber || 1}`}
+                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND'}${card.instanceNumber || 1}`}
                   onChange={(e) => {
-                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND';
+                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND';
                     const num = parseInstanceNumber(e.target.value, prefix);
                     onUpdateElement(card.id, { instanceNumber: num });
                   }}

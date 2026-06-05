@@ -171,74 +171,96 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    // --- ELECTRICAL GRID SOLVER ---
-    try {
-      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
-      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
-      
-      const uf = new UnionFind();
+    const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+    const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+    
+    const uf = new UnionFind();
 
-      // 1. Union ports belonging to join elements
-      cards.forEach((card) => {
-        if (card.id.startsWith('join') || card.title === 'join') {
-          uf.union(`${card.id}-top`, `${card.id}-right`);
-          uf.union(`${card.id}-top`, `${card.id}-bottom`);
-          uf.union(`${card.id}-top`, `${card.id}-left`);
-        }
-      });
-
-      // 2. Union ports connected by wires
-      arrows.forEach((w) => {
-        if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
-          uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
-        }
-      });
-
-      // 3. Map sets to node keys
-      const groups: Record<string, string[]> = {};
-      cards.forEach((card) => {
-        const isGround = card.componentType === 'ground';
-        const portsList = isGround ? ['top'] : ['left', 'right'];
-        
-        portsList.forEach((socket) => {
-          const pin = `${card.id}-${socket}`;
-          const root = uf.find(pin);
-          if (!groups[root]) groups[root] = [];
-          groups[root].push(pin);
-        });
-      });
-
-      // Identify the ground node group
-      let gndRoot: string | null = null;
-      Object.keys(groups).forEach((root) => {
-        const hasGndPin = groups[root].some((pin) => 
-          pin.toLowerCase().includes('ground') || pin.toLowerCase().includes('gnd')
-        );
-        if (hasGndPin) {
-          gndRoot = root;
-        }
-      });
-
-      // Map roots to standard SPICE node numbers (GND is always "0")
-      const rootToNodeName: Record<string, string> = {};
-      let nodeCounter = 1;
-      
-      if (gndRoot) {
-        rootToNodeName[gndRoot] = '0';
+    // 1. Union ports belonging to join elements
+    cards.forEach((card) => {
+      if (card.id.startsWith('join') || card.title === 'join') {
+        uf.union(`${card.id}-top`, `${card.id}-right`);
+        uf.union(`${card.id}-top`, `${card.id}-bottom`);
+        uf.union(`${card.id}-top`, `${card.id}-left`);
       }
+    });
 
-      Object.keys(groups).forEach((root) => {
-        if (root === gndRoot) return;
-        rootToNodeName[root] = String(nodeCounter++);
+    // 2. Union ports connected by wires
+    arrows.forEach((w) => {
+      if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
+        uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
+      }
+    });
+
+    // 3. Map sets to node keys
+    const groups: Record<string, string[]> = {};
+    cards.forEach((card) => {
+      const isGround = card.componentType === 'ground';
+      const portsList = isGround ? ['top'] : ['left', 'right'];
+      
+      portsList.forEach((socket) => {
+        const pin = `${card.id}-${socket}`;
+        const root = uf.find(pin);
+        if (!groups[root]) groups[root] = [];
+        groups[root].push(pin);
       });
+    });
 
-      // Map pin elements to SPICE nodes
-      const getPinNode = (cardId: string, socket: string): string => {
-        const root = uf.find(`${cardId}-${socket}`);
-        return rootToNodeName[root] || '0';
-      };
+    // Identify the ground node group
+    let gndRoot: string | null = null;
+    Object.keys(groups).forEach((root) => {
+      const hasGndPin = groups[root].some((pin) => 
+        pin.toLowerCase().includes('ground') || pin.toLowerCase().includes('gnd')
+      );
+      if (hasGndPin) {
+        gndRoot = root;
+      }
+    });
 
-      // 4. MNA SOLVER MATRICES BUILDER
+    // Map roots to standard SPICE node numbers (GND is always "0")
+    const rootToNodeName: Record<string, string> = {};
+    let nodeCounter = 1;
+    
+    if (gndRoot) {
+      rootToNodeName[gndRoot] = '0';
+    }
+
+    Object.keys(groups).forEach((root) => {
+      if (root === gndRoot) return;
+      rootToNodeName[root] = String(nodeCounter++);
+    });
+
+    // Map pin elements to SPICE nodes
+    const getPinNode = (cardId: string, socket: string): string => {
+      const root = uf.find(`${cardId}-${socket}`);
+      return rootToNodeName[root] || '0';
+    };
+
+    // --- 1. SPICE NETLIST COMPILING (Runs unconditionally!) ---
+    try {
+      let netlist = `* SparkFlow Live SPICE Netlist\n`;
+      cards.forEach((card) => {
+        if (card.componentType === 'resistor') {
+          const g2Str = card.isGroup2 ? ' G2' : '';
+          netlist += `R${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}${g2Str}\n`;
+        } else if (card.componentType === 'capacitor') {
+          netlist += `C${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'inductor') {
+          netlist += `L${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'voltage') {
+          netlist += `V${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'current') {
+          netlist += `I${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
+        }
+      });
+      netlist += `.op\n.backanno\n.end\n`;
+      setSpiceNetlist(netlist);
+    } catch (netlistErr) {
+      console.error('Failed to compile SPICE Netlist:', netlistErr);
+    }
+
+    // --- 2. ELECTRICAL GRID SOLVER ---
+    try {
       const nodeCount = nodeCounter - 1; // Nodes 1 to N
       const voltageSources = cards.filter((c) => c.componentType === 'voltage');
       const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
@@ -306,6 +328,20 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
         B[idx] = val;
       });
 
+      // Fill Current sources in MNA (Group 1 - stamp RHS only)
+      cards.forEach((card) => {
+        if (card.componentType === 'current') {
+          const n1Str = getPinNode(card.id, 'left');  // positive node (leaves)
+          const n2Str = getPinNode(card.id, 'right'); // negative node (enters)
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          const val = card.value !== undefined ? card.value : 0.001; // default 1mA
+
+          if (n1 > 0) B[n1 - 1] -= val;
+          if (n2 > 0) B[n2 - 1] += val;
+        }
+      });
+
       // Solve System: A * X = B
       const X = mnaSize > 0 ? solveLinearSystem(A, B) : [];
       
@@ -329,23 +365,6 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
       } else {
         setFilterStats({ type: 'Generic Resistor Network', fc: 159.15 }); // RC default filter demo
       }
-
-      // 6. SPICE NETLIST COMPILING
-      let netlist = `* SparkFlow Live SPICE Netlist\n`;
-      cards.forEach((card) => {
-        if (card.componentType === 'resistor') {
-          const g2Str = card.isGroup2 ? ' G2' : '';
-          netlist += `R${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}${g2Str}\n`;
-        } else if (card.componentType === 'capacitor') {
-          netlist += `C${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
-        } else if (card.componentType === 'inductor') {
-          netlist += `L${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
-        } else if (card.componentType === 'voltage') {
-          netlist += `V${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
-        }
-      });
-      netlist += `.op\n.backanno\n.end\n`;
-      setSpiceNetlist(netlist);
 
     } catch (err) {
       console.error('Failed to run SPICE simulation:', err);
