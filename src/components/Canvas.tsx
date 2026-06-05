@@ -6,7 +6,7 @@ import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Connections, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Connections';
 import { solveLinearSystem } from '../sim/components/mnaSolver';
-import { ElectronManager } from './Canvas/ElectronManager';
+import { AnimationManager } from './Canvas/AnimationManager';
 
 
 // DSU helper to group connected pins into electrical nodes
@@ -1141,7 +1141,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       </div>
 
       {liveDCOn && (
-        <ElectronManager
+        <AnimationManager
           elements={elements}
           solvedResults={solvedDCOperatingPoint}
           pan={pan}
