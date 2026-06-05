@@ -169,7 +169,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               setLiveDCOn(nextLive);
               if (nextLive) {
                 if (activeTab === 'anotate') {
-                  setActiveTab('simulate');
+                  setActiveTab('passives');
                 }
                 if (activeTool === 'text' || activeTool === 'arrow') {
                   setActiveTool('select');
