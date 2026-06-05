@@ -399,17 +399,21 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
     const newSegments: { id: string; path: Point[]; length: number; speed: number }[] = [];
 
     const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
-    const w12 = arrows.find((w) => w.netName === '1.2');
-    const w04 = arrows.find((w) => w.netName === '0.4');
+    let wLeft: ArrowElement | undefined;
+    let wRight: ArrowElement | undefined;
+    if (r3Card) {
+      wLeft = arrows.find((w) => (w.fromId === r3Card.id && w.fromSocket === 'left') || (w.toId === r3Card.id && w.toSocket === 'left'));
+      wRight = arrows.find((w) => (w.fromId === r3Card.id && w.fromSocket === 'right') || (w.toId === r3Card.id && w.toSocket === 'right'));
+    }
 
     let combinedSegment: { id: string; path: Point[]; length: number; speed: number } | null = null;
 
-    if (r3Card && w12 && w04) {
-      const sStart12 = `${w12.fromId}-${w12.fromSocket}`;
-      const scoreStart12 = scoreMap[sStart12] ?? 0;
-      const scoreEnd12 = scoreMap[`${w12.toId}-${w12.toSocket}`] ?? 0;
-      const isForward12 = scoreStart12 <= scoreEnd12;
-      const path12 = getWirePoints(w12, isForward12, cards);
+    if (r3Card && wLeft && wRight) {
+      const sStartLeft = `${wLeft.fromId}-${wLeft.fromSocket}`;
+      const scoreStartLeft = scoreMap[sStartLeft] ?? 0;
+      const scoreEndLeft = scoreMap[`${wLeft.toId}-${wLeft.toSocket}`] ?? 0;
+      const isForwardLeft = scoreStartLeft <= scoreEndLeft;
+      const pathLeft = getWirePoints(wLeft, isForwardLeft, cards);
 
       const ptLeft = getSocketPosition(r3Card, 'left');
       const ptRight = getSocketPosition(r3Card, 'right');
@@ -437,13 +441,20 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       }
       const pathR3 = [startPt, endPt];
 
-      const sStart04 = `${w04.fromId}-${w04.fromSocket}`;
-      const scoreStart04 = scoreMap[sStart04] ?? 0;
-      const scoreEnd04 = scoreMap[`${w04.toId}-${w04.toSocket}`] ?? 0;
-      const isForward04 = scoreStart04 <= scoreEnd04;
-      const path04 = getWirePoints(w04, isForward04, cards);
+      const sStartRight = `${wRight.fromId}-${wRight.fromSocket}`;
+      const scoreStartRight = scoreMap[sStartRight] ?? 0;
+      const scoreEndRight = scoreMap[`${wRight.toId}-${wRight.toSocket}`] ?? 0;
+      const isForwardRight = scoreStartRight <= scoreEndRight;
+      const pathRight = getWirePoints(wRight, isForwardRight, cards);
 
-      const mergedPath = mergePaths([path12, pathR3, path04]);
+      // Concatenate depending on flow direction
+      let mergedPath: Point[] = [];
+      if (vLeft >= vRight) {
+        mergedPath = mergePaths([pathLeft, pathR3, pathRight]);
+      } else {
+        mergedPath = mergePaths([pathRight, pathR3, pathLeft]);
+      }
+
       const length = getPathLength(mergedPath);
       const branchI = Math.abs(solved?.branchCurrent || 0);
       const speed = getSpeedForCurrent(branchI, maxI);
@@ -507,7 +518,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
     arrows.forEach((w) => {
       if (!w.fromId || !w.fromSocket || !w.toId || !w.toSocket) return;
 
-      if (combinedSegment && (w.id === w12?.id || w.id === w04?.id)) {
+      if (combinedSegment && (w.id === wLeft?.id || w.id === wRight?.id)) {
         return;
       }
 
@@ -523,13 +534,15 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const root = uf.find(sStart);
       let current = nodeMaxCurrents[root] || 0;
 
-      // Override for subnets 1.2 and 0.4: match resistor R3 current speed; other node 1 subnets match R2
-      if (w.netName === '1.2' || w.netName === '0.4') {
-        const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
-        if (r3Card && solvedResults[r3Card.id]) {
-          current = solvedResults[r3Card.id].branchCurrent;
+      // Match branch current of directly connected components (R1, R3, etc.)
+      const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
+      if (connectedCard) {
+        const solved = solvedResults[connectedCard.id];
+        if (solved) {
+          current = solved.branchCurrent;
         }
       } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
+        // Fallback for node 1 subnets to match resistor R2 current
         const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
         if (r2Card && solvedResults[r2Card.id]) {
           current = solvedResults[r2Card.id].branchCurrent;

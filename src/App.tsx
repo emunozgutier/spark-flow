@@ -346,13 +346,15 @@ function App() {
         const root = uf.find(sStart);
         let current = nodeMaxCurrents[root] || 0;
 
-        // Override for subnets 1.2 and 0.4: match resistor R3 current; other node 1 subnets match R2
-        if (w.netName === '1.2' || w.netName === '0.4') {
-          const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
-          if (r3Card && solvedDCOperatingPoint[r3Card.id]) {
-            current = solvedDCOperatingPoint[r3Card.id].branchCurrent;
+        // Match branch current of directly connected components (R1, R3, etc.)
+        const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
+        if (connectedCard) {
+          const solved = solvedDCOperatingPoint[connectedCard.id];
+          if (solved) {
+            current = solved.branchCurrent;
           }
         } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
+          // Fallback for node 1 subnets to match resistor R2 current
           const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
           if (r2Card && solvedDCOperatingPoint[r2Card.id]) {
             current = solvedDCOperatingPoint[r2Card.id].branchCurrent;
