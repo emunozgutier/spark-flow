@@ -228,6 +228,11 @@ export const Canvas: React.FC<CanvasProps> = ({
         }
       });
 
+      // Fallback: If no ground component is present, use the first node group as virtual ground
+      if (!gndRoot && Object.keys(groups).length > 0) {
+        gndRoot = Object.keys(groups)[0];
+      }
+
       // Map roots to standard SPICE node numbers (GND is always "0")
       const rootToNodeName: Record<string, string> = {};
       let nodeCounter = 1;
