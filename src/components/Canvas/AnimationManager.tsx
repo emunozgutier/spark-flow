@@ -140,6 +140,31 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       groups[root].push(s);
     });
 
+    // Map each root key to its resolved node voltage
+    const rootVoltage: Record<string, number> = {};
+    Object.keys(groups).forEach((root) => {
+      const pin = groups[root].find((p) => {
+        const lastDash = p.lastIndexOf('-');
+        const cId = p.substring(0, lastDash);
+        const card = cards.find((c) => c.id === cId);
+        return card && card.componentType !== undefined;
+      });
+
+      if (pin) {
+        const lastDash = pin.lastIndexOf('-');
+        const cId = pin.substring(0, lastDash);
+        const socket = pin.substring(lastDash + 1);
+        const solved = solvedResults[cId];
+        if (solved) {
+          rootVoltage[root] = socket === 'left' ? (solved.vLeft ?? 0) : (solved.vRight ?? 0);
+        } else {
+          rootVoltage[root] = 0;
+        }
+      } else {
+        rootVoltage[root] = 0;
+      }
+    });
+
     // 2. Build local adjacency list for all connections
     const adj: Record<string, string[]> = {};
     const addEdge = (u: string, v: string) => {
@@ -301,9 +326,32 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       const pinStart = `${firstWire.fromId}-${firstWire.fromSocket}`;
       const pinEnd = `${lastWire.toId}-${lastWire.toSocket}`;
       
-      const scoreStart = scoreMap[pinStart] ?? 0;
-      const scoreEnd = scoreMap[pinEnd] ?? 0;
-      const reverseChain = scoreStart > scoreEnd;
+      const rootStart = uf.find(pinStart);
+      const rootEnd = uf.find(pinEnd);
+      const vStart = rootVoltage[rootStart] ?? 0;
+      const vEnd = rootVoltage[rootEnd] ?? 0;
+
+      const hasSource = chain.some(
+        (item) => item.type === 'comp' &&
+                  ((item.element as CardElement).componentType === 'voltage' ||
+                   (item.element as CardElement).componentType === 'current')
+      );
+
+      let reverseChain = false;
+      if (Math.abs(vStart - vEnd) > 1e-6) {
+        if (hasSource) {
+          // For source-driven branches, flow goes from low voltage to high voltage
+          reverseChain = vStart > vEnd;
+        } else {
+          // For passive branches, flow goes from high voltage to low voltage
+          reverseChain = vStart < vEnd;
+        }
+      } else {
+        // Fallback: use DSU BFS scoring if potentials are equal (e.g., zero current)
+        const scoreStart = scoreMap[pinStart] ?? 0;
+        const scoreEnd = scoreMap[pinEnd] ?? 0;
+        reverseChain = scoreStart > scoreEnd;
+      }
       
       if (reverseChain) {
         chain.reverse();
