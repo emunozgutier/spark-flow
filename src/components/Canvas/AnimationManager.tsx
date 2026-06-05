@@ -425,12 +425,18 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       }
       const speed = getSpeedForCurrent(branchCurrentVal, maxI);
 
+      const actualStartPin = reverseChain ? pinEnd : pinStart;
+      const startCardId = actualStartPin.substring(0, actualStartPin.lastIndexOf('-'));
+      const startCard = cards.find((c) => c.id === startCardId);
+      const startsAtJunction = !!startCard && (startCard.id.startsWith('join') || startCard.title === 'join');
+
       newSegments.push({
         id: `${chain[0].id}-combined`,
         path: mergedPath,
         length,
         speed,
-        spawnAccumulator: 0
+        spawnAccumulator: 0,
+        startsAtJunction
       });
     };
 
@@ -533,7 +539,14 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       const length = getPathLength(path);
       const speed = getSpeedForCurrent(branchI, maxI);
 
-      newSegments.push({ id: card.id, path, length, speed, spawnAccumulator: 0 });
+      newSegments.push({
+        id: card.id,
+        path,
+        length,
+        speed,
+        spawnAccumulator: 0,
+        startsAtJunction: false
+      });
     });
 
     // 5. Interpolate old electron progress values onto new segments
@@ -555,17 +568,19 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       const oldProgresses = oldElectronsBySegment.get(seg.id);
       const numElectrons = Math.max(1, Math.floor(seg.length / 40));
 
-      if (oldProgresses && oldProgresses.length > 0) {
-        for (let i = 0; i < numElectrons; i++) {
-          if (i < oldProgresses.length) {
-            newElectrons.push({ segmentId: seg.id, progress: oldProgresses[i] % seg.length });
-          } else {
+      if (seg.speed > 0) {
+        if (oldProgresses && oldProgresses.length > 0) {
+          for (let i = 0; i < numElectrons; i++) {
+            if (i < oldProgresses.length) {
+              newElectrons.push({ segmentId: seg.id, progress: oldProgresses[i] % seg.length });
+            } else if (seg.startsAtJunction) {
+              newElectrons.push({ segmentId: seg.id, progress: (i / numElectrons) * seg.length });
+            }
+          }
+        } else if (seg.startsAtJunction) {
+          for (let i = 0; i < numElectrons; i++) {
             newElectrons.push({ segmentId: seg.id, progress: (i / numElectrons) * seg.length });
           }
-        }
-      } else {
-        for (let i = 0; i < numElectrons; i++) {
-          newElectrons.push({ segmentId: seg.id, progress: (i / numElectrons) * seg.length });
         }
       }
     });
@@ -598,7 +613,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
 
       // 2. Spawn new electrons at the start joint based on distance traveled
       segments.forEach((seg) => {
-        if (seg.speed <= 0) return;
+        if (seg.speed <= 0 || !seg.startsAtJunction) return;
         
         seg.spawnAccumulator = (seg.spawnAccumulator || 0) + seg.speed * dt;
         while (seg.spawnAccumulator >= 40) {

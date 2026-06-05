@@ -7,6 +7,7 @@ export interface Segment {
   length: number;
   speed: number;
   spawnAccumulator: number;
+  startsAtJunction?: boolean;
 }
 
 const MAX_SPEED = 180; // pixels per second
