@@ -308,7 +308,11 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     const visitedWires = new Set<string>();
     const combinedCardIds = new Set<string>();
 
-    const addChainSegment = (chain: { type: 'wire' | 'comp'; id: string; element: any }[]) => {
+    const addChainSegment = (
+      chain: { type: 'wire' | 'comp'; id: string; element: any }[],
+      pinStart: string,
+      pinEnd: string
+    ) => {
       if (chain.length === 0) return;
 
       // If the branch contains only 1 wire and it is a ground wire, skip it
@@ -321,12 +325,6 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
         }
       }
 
-      // Determine starting pin and ending pin of the chain
-      const firstWire = (chain[0].type === 'wire' ? chain[0].element : chain[1].element) as ArrowElement;
-      const lastWire = (chain[chain.length - 1].type === 'wire' ? chain[chain.length - 1].element : chain[chain.length - 2].element) as ArrowElement;
-      
-      const pinStart = `${firstWire.fromId}-${firstWire.fromSocket}`;
-      const pinEnd = `${lastWire.toId}-${lastWire.toSocket}`;
       
       const rootStart = uf.find(pinStart);
       const rootEnd = uf.find(pinEnd);
@@ -450,6 +448,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       const chain: { type: 'wire' | 'comp'; id: string; element: any }[] = [];
       let currPin = startPin;
       let currWire = w;
+      let endPin = '';
 
       while (true) {
         visitedWires.add(currWire.id);
@@ -458,6 +457,8 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
         const otherPin = (currPin === `${currWire.fromId}-${currWire.fromSocket}`) 
           ? `${currWire.toId}-${currWire.toSocket}` 
           : `${currWire.fromId}-${currWire.fromSocket}`;
+
+        endPin = otherPin;
 
         const dashIdx = otherPin.lastIndexOf('-');
         const cardId = otherPin.substring(0, dashIdx);
@@ -473,6 +474,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
 
         const oppositeSocket = (socket === 'left') ? 'right' : 'left';
         const nextPin = `${card.id}-${oppositeSocket}`;
+        endPin = nextPin;
 
         const nextWire = pinToWire.get(nextPin);
         if (!nextWire || visitedWires.has(nextWire.id)) {
@@ -483,7 +485,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
         currWire = nextWire;
       }
 
-      addChainSegment(chain);
+      addChainSegment(chain, startPin, endPin);
     };
 
     // Trace branches starting from junctions
