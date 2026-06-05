@@ -251,6 +251,16 @@ interface CanvasProps {
   finalizeDrag: () => void;
   deleteElement: (id: string) => void;
   setToast?: (toast: { message: string; type: 'success' | 'info' } | null) => void;
+  solvedDCOperatingPoint: Record<
+    string,
+    {
+      voltageDrop: number;
+      branchCurrent: number;
+      vLeft?: number;
+      vRight?: number;
+      signedCurrent?: number;
+    }
+  >;
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -272,6 +282,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   finalizeDrag,
   deleteElement,
   setToast,
+  solvedDCOperatingPoint,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { liveDCOn } = useCanvas();
@@ -298,243 +309,6 @@ export const Canvas: React.FC<CanvasProps> = ({
       localStorage.setItem('spark-flow:board-elements', JSON.stringify(nextElements));
     }
   }, [elements]);
-
-  // --- REAL-TIME MNA DC OPERATING POINT SOLVER ---
-  const solvedDCOperatingPoint = React.useMemo(() => {
-    if (!liveDCOn) return {};
-    try {
-      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
-      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
-      
-      const uf = new UnionFind();
-
-      // 1. Union ports belonging to join elements
-      cards.forEach((card) => {
-        if (card.id.startsWith('join') || card.title === 'join') {
-          uf.union(`${card.id}-top`, `${card.id}-right`);
-          uf.union(`${card.id}-top`, `${card.id}-bottom`);
-          uf.union(`${card.id}-top`, `${card.id}-left`);
-        }
-      });
-
-      // 2. Union ports connected by wires
-      arrows.forEach((w) => {
-        if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
-          uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
-        }
-      });
-
-      // 3. Map sets to node keys
-      const groups: Record<string, string[]> = {};
-      cards.forEach((card) => {
-        const isGround = card.componentType === 'ground';
-        const portsList = isGround ? ['top'] : ['left', 'right'];
-        
-        portsList.forEach((socket) => {
-          const pin = `${card.id}-${socket}`;
-          const root = uf.find(pin);
-          if (!groups[root]) groups[root] = [];
-          groups[root].push(pin);
-        });
-      });
-
-      // Identify the ground node group
-      let gndRoot: string | null = null;
-      Object.keys(groups).forEach((root) => {
-        const hasGndPin = groups[root].some((pin) => {
-          const cardId = pin.substring(0, pin.lastIndexOf('-'));
-          const card = cards.find((c) => c.id === cardId);
-          return card?.componentType === 'ground';
-        });
-        if (hasGndPin) {
-          gndRoot = root;
-        }
-      });
-
-      // Fallback: If no ground component is present, use the first node group as virtual ground
-      if (!gndRoot && Object.keys(groups).length > 0) {
-        gndRoot = Object.keys(groups)[0];
-      }
-
-      // Map roots to standard SPICE node numbers (GND is always "0")
-      const rootToNodeName: Record<string, string> = {};
-      let nodeCounter = 1;
-      
-      if (gndRoot) {
-        rootToNodeName[gndRoot] = '0';
-      }
-
-      Object.keys(groups).forEach((root) => {
-        if (root === gndRoot) return;
-        rootToNodeName[root] = String(nodeCounter++);
-      });
-
-      const getPinNode = (cardId: string, socket: string): string => {
-        const root = uf.find(`${cardId}-${socket}`);
-        return rootToNodeName[root] || '0';
-      };
-
-      const nodeCount = nodeCounter - 1; // Nodes 1 to N
-      const voltageSources = cards.filter((c) => c.componentType === 'voltage');
-      const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
-      const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
-
-      if (mnaSize === 0) return {};
-
-      const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
-      const B = new Array(mnaSize).fill(0);
-
-      // Map Group 2 elements to their indices in MNA
-      const g2ElementMap: Record<string, number> = {};
-      let g2Index = nodeCount;
-      voltageSources.forEach((vSrc) => {
-        g2ElementMap[vSrc.id] = g2Index++;
-      });
-      group2Resistors.forEach((rGrp2) => {
-        g2ElementMap[rGrp2.id] = g2Index++;
-      });
-
-      // Fill Resistors and Inductors conductances in G matrix
-      cards.forEach((card) => {
-        if (card.componentType === 'resistor' || card.componentType === 'inductor') {
-          const n1Str = getPinNode(card.id, 'left');
-          const n2Str = getPinNode(card.id, 'right');
-          const n1 = parseInt(n1Str, 10);
-          const n2 = parseInt(n2Str, 10);
-          
-          let rVal = 1000;
-          if (card.componentType === 'inductor') {
-            rVal = 1e-3; // Inductor acts as a short circuit in DC
-          } else {
-            rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
-          }
-
-          if (card.componentType === 'resistor' && card.isGroup2) {
-            const idx = g2ElementMap[card.id];
-            if (n1 > 0) A[n1 - 1][idx] += 1;
-            if (n2 > 0) A[n2 - 1][idx] -= 1;
-            if (n1 > 0) A[idx][n1 - 1] += 1;
-            if (n2 > 0) A[idx][n2 - 1] -= 1;
-            A[idx][idx] -= rVal;
-          } else {
-            const g = 1 / rVal;
-            if (n1 > 0) A[n1 - 1][n1 - 1] += g;
-            if (n2 > 0) A[n2 - 1][n2 - 1] += g;
-            if (n1 > 0 && n2 > 0) {
-              A[n1 - 1][n2 - 1] -= g;
-              A[n2 - 1][n1 - 1] -= g;
-            }
-          }
-        }
-      });
-
-      // Fill Voltage sources in MNA
-      voltageSources.forEach((vSrc) => {
-        const n1Str = getPinNode(vSrc.id, 'left');  // + terminal
-        const n2Str = getPinNode(vSrc.id, 'right'); // - terminal
-        const n1 = parseInt(n1Str, 10);
-        const n2 = parseInt(n2Str, 10);
-        const val = vSrc.value !== undefined ? vSrc.value : 5;
-        const idx = g2ElementMap[vSrc.id];
-
-        // B matrix coefficients
-        if (n1 > 0) A[n1 - 1][idx] += 1;
-        if (n2 > 0) A[n2 - 1][idx] -= 1;
-
-        // C matrix coefficients (Transpose of B)
-        if (n1 > 0) A[idx][n1 - 1] += 1;
-        if (n2 > 0) A[idx][n2 - 1] -= 1;
-
-        // Voltage values
-        B[idx] = val;
-      });
-
-      // Fill Current sources in MNA (Group 1 - stamp RHS only)
-      cards.forEach((card) => {
-        if (card.componentType === 'current') {
-          const n1Str = getPinNode(card.id, 'left');  // positive node (leaves)
-          const n2Str = getPinNode(card.id, 'right'); // negative node (enters)
-          const n1 = parseInt(n1Str, 10);
-          const n2 = parseInt(n2Str, 10);
-          const val = card.value !== undefined ? card.value : 0.001; // default 1mA
-
-          if (n1 > 0) B[n1 - 1] -= val;
-          if (n2 > 0) B[n2 - 1] += val;
-        }
-      });
-
-      // Solve System: A * X = B
-      const X = solveLinearSystem(A, B);
-
-      // Build node voltages map
-      const voltages: Record<string, number> = { '0': 0 };
-      for (let i = 1; i <= nodeCount; i++) {
-        voltages[String(i)] = X[i - 1] || 0;
-      }
-
-      // Compile stats per card
-      const results: Record<
-        string,
-        {
-          voltageDrop: number;
-          branchCurrent: number;
-          vLeft?: number;
-          vRight?: number;
-          signedCurrent?: number;
-        }
-      > = {};
-      cards.forEach((card) => {
-        if (!card.componentType) return;
-        if (card.componentType === 'ground') {
-          results[card.id] = { voltageDrop: 0, branchCurrent: 0 };
-          return;
-        }
-
-        const n1Str = getPinNode(card.id, 'left');
-        const n2Str = getPinNode(card.id, 'right');
-        const v1 = voltages[n1Str] || 0;
-        const v2 = voltages[n2Str] || 0;
-        const vDrop = v1 - v2;
-
-        let iBranch = 0;
-        if (card.componentType === 'resistor') {
-          if (card.isGroup2) {
-            const idx = g2ElementMap[card.id];
-            iBranch = X[idx] || 0;
-          } else {
-            const rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
-            iBranch = vDrop / rVal;
-          }
-        } else if (card.componentType === 'voltage') {
-          const idx = g2ElementMap[card.id];
-          iBranch = X[idx] || 0;
-        } else if (card.componentType === 'current') {
-          iBranch = card.value !== undefined ? card.value : 0.001;
-        } else if (card.componentType === 'capacitor') {
-          iBranch = 0; // DC open
-        } else if (card.componentType === 'inductor') {
-          // Inductor behaves like a 1mOhm resistor in DC
-          iBranch = vDrop / 1e-3;
-        }
-
-        // Format: Use absolute values for diagnostics display, keeping source voltages as configured
-        const displayVDrop = card.componentType === 'voltage' ? vDrop : Math.abs(vDrop);
-        const displayIBranch = Math.abs(iBranch);
-
-        results[card.id] = {
-          voltageDrop: displayVDrop,
-          branchCurrent: displayIBranch,
-          vLeft: v1,
-          vRight: v2,
-          signedCurrent: iBranch
-        };
-      });
-
-      return results;
-    } catch (e) {
-      return {};
-    }
-  }, [elements, liveDCOn]);
 
   // Interactive Drag states
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null);
@@ -1178,8 +952,6 @@ export const Canvas: React.FC<CanvasProps> = ({
           drawingArrow={drawingArrow}
           getSocketPosition={getSocketPosition}
           activeSnap={activeSnap}
-          solvedResults={solvedDCOperatingPoint}
-          liveDCOn={liveDCOn}
         />
 
         {/* Render temporary live box drawing preview */}

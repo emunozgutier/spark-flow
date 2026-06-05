@@ -1,8 +1,7 @@
 import React from 'react';
-import type { ArrowElement, CardElement, Point } from '../../dataTypes/AnotateType';
+import type { ArrowElement, Point, CardElement } from '../../dataTypes/AnotateType';
 import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from './Connections';
 import { Vertices } from './Wire/Vertices';
-import { formatEngineering } from '../../utils/math';
 
 interface WireProps {
   arrow: ArrowElement;
@@ -10,8 +9,6 @@ interface WireProps {
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
-  current?: number;
-  liveDCOn?: boolean;
 }
 
 export const Wire: React.FC<WireProps> = ({
@@ -19,9 +16,7 @@ export const Wire: React.FC<WireProps> = ({
   cards,
   selectedId,
   setSelectedId,
-  getSocketPosition,
-  current,
-  liveDCOn
+  getSocketPosition
 }) => {
   let startPt = arrow.fromPoint || { x: 0, y: 0 };
   let endPt = arrow.toPoint || { x: 0, y: 0 };
@@ -73,15 +68,6 @@ export const Wire: React.FC<WireProps> = ({
   const midX = (startPt.x + endPt.x) / 2;
   const midY = (startPt.y + endPt.y) / 2;
 
-  const nameText = arrow.label ? `${arrow.netName || ''} (${arrow.label})` : (arrow.netName || '');
-  const currentText = (liveDCOn && current !== undefined) ? formatEngineering(current) + 'A' : '';
-
-  const maxLen = Math.max(nameText.length, currentText.length);
-  const boxWidth = (maxLen * 6.5) + 12;
-  const boxHeight = currentText ? 28 : 16;
-  const rectX = midX - boxWidth / 2;
-  const rectY = midY - boxHeight / 2;
-
   return (
     <g
       style={{ pointerEvents: 'auto', cursor: 'pointer' }}
@@ -106,13 +92,13 @@ export const Wire: React.FC<WireProps> = ({
       />
       {/* 90-Degree Turn Vertex Markers (only shown when the wire is selected) */}
       <Vertices corners={corners} isSelected={isSelected} strokeColorVal={strokeColorVal} />
-      {nameText && (
+      {arrow.label && (
         <g>
           <rect
-            x={rectX}
-            y={rectY}
-            width={boxWidth}
-            height={boxHeight}
+            x={midX - (arrow.label.length * 3.8) - 6}
+            y={midY - 8}
+            width={(arrow.label.length * 7.6) + 12}
+            height="16"
             rx="4"
             fill="var(--bg-canvas)"
             stroke={isSelected ? '#ffffff' : 'var(--border-subtle)'}
@@ -120,28 +106,15 @@ export const Wire: React.FC<WireProps> = ({
           />
           <text
             x={midX}
-            y={rectY + 11}
+            y={midY + 4}
             fill={isSelected ? '#ffffff' : 'var(--text-secondary)'}
-            fontSize="9"
+            fontSize="10"
             fontWeight="bold"
             fontFamily="var(--font-sans)"
             textAnchor="middle"
           >
-            {nameText}
+            {arrow.label}
           </text>
-          {currentText && (
-            <text
-              x={midX}
-              y={rectY + 23}
-              fill="var(--theme-emerald)"
-              fontSize="9"
-              fontWeight="bold"
-              fontFamily="var(--font-mono)"
-              textAnchor="middle"
-            >
-              {currentText}
-            </text>
-          )}
         </g>
       )}
     </g>

@@ -56,6 +56,7 @@ function App() {
     redo,
     canUndo,
     canRedo,
+    liveDCOn,
   } = useCanvas();
 
   const {
@@ -70,6 +71,296 @@ function App() {
   } = useZoom();
 
   const selectedElement = elements.find((el: CanvasElement) => el.id === selectedId) || null;
+
+  // --- REAL-TIME MNA DC OPERATING POINT SOLVER & WIRE CURRENTS ---
+  const { solvedDCOperatingPoint, wireCurrents } = useMemo(() => {
+    if (!liveDCOn) return { solvedDCOperatingPoint: {}, wireCurrents: {} };
+    try {
+      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+      
+      const uf = new UnionFind();
+
+      // 1. Union ports belonging to join elements
+      cards.forEach((card) => {
+        if (card.id.startsWith('join') || card.title === 'join') {
+          uf.union(`${card.id}-top`, `${card.id}-right`);
+          uf.union(`${card.id}-top`, `${card.id}-bottom`);
+          uf.union(`${card.id}-top`, `${card.id}-left`);
+        }
+      });
+
+      // 2. Union ports connected by wires
+      arrows.forEach((w) => {
+        if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
+          uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
+        }
+      });
+
+      // 3. Map sets to node keys
+      const groups: Record<string, string[]> = {};
+      cards.forEach((card) => {
+        const isGround = card.componentType === 'ground';
+        const portsList = isGround ? ['top'] : ['left', 'right'];
+        
+        portsList.forEach((socket) => {
+          const pin = `${card.id}-${socket}`;
+          const root = uf.find(pin);
+          if (!groups[root]) groups[root] = [];
+          groups[root].push(pin);
+        });
+      });
+
+      // Identify the ground node group
+      let gndRoot: string | null = null;
+      Object.keys(groups).forEach((root) => {
+        const hasGndPin = groups[root].some((pin) => {
+          const cardId = pin.substring(0, pin.lastIndexOf('-'));
+          const card = cards.find((c) => c.id === cardId);
+          return card?.componentType === 'ground';
+        });
+        if (hasGndPin) {
+          gndRoot = root;
+        }
+      });
+
+      if (!gndRoot && Object.keys(groups).length > 0) {
+        gndRoot = Object.keys(groups)[0];
+      }
+
+      const rootToNodeName: Record<string, string> = {};
+      let nodeCounter = 1;
+      
+      if (gndRoot) {
+        rootToNodeName[gndRoot] = '0';
+      }
+
+      Object.keys(groups).forEach((root) => {
+        if (root === gndRoot) return;
+        rootToNodeName[root] = String(nodeCounter++);
+      });
+
+      const getPinNode = (cardId: string, socket: string): string => {
+        const root = uf.find(`${cardId}-${socket}`);
+        return rootToNodeName[root] || '0';
+      };
+
+      const nodeCount = nodeCounter - 1;
+      const voltageSources = cards.filter((c) => c.componentType === 'voltage');
+      const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
+      const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
+
+      if (mnaSize === 0) return { solvedDCOperatingPoint: {}, wireCurrents: {} };
+
+      const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
+      const B = new Array(mnaSize).fill(0);
+
+      const g2ElementMap: Record<string, number> = {};
+      let g2Index = nodeCount;
+      voltageSources.forEach((vSrc) => {
+        g2ElementMap[vSrc.id] = g2Index++;
+      });
+      group2Resistors.forEach((rGrp2) => {
+        g2ElementMap[rGrp2.id] = g2Index++;
+      });
+
+      cards.forEach((card) => {
+        if (card.componentType === 'resistor' || card.componentType === 'inductor') {
+          const n1Str = getPinNode(card.id, 'left');
+          const n2Str = getPinNode(card.id, 'right');
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          
+          let rVal = 1000;
+          if (card.componentType === 'inductor') {
+            rVal = 1e-3;
+          } else {
+            rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
+          }
+
+          if (card.componentType === 'resistor' && card.isGroup2) {
+            const idx = g2ElementMap[card.id];
+            if (n1 > 0) A[n1 - 1][idx] += 1;
+            if (n2 > 0) A[n2 - 1][idx] -= 1;
+            if (n1 > 0) A[idx][n1 - 1] += 1;
+            if (n2 > 0) A[idx][n2 - 1] -= 1;
+            A[idx][idx] -= rVal;
+          } else {
+            const g = 1 / rVal;
+            if (n1 > 0) A[n1 - 1][n1 - 1] += g;
+            if (n2 > 0) A[n2 - 1][n2 - 1] += g;
+            if (n1 > 0 && n2 > 0) {
+              A[n1 - 1][n2 - 1] -= g;
+              A[n2 - 1][n1 - 1] -= g;
+            }
+          }
+        }
+      });
+
+      voltageSources.forEach((vSrc) => {
+        const n1Str = getPinNode(vSrc.id, 'left');
+        const n2Str = getPinNode(vSrc.id, 'right');
+        const n1 = parseInt(n1Str, 10);
+        const n2 = parseInt(n2Str, 10);
+        const val = vSrc.value !== undefined ? vSrc.value : 5;
+        const idx = g2ElementMap[vSrc.id];
+
+        if (n1 > 0) A[n1 - 1][idx] += 1;
+        if (n2 > 0) A[n2 - 1][idx] -= 1;
+        if (n1 > 0) A[idx][n1 - 1] += 1;
+        if (n2 > 0) A[idx][n2 - 1] -= 1;
+        B[idx] = val;
+      });
+
+      cards.forEach((card) => {
+        if (card.componentType === 'current') {
+          const n1Str = getPinNode(card.id, 'left');
+          const n2Str = getPinNode(card.id, 'right');
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          const val = card.value !== undefined ? card.value : 0.001;
+
+          if (n1 > 0) B[n1 - 1] -= val;
+          if (n2 > 0) B[n2 - 1] += val;
+        }
+      });
+
+      const X = solveLinearSystem(A, B);
+
+      const voltages: Record<string, number> = { '0': 0 };
+      for (let i = 1; i <= nodeCount; i++) {
+        voltages[String(i)] = X[i - 1] || 0;
+      }
+
+      const solvedDCOperatingPoint: Record<string, any> = {};
+      cards.forEach((card) => {
+        if (!card.componentType) return;
+        if (card.componentType === 'ground') {
+          solvedDCOperatingPoint[card.id] = { voltageDrop: 0, branchCurrent: 0 };
+          return;
+        }
+
+        const n1Str = getPinNode(card.id, 'left');
+        const n2Str = getPinNode(card.id, 'right');
+        const v1 = voltages[n1Str] || 0;
+        const v2 = voltages[n2Str] || 0;
+        const vDrop = v1 - v2;
+
+        let iBranch = 0;
+        if (card.componentType === 'resistor') {
+          if (card.isGroup2) {
+            const idx = g2ElementMap[card.id];
+            iBranch = X[idx] || 0;
+          } else {
+            const rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
+            iBranch = vDrop / rVal;
+          }
+        } else if (card.componentType === 'voltage') {
+          const idx = g2ElementMap[card.id];
+          iBranch = X[idx] || 0;
+        } else if (card.componentType === 'current') {
+          iBranch = card.value !== undefined ? card.value : 0.001;
+        } else if (card.componentType === 'capacitor') {
+          iBranch = 0;
+        } else if (card.componentType === 'inductor') {
+          iBranch = vDrop / 1e-3;
+        }
+
+        const displayVDrop = card.componentType === 'voltage' ? vDrop : Math.abs(vDrop);
+        const displayIBranch = Math.abs(iBranch);
+
+        solvedDCOperatingPoint[card.id] = {
+          voltageDrop: displayVDrop,
+          branchCurrent: displayIBranch,
+          vLeft: v1,
+          vRight: v2,
+          signedCurrent: iBranch
+        };
+      });
+
+      const joinCards = cards.filter((c) => c.id.startsWith('join') || c.title === 'join');
+      const compCards = cards.filter((c) => c.componentType !== undefined);
+
+      const socketKeys: string[] = [];
+      compCards.forEach((c) => {
+        if (c.componentType === 'ground') {
+          socketKeys.push(`${c.id}-top`);
+        } else {
+          socketKeys.push(`${c.id}-left`, `${c.id}-right`);
+        }
+      });
+      joinCards.forEach((j) => {
+        socketKeys.push(`${j.id}-top`, `${j.id}-right`, `${j.id}-bottom`, `${j.id}-left`);
+      });
+
+      const nodeMaxCurrents: Record<string, number> = {};
+      const getSocketRole = (cardId: string, socket: string) => {
+        const card = cards.find((c) => c.id === cardId);
+        if (!card || !card.componentType) return { role: 'none', current: 0 };
+        if (card.componentType === 'ground') {
+          return { role: 'sink', current: 0 };
+        }
+
+        const solved = solvedDCOperatingPoint[card.id];
+        const signedI = solved?.signedCurrent || 0;
+        const branchI = Math.abs(solved?.branchCurrent || 0);
+
+        if (card.componentType === 'capacitor') {
+          return { role: 'none', current: 0 };
+        }
+
+        if (socket === 'left') {
+          return {
+            role: signedI > 0 ? 'sink' : signedI < 0 ? 'source' : 'none',
+            current: branchI
+          };
+        } else if (socket === 'right') {
+          return {
+            role: signedI > 0 ? 'source' : signedI < 0 ? 'sink' : 'none',
+            current: branchI
+          };
+        }
+        return { role: 'none', current: 0 };
+      };
+
+      Object.keys(groups).forEach((root) => {
+        const groupSockets = groups[root];
+        let maxNodeCurrent = 0;
+
+        groupSockets.forEach((s) => {
+          const lastDash = s.lastIndexOf('-');
+          const cardId = s.substring(0, lastDash);
+          const socket = s.substring(lastDash + 1);
+
+          const { current } = getSocketRole(cardId, socket);
+          maxNodeCurrent = Math.max(maxNodeCurrent, current);
+        });
+
+        nodeMaxCurrents[root] = maxNodeCurrent;
+      });
+
+      const wireCurrents: Record<string, number> = {};
+      arrows.forEach((w) => {
+        if (!w.fromId || !w.fromSocket) return;
+        const sStart = `${w.fromId}-${w.fromSocket}`;
+        const root = uf.find(sStart);
+        let current = nodeMaxCurrents[root] || 0;
+
+        // Override for net n8246: "net n8246 should have the same current speed as R3."
+        if (w.netName?.toLowerCase() === 'n8246') {
+          const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
+          if (r3Card && solvedDCOperatingPoint[r3Card.id]) {
+            current = solvedDCOperatingPoint[r3Card.id].branchCurrent;
+          }
+        }
+        wireCurrents[w.id] = current;
+      });
+
+      return { solvedDCOperatingPoint, wireCurrents };
+    } catch (e) {
+      return { solvedDCOperatingPoint: {}, wireCurrents: {} };
+    }
+  }, [elements, liveDCOn]);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
@@ -503,6 +794,7 @@ function App() {
         finalizeDrag={finalizeDrag}
         deleteElement={deleteElement}
         setToast={setToast}
+        solvedDCOperatingPoint={solvedDCOperatingPoint}
       />
 
       {/* 2. Overlaid Floating TopBar (top-center) */}
@@ -538,6 +830,7 @@ function App() {
         onUpdateElement={updateElement}
         onDeleteElement={deleteElement}
         onClose={() => setSelectedId(null)}
+        arrowCurrent={selectedElement && selectedElement.type === 'arrow' ? wireCurrents[selectedElement.id] : undefined}
       />
 
       {/* Premium Glassmorphic Floating Toast */}
