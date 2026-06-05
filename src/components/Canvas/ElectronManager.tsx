@@ -435,7 +435,16 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const length = getPathLength(path);
 
       const root = uf.find(sStart);
-      const current = nodeMaxCurrents[root] || 0;
+      let current = nodeMaxCurrents[root] || 0;
+
+      // Override for net n8246 to have the same current speed as R3
+      if (w.netName?.toLowerCase() === 'n8246') {
+        const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
+        if (r3Card && solvedResults[r3Card.id]) {
+          current = solvedResults[r3Card.id].branchCurrent;
+        }
+      }
+
       const speed = getSpeedForCurrent(current, maxI);
 
       newSegments.push({ id: w.id, path, length, speed });

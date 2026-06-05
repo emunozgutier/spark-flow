@@ -1178,6 +1178,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           drawingArrow={drawingArrow}
           getSocketPosition={getSocketPosition}
           activeSnap={activeSnap}
+          solvedResults={solvedDCOperatingPoint}
+          liveDCOn={liveDCOn}
         />
 
         {/* Render temporary live box drawing preview */}

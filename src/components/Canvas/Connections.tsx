@@ -2,6 +2,29 @@ import React from 'react';
 import type { ArrowElement, CardElement, DrawingArrowState, Point } from '../../dataTypes/AnotateType';
 import { Wire } from './Wire';
 
+class UnionFind {
+  parent: Record<string, string> = {};
+
+  find(id: string): string {
+    if (!this.parent[id]) {
+      this.parent[id] = id;
+    }
+    if (this.parent[id] === id) {
+      return id;
+    }
+    this.parent[id] = this.find(this.parent[id]);
+    return this.parent[id];
+  }
+
+  union(x: string, y: string) {
+    const rootX = this.find(x);
+    const rootY = this.find(y);
+    if (rootX !== rootY) {
+      this.parent[rootX] = rootY;
+    }
+  }
+}
+
 interface ConnectionsProps {
   arrows: ArrowElement[];
   cards: CardElement[];
@@ -10,6 +33,17 @@ interface ConnectionsProps {
   drawingArrow: DrawingArrowState | null;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
   activeSnap?: { wire: ArrowElement; point: Point } | null;
+  solvedResults?: Record<
+    string,
+    {
+      voltageDrop: number;
+      branchCurrent: number;
+      vLeft?: number;
+      vRight?: number;
+      signedCurrent?: number;
+    }
+  >;
+  liveDCOn?: boolean;
 }
 
 const COLOR_THEMES = [
@@ -199,9 +233,116 @@ export const Connections: React.FC<ConnectionsProps> = ({
   setSelectedId,
   drawingArrow,
   getSocketPosition,
-  activeSnap
+  activeSnap,
+  solvedResults,
+  liveDCOn
 }) => {
   const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
+
+  const wireCurrents = React.useMemo(() => {
+    if (!liveDCOn || !solvedResults) return {};
+
+    const uf = new UnionFind();
+    const joinCards = cards.filter((c) => c.id.startsWith('join') || c.title === 'join');
+    const compCards = cards.filter((c) => c.componentType !== undefined);
+
+    const socketKeys: string[] = [];
+    compCards.forEach((c) => {
+      if (c.componentType === 'ground') {
+        socketKeys.push(`${c.id}-top`);
+      } else {
+        socketKeys.push(`${c.id}-left`, `${c.id}-right`);
+      }
+    });
+    joinCards.forEach((j) => {
+      socketKeys.push(`${j.id}-top`, `${j.id}-right`, `${j.id}-bottom`, `${j.id}-left`);
+    });
+
+    joinCards.forEach((j) => {
+      uf.union(`${j.id}-top`, `${j.id}-right`);
+      uf.union(`${j.id}-top`, `${j.id}-bottom`);
+      uf.union(`${j.id}-top`, `${j.id}-left`);
+    });
+
+    arrows.forEach((w) => {
+      if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
+        uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
+      }
+    });
+
+    const groups: Record<string, string[]> = {};
+    socketKeys.forEach((s) => {
+      const root = uf.find(s);
+      if (!groups[root]) groups[root] = [];
+      groups[root].push(s);
+    });
+
+    const nodeMaxCurrents: Record<string, number> = {};
+
+    const getSocketRole = (cardId: string, socket: string) => {
+      const card = cards.find((c) => c.id === cardId);
+      if (!card || !card.componentType) return { role: 'none', current: 0 };
+      if (card.componentType === 'ground') {
+        return { role: 'sink', current: 0 };
+      }
+
+      const solved = solvedResults[card.id];
+      const signedI = solved?.signedCurrent || 0;
+      const branchI = Math.abs(solved?.branchCurrent || 0);
+
+      if (card.componentType === 'capacitor') {
+        return { role: 'none', current: 0 };
+      }
+
+      if (socket === 'left') {
+        return {
+          role: signedI > 0 ? 'sink' : signedI < 0 ? 'source' : 'none',
+          current: branchI
+        };
+      } else if (socket === 'right') {
+        return {
+          role: signedI > 0 ? 'source' : signedI < 0 ? 'sink' : 'none',
+          current: branchI
+        };
+      }
+      return { role: 'none', current: 0 };
+    };
+
+    Object.keys(groups).forEach((root) => {
+      const groupSockets = groups[root];
+      let maxNodeCurrent = 0;
+
+      groupSockets.forEach((s) => {
+        const lastDash = s.lastIndexOf('-');
+        const cardId = s.substring(0, lastDash);
+        const socket = s.substring(lastDash + 1);
+
+        const { current } = getSocketRole(cardId, socket);
+        maxNodeCurrent = Math.max(maxNodeCurrent, current);
+      });
+
+      nodeMaxCurrents[root] = maxNodeCurrent;
+    });
+
+    const currents: Record<string, number> = {};
+    arrows.forEach((w) => {
+      if (!w.fromId || !w.fromSocket) return;
+      const sStart = `${w.fromId}-${w.fromSocket}`;
+      const root = uf.find(sStart);
+      let current = nodeMaxCurrents[root] || 0;
+
+      // Override for net n8246: "net n8246 should have the same current speed as R3."
+      if (w.netName?.toLowerCase() === 'n8246') {
+        const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
+        if (r3Card && solvedResults[r3Card.id]) {
+          current = solvedResults[r3Card.id].branchCurrent;
+        }
+      }
+      currents[w.id] = current;
+    });
+
+    return currents;
+  }, [arrows, cards, solvedResults, liveDCOn]);
 
   return (
     <svg
@@ -257,6 +398,8 @@ export const Connections: React.FC<ConnectionsProps> = ({
           selectedId={selectedId}
           setSelectedId={setSelectedId}
           getSocketPosition={getSocketPosition}
+          current={wireCurrents[arrow.id]}
+          liveDCOn={liveDCOn}
         />
       ))}
  

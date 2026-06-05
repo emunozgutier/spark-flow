@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useCanvas } from './store/useCanvas';
 import { useZoom } from './store/useZoom';
 import { Canvas } from './components/Canvas';
@@ -7,7 +7,31 @@ import { ZoomControl } from './components/ZoomControl';
 import { ElementSettings } from './components/ElementSettings';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import { formatEngineering } from './utils/math';
+import { solveLinearSystem } from './sim/components/mnaSolver';
 import './App.css';
+
+class UnionFind {
+  parent: Record<string, string> = {};
+
+  find(id: string): string {
+    if (!this.parent[id]) {
+      this.parent[id] = id;
+    }
+    if (this.parent[id] === id) {
+      return id;
+    }
+    this.parent[id] = this.find(this.parent[id]);
+    return this.parent[id];
+  }
+
+  union(x: string, y: string) {
+    const rootX = this.find(x);
+    const rootY = this.find(y);
+    if (rootX !== rootY) {
+      this.parent[rootX] = rootY;
+    }
+  }
+}
 
 
 function App() {
