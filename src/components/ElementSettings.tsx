@@ -1,12 +1,14 @@
 import React from 'react';
 import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../dataTypes/AnotateType';
 import { formatEngineering, parseEngineering, parseInstanceNumber } from '../utils/math';
+import { useCanvas } from '../store/useCanvas';
 
 interface ElementSettingsProps {
   selectedElement: CanvasElement | null;
   onUpdateElement: (id: string, updates: Partial<any>) => void;
   onDeleteElement: (id: string) => void;
   onClose: () => void;
+  arrowCurrent?: number;
 }
 
 const COLOR_THEMES: { name: ThemeColor; value: string; display: string }[] = [
@@ -23,7 +25,9 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
   onUpdateElement,
   onDeleteElement,
   onClose,
+  arrowCurrent,
 }) => {
+  const { liveDCOn } = useCanvas();
   const isOpen = selectedElement !== null;
 
   if (!isOpen || !selectedElement) {
@@ -219,6 +223,30 @@ export const ElementSettings: React.FC<ElementSettingsProps> = ({
               <span>{arrow.netName || 'Unassigned'}</span>
             </div>
           </div>
+
+          {/* Link Current */}
+          {liveDCOn && arrowCurrent !== undefined && (
+            <div className="sidebar-section">
+              <label className="sidebar-section-title">Link Current (I)</label>
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.6)',
+                border: '1.2px solid var(--theme-emerald)',
+                boxShadow: '0 0 8px var(--theme-emerald-glow)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{ color: 'var(--theme-emerald)' }}>⚡</span>
+                <span style={{ color: 'var(--theme-emerald)' }}>{formatEngineering(arrowCurrent)}A</span>
+              </div>
+            </div>
+          )}
 
           {/* Arrow Label */}
           <div className="sidebar-section">
