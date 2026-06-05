@@ -46,12 +46,15 @@ export const TopBar: React.FC<TopBarProps> = ({
   useEffect(() => {
     if (activeTool === 'text' || activeTool === 'arrow') {
       setActiveTab('anotate');
+      if (liveDCOn) {
+        setLiveDCOn(false);
+      }
     } else if (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor') {
       setActiveTab('passives');
     } else if (activeTool === 'voltage' || activeTool === 'current' || activeTool === 'ground') {
       setActiveTab('sources');
     }
-  }, [activeTool]);
+  }, [activeTool, liveDCOn, setLiveDCOn]);
 
   // Detect /debug URL segment or parameters on mount
   useEffect(() => {
@@ -96,7 +99,18 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* Anotate Tab */}
           <button
             className={`tool-btn tab-btn ${activeTab === 'anotate' ? 'active' : ''}`}
-            onClick={() => setActiveTab('anotate')}
+            onClick={() => {
+              setActiveTab('anotate');
+              if (liveDCOn) {
+                setLiveDCOn(false);
+                if (setToast) {
+                  setToast({
+                    message: '🔌 Live DC Operating Point Solver disabled.',
+                    type: 'info'
+                  });
+                }
+              }
+            }}
             aria-label="Annotations"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -151,10 +165,19 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             className={`tool-btn tab-btn ${liveDCOn ? 'active' : ''}`}
             onClick={() => {
-              setLiveDCOn(!liveDCOn);
+              const nextLive = !liveDCOn;
+              setLiveDCOn(nextLive);
+              if (nextLive) {
+                if (activeTab === 'anotate') {
+                  setActiveTab('simulate');
+                }
+                if (activeTool === 'text' || activeTool === 'arrow') {
+                  setActiveTool('select');
+                }
+              }
               if (setToast) {
                 setToast({
-                  message: !liveDCOn ? '⚡ Live DC Operating Point Solver enabled!' : '🔌 Live DC Operating Point Solver disabled.',
+                  message: nextLive ? '⚡ Live DC Operating Point Solver enabled!' : '🔌 Live DC Operating Point Solver disabled.',
                   type: 'info'
                 });
               }
@@ -228,7 +251,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           />
         )}
 
-        {liveDCOn && (
+        {liveDCOn && activeTab !== 'anotate' && (
           <Animation />
         )}
       </div>
