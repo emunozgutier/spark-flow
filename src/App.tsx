@@ -155,8 +155,7 @@ function App() {
 
       if (mnaSize === 0) return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
 
-      const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
-      const B = new Array(mnaSize).fill(0);
+      const hasDiodes = cards.some(c => c.componentType === 'diode');
 
       const g2ElementMap: Record<string, number> = {};
       let g2Index = nodeCount;
@@ -167,72 +166,149 @@ function App() {
         g2ElementMap[rGrp2.id] = g2Index++;
       });
 
-      cards.forEach((card) => {
-        if (card.componentType === 'resistor' || card.componentType === 'inductor') {
-          const n1Str = getPinNode(card.id, 'left');
-          const n2Str = getPinNode(card.id, 'right');
-          const n1 = parseInt(n1Str, 10);
-          const n2 = parseInt(n2Str, 10);
-          
-          let rVal = 1000;
-          if (card.componentType === 'inductor') {
-            rVal = 1e-3;
-          } else {
-            rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
-          }
+      // Initial guess for voltages
+      let voltages: Record<string, number> = { '0': 0 };
+      for (let i = 1; i <= nodeCount; i++) {
+        voltages[String(i)] = 0.0;
+      }
 
-          if (card.componentType === 'resistor' && card.isGroup2) {
-            const idx = g2ElementMap[card.id];
-            if (n1 > 0) A[n1 - 1][idx] += 1;
-            if (n2 > 0) A[n2 - 1][idx] -= 1;
-            if (n1 > 0) A[idx][n1 - 1] += 1;
-            if (n2 > 0) A[idx][n2 - 1] -= 1;
-            A[idx][idx] -= rVal;
-          } else {
-            const g = 1 / rVal;
-            if (n1 > 0) A[n1 - 1][n1 - 1] += g;
-            if (n2 > 0) A[n2 - 1][n2 - 1] += g;
-            if (n1 > 0 && n2 > 0) {
-              A[n1 - 1][n2 - 1] -= g;
-              A[n2 - 1][n1 - 1] -= g;
+      const maxIterations = hasDiodes ? 50 : 1;
+      const tolerance = 1e-5;
+      let X = new Array(mnaSize).fill(0);
+
+      for (let iter = 0; iter < maxIterations; iter++) {
+        const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
+        const B = new Array(mnaSize).fill(0);
+
+        // 1. Resistors and Inductors
+        cards.forEach((card) => {
+          if (card.componentType === 'resistor' || card.componentType === 'inductor') {
+            const n1Str = getPinNode(card.id, 'left');
+            const n2Str = getPinNode(card.id, 'right');
+            const n1 = parseInt(n1Str, 10);
+            const n2 = parseInt(n2Str, 10);
+            
+            let rVal = 1000;
+            if (card.componentType === 'inductor') {
+              rVal = 1e-3;
+            } else {
+              rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
+            }
+
+            if (card.componentType === 'resistor' && card.isGroup2) {
+              const idx = g2ElementMap[card.id];
+              if (n1 > 0) A[n1 - 1][idx] += 1;
+              if (n2 > 0) A[n2 - 1][idx] -= 1;
+              if (n1 > 0) A[idx][n1 - 1] += 1;
+              if (n2 > 0) A[idx][n2 - 1] -= 1;
+              A[idx][idx] -= rVal;
+            } else {
+              const g = 1 / rVal;
+              if (n1 > 0) A[n1 - 1][n1 - 1] += g;
+              if (n2 > 0) A[n2 - 1][n2 - 1] += g;
+              if (n1 > 0 && n2 > 0) {
+                A[n1 - 1][n2 - 1] -= g;
+                A[n2 - 1][n1 - 1] -= g;
+              }
             }
           }
-        }
-      });
+        });
 
-      voltageSources.forEach((vSrc) => {
-        const n1Str = getPinNode(vSrc.id, 'left');
-        const n2Str = getPinNode(vSrc.id, 'right');
-        const n1 = parseInt(n1Str, 10);
-        const n2 = parseInt(n2Str, 10);
-        const val = vSrc.value !== undefined ? vSrc.value : 5;
-        const idx = g2ElementMap[vSrc.id];
+        // 2. Diodes (Non-linear elements)
+        cards.forEach((card) => {
+          if (card.componentType === 'diode') {
+            const n1Str = getPinNode(card.id, 'left');
+            const n2Str = getPinNode(card.id, 'right');
+            const n1 = parseInt(n1Str, 10);
+            const n2 = parseInt(n2Str, 10);
 
-        if (n1 > 0) A[n1 - 1][idx] += 1;
-        if (n2 > 0) A[n2 - 1][idx] -= 1;
-        if (n1 > 0) A[idx][n1 - 1] += 1;
-        if (n2 > 0) A[idx][n2 - 1] -= 1;
-        B[idx] = val;
-      });
+            const v1 = voltages[n1Str] || 0;
+            const v2 = voltages[n2Str] || 0;
+            let vd = v1 - v2;
 
-      cards.forEach((card) => {
-        if (card.componentType === 'current') {
-          const n1Str = getPinNode(card.id, 'left');
-          const n2Str = getPinNode(card.id, 'right');
+            // Damp/limit voltage to prevent exponential overflow
+            if (vd > 0.8) {
+              vd = 0.8;
+            } else if (vd < -1.0) {
+              vd = -1.0;
+            }
+
+            const Is = 1e-14;
+            const Vt = 0.026;
+            const expTerm = Math.exp(vd / Vt);
+
+            const gd = (Is / Vt) * expTerm;
+            const id = Is * (expTerm - 1);
+            const Ieq = id - gd * vd;
+
+            if (n1 > 0) A[n1 - 1][n1 - 1] += gd;
+            if (n2 > 0) A[n2 - 1][n2 - 1] += gd;
+            if (n1 > 0 && n2 > 0) {
+              A[n1 - 1][n2 - 1] -= gd;
+              A[n2 - 1][n1 - 1] -= gd;
+            }
+            if (n1 > 0) B[n1 - 1] -= Ieq;
+            if (n2 > 0) B[n2 - 1] += Ieq;
+          }
+        });
+
+        // 3. Voltage sources
+        voltageSources.forEach((vSrc) => {
+          const n1Str = getPinNode(vSrc.id, 'left');
+          const n2Str = getPinNode(vSrc.id, 'right');
           const n1 = parseInt(n1Str, 10);
           const n2 = parseInt(n2Str, 10);
-          const val = card.value !== undefined ? card.value : 0.001;
+          const val = vSrc.value !== undefined ? vSrc.value : 5;
+          const idx = g2ElementMap[vSrc.id];
 
-          if (n1 > 0) B[n1 - 1] -= val;
-          if (n2 > 0) B[n2 - 1] += val;
+          if (n1 > 0) A[n1 - 1][idx] += 1;
+          if (n2 > 0) A[n2 - 1][idx] -= 1;
+          if (n1 > 0) A[idx][n1 - 1] += 1;
+          if (n2 > 0) A[idx][n2 - 1] -= 1;
+          B[idx] = val;
+        });
+
+        // 4. Current sources
+        cards.forEach((card) => {
+          if (card.componentType === 'current') {
+            const n1Str = getPinNode(card.id, 'left');
+            const n2Str = getPinNode(card.id, 'right');
+            const n1 = parseInt(n1Str, 10);
+            const n2 = parseInt(n2Str, 10);
+            const val = card.value !== undefined ? card.value : 0.001;
+
+            if (n1 > 0) B[n1 - 1] -= val;
+            if (n2 > 0) B[n2 - 1] += val;
+          }
+        });
+
+        let nextX = new Array(mnaSize).fill(0);
+        try {
+          nextX = solveLinearSystem(A, B);
+        } catch (e) {
+          console.error("Real-time Newton-Raphson linear solver failed at iteration", iter, ":", e);
+          break;
         }
-      });
 
-      const X = solveLinearSystem(A, B);
+        // Check convergence
+        let maxDiff = 0;
+        const nextVoltages: Record<string, number> = { '0': 0 };
+        for (let i = 1; i <= nodeCount; i++) {
+          const vOld = voltages[String(i)] || 0;
+          const vNew = nextX[i - 1] || 0;
+          nextVoltages[String(i)] = vNew;
+          const diff = Math.abs(vNew - vOld);
+          if (diff > maxDiff) {
+            maxDiff = diff;
+          }
+        }
 
-      const voltages: Record<string, number> = { '0': 0 };
-      for (let i = 1; i <= nodeCount; i++) {
-        voltages[String(i)] = X[i - 1] || 0;
+        voltages = nextVoltages;
+        X = nextX;
+
+        if (!hasDiodes || maxDiff < tolerance) {
+          break;
+        }
       }
 
       const solvedDCOperatingPoint: Record<string, any> = {};
@@ -267,6 +343,11 @@ function App() {
           iBranch = 0;
         } else if (card.componentType === 'inductor') {
           iBranch = vDrop / 1e-3;
+        } else if (card.componentType === 'diode') {
+          const Is = 1e-14;
+          const Vt = 0.026;
+          const vDropClamped = Math.max(-1.0, Math.min(0.8, vDrop));
+          iBranch = Is * (Math.exp(vDropClamped / Vt) - 1);
         }
 
         const displayVDrop = card.componentType === 'voltage' ? vDrop : Math.abs(vDrop);
@@ -458,6 +539,9 @@ function App() {
           break;
         case 'g':
           setActiveTool('ground');
+          break;
+        case 'd':
+          setActiveTool('diode');
           break;
       }
     };

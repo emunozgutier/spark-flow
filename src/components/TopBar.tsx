@@ -4,6 +4,7 @@ import { FileBar } from './TopBar/FileBar';
 import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
 import { SourcesBar } from './TopBar/SourcesBar';
+import { ActiveBar } from './TopBar/ActiveBar';
 import { Animation } from './TopBar/Animation';
 import { DebugPopup } from './TopBar/DebugPopup';
 import { Popup } from './Popup';
@@ -54,6 +55,8 @@ export const TopBar: React.FC<TopBarProps> = ({
       setActiveMenu('passives');
     } else if (activeTool === 'voltage' || activeTool === 'current' || activeTool === 'ground') {
       setActiveMenu('sources');
+    } else if (activeTool === 'diode') {
+      setActiveMenu('actives');
     }
   }, [activeTool, liveDCOn, setLiveDCOn, setActiveMenu]);
 
@@ -135,6 +138,19 @@ export const TopBar: React.FC<TopBarProps> = ({
               <circle cx="17" cy="17" r="1" fill="currentColor"/>
             </svg>
             <span className="tooltip">Passive Elements</span>
+          </button>
+
+          {/* Active Elements Tab */}
+          <button
+            className={`tool-btn tab-btn ${activeMenu === 'actives' ? 'active' : ''}`}
+            onClick={() => setActiveMenu('actives')}
+            aria-label="Active Elements"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="6 4 18 12 6 20 6 4" />
+              <line x1="18" y1="4" x2="18" y2="20" />
+            </svg>
+            <span className="tooltip">Active Elements</span>
           </button>
  
           {/* Sources Tab */}
@@ -247,6 +263,13 @@ export const TopBar: React.FC<TopBarProps> = ({
   
         {activeMenu === 'sources' && (
           <SourcesBar
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+          />
+        )}
+
+        {activeMenu === 'actives' && (
+          <ActiveBar
             activeTool={activeTool}
             setActiveTool={setActiveTool}
           />

@@ -123,6 +123,20 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       ],
       rhs: [0, 0, 0, 0, 0, v1Val],
       highlights: [] as string[]
+    },
+    {
+      title: 'Step 5: Non-linear MNA & Newton-Raphson',
+      desc: `To solve non-linear circuits where elements have non-linear relations (like diode i_d = I_s * (e^(v_d/V_t) - 1)), we formulate f(x) = Gx + Hg(x) - s = 0. At each Newton-Raphson iteration (k), the diode is linearized into a companion model: a conductance gd = (I_s/V_t)*e^(vd^(k)/V_t) (stamped at Row 1, Col 1 as +gd) and a current source Ieq = id - gd*vd (stamped in RHS Row 1 as -Ieq). We iterate x^(k+1) = x^(k) - J^-1 * f(x^(k)) until convergence.`,
+      matrix: [
+        [1, 0, 0, 0, 0, 0],
+        [0, 0.038, 0, 1, 1, 0],
+        [0, 0, 0, 0, -1, 1],
+        [-1, 1, 0, -r1Val, 0, 0],
+        [0, 1, -1, 0, -r2Val, 0],
+        [-1, 0, 1, 0, 0, 0]
+      ],
+      rhs: [0, -0.015, 0, 0, 0, v1Val],
+      highlights: ['1-1', 'rhs-1']
     }
   ];
 
