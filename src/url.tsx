@@ -161,7 +161,7 @@ export const serializeElements = (elements: CanvasElement[]): string => {
     }
   });
 
-  return parts.join('~');
+  return parts.join('~\n');
 };
 
 /**
@@ -359,7 +359,7 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
 
   // 3. Dot/tilde format (supports new super-compact format and old b/a dot format)
   const elements: CanvasElement[] = [];
-  const parts = trimmed.split('~');
+  const parts = trimmed.split('~').map(p => p.trim()).filter(Boolean);
 
   parts.forEach((part) => {
     const fields = part.split('.');
