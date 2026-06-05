@@ -210,7 +210,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
                 { id: `${cardId}-top`, direction: 'top', isConnected: false }
               ];
               val = undefined;
-              color = 'slate';
+              color = 'amethyst';
               defaultWidth = 60;
               defaultHeight = 60;
             } else {
@@ -227,10 +227,10 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
                 color = 'sapphire';
               } else if (componentType === 'inductor') {
                 val = 10e-3; // 10mH
-                color = 'emerald';
+                color = 'amethyst';
               } else if (componentType === 'voltage') {
                 val = 5; // 5V
-                color = 'coral';
+                color = 'sapphire';
               } else if (componentType === 'current') {
                 val = 0.001; // 1mA
                 color = 'amethyst';
@@ -295,6 +295,13 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
               if (snappedUpdates.y !== undefined) snappedUpdates.y = Math.round(snappedUpdates.y / 10) * 10;
               if (snappedUpdates.width !== undefined) snappedUpdates.width = Math.round(snappedUpdates.width / 10) * 10;
               if (snappedUpdates.height !== undefined) snappedUpdates.height = Math.round(snappedUpdates.height / 10) * 10;
+
+              // Prevent setting green (emerald), red (coral), or grey (slate) on CircuitElements
+              if ((el as CardElement).componentType !== undefined) {
+                if (snappedUpdates.color === 'slate' || snappedUpdates.color === 'emerald' || snappedUpdates.color === 'coral') {
+                  snappedUpdates.color = 'amethyst';
+                }
+              }
             }
 
             return {

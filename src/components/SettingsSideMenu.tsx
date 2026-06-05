@@ -205,7 +205,9 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
           <div className="sidebar-section">
             <label className="sidebar-section-title">Color Palette Theme</label>
             <div className="color-grid">
-              {COLOR_THEMES.map((theme) => (
+              {COLOR_THEMES.filter(
+                (theme) => !card.componentType || (theme.name !== 'slate' && theme.name !== 'emerald' && theme.name !== 'coral')
+              ).map((theme) => (
                 <button
                   key={theme.name}
                   className={`color-option ${card.color === theme.name ? 'active' : ''}`}

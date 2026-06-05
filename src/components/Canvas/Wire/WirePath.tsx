@@ -2,6 +2,7 @@ import React from 'react';
 import type { ArrowElement, Point, CardElement } from '../../../dataTypes/AnotateType';
 import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from '../Wires';
 import { Vertices } from './Vertices';
+import { useCanvas } from '../../../store/useCanvas';
 
 interface WireProps {
   arrow: ArrowElement;
@@ -9,6 +10,8 @@ interface WireProps {
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
+  voltage?: number;
+  maxVoltage?: number;
 }
 
 export const Wire: React.FC<WireProps> = ({
@@ -16,8 +19,11 @@ export const Wire: React.FC<WireProps> = ({
   cards,
   selectedId,
   setSelectedId,
-  getSocketPosition
+  getSocketPosition,
+  voltage,
+  maxVoltage,
 }) => {
+  const { liveDCOn } = useCanvas();
   let startPt = arrow.fromPoint || { x: 0, y: 0 };
   let endPt = arrow.toPoint || { x: 0, y: 0 };
 
@@ -62,7 +68,20 @@ export const Wire: React.FC<WireProps> = ({
   }
 
   const isSelected = selectedId === arrow.id;
-  const strokeColorVal = isSelected ? '#ffffff' : '#64748b';
+  let strokeColorVal = isSelected ? '#ffffff' : '#64748b';
+
+  if (!isSelected && liveDCOn && voltage !== undefined && maxVoltage !== undefined) {
+    const ratio = Math.min(Math.abs(voltage) / maxVoltage, 1.0);
+    const pct = Math.round(35 + Math.sqrt(ratio) * 65);
+    if (voltage > 1e-5) {
+      strokeColorVal = `color-mix(in srgb, var(--theme-emerald) ${pct}%, var(--theme-slate))`;
+    } else if (voltage < -1e-5) {
+      strokeColorVal = `color-mix(in srgb, var(--theme-coral) ${pct}%, var(--theme-slate))`;
+    } else {
+      strokeColorVal = 'var(--theme-slate)';
+    }
+  }
+
   const isDashed = arrow.style === 'dashed';
 
   const midX = (startPt.x + endPt.x) / 2;

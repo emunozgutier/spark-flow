@@ -72,9 +72,9 @@ function App() {
 
   const selectedElement = elements.find((el: CanvasElement) => el.id === selectedId) || null;
 
-  // --- REAL-TIME MNA DC OPERATING POINT SOLVER & WIRE CURRENTS ---
-  const { solvedDCOperatingPoint, wireCurrents } = useMemo(() => {
-    if (!liveDCOn) return { solvedDCOperatingPoint: {}, wireCurrents: {} };
+  // --- REAL-TIME MNA DC OPERATING POINT SOLVER & WIRE CURRENTS & VOLTAGES ---
+  const { solvedDCOperatingPoint, wireCurrents, wireVoltages } = useMemo(() => {
+    if (!liveDCOn) return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
     try {
       const cards = elements.filter((el) => el.type === 'box') as CardElement[];
       const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
@@ -153,7 +153,7 @@ function App() {
       const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
       const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
 
-      if (mnaSize === 0) return { solvedDCOperatingPoint: {}, wireCurrents: {} };
+      if (mnaSize === 0) return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
 
       const A = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
       const B = new Array(mnaSize).fill(0);
@@ -366,9 +366,26 @@ function App() {
         wireCurrents[w.id] = current;
       });
 
-      return { solvedDCOperatingPoint, wireCurrents };
+      const wireVoltages: Record<string, number> = {};
+      arrows.forEach((w) => {
+        let pin = '';
+        if (w.fromId && w.fromSocket) {
+          pin = `${w.fromId}-${w.fromSocket}`;
+        } else if (w.toId && w.toSocket) {
+          pin = `${w.toId}-${w.toSocket}`;
+        }
+        if (pin) {
+          const root = uf.find(pin);
+          const nodeName = rootToNodeName[root] || '0';
+          wireVoltages[w.id] = voltages[nodeName] || 0;
+        } else {
+          wireVoltages[w.id] = 0;
+        }
+      });
+
+      return { solvedDCOperatingPoint, wireCurrents, wireVoltages };
     } catch (e) {
-      return { solvedDCOperatingPoint: {}, wireCurrents: {} };
+      return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
     }
   }, [elements, liveDCOn]);
 
@@ -438,12 +455,6 @@ function App() {
           break;
         case 'r':
           setActiveTool('resistor');
-          break;
-        case 'c':
-          setActiveTool('capacitor');
-          break;
-        case 'i':
-          setActiveTool('inductor');
           break;
         case 'g':
           setActiveTool('ground');
@@ -599,7 +610,37 @@ function App() {
           path = `M ${startPt.x} ${startPt.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${endPt.x} ${endPt.y}`;
         }
 
-        const colorHex = hexColors[arrow.color]?.main || '#64748b';
+        let colorHex = hexColors[arrow.color]?.main || '#64748b';
+        let arrowheadColor = arrow.color;
+        
+        if (liveDCOn) {
+          const volt = wireVoltages[arrow.id] || 0;
+          const maxVolt = Math.max(...Object.values(wireVoltages).map(Math.abs), 1e-5);
+          const ratio = Math.min(Math.abs(volt) / maxVolt, 1.0);
+          
+          const blendColor = (r: number, color1: number[], color2: number[]) => {
+            const rgb = color1.map((c, i) => Math.round(c * r + color2[i] * (1 - r)));
+            return '#' + rgb.map((x) => x.toString(16).padStart(2, '0')).join('');
+          };
+
+          const greyRgb = [100, 116, 139]; // #64748b
+          const greenRgb = [16, 185, 129]; // #10b981
+          const redRgb = [244, 63, 94];   // #f43f5e
+
+          const blendRatio = 0.35 + Math.sqrt(ratio) * 0.65;
+
+          if (volt > 1e-5) {
+            colorHex = blendColor(blendRatio, greenRgb, greyRgb);
+            arrowheadColor = 'emerald';
+          } else if (volt < -1e-5) {
+            colorHex = blendColor(blendRatio, redRgb, greyRgb);
+            arrowheadColor = 'coral';
+          } else {
+            colorHex = '#64748b';
+            arrowheadColor = 'slate';
+          }
+        }
+
         const isDashed = arrow.style === 'dashed';
 
         arrowMarkup += `
@@ -610,7 +651,7 @@ function App() {
               stroke="${colorHex}"
               stroke-width="2"
               ${isDashed ? 'stroke-dasharray="6,6"' : ''}
-              marker-end="url(#arrowhead-${arrow.color})"
+              marker-end="url(#arrowhead-${arrowheadColor})"
             />`;
 
         if (arrow.label) {
@@ -805,6 +846,7 @@ function App() {
         deleteElement={deleteElement}
         setToast={setToast}
         solvedDCOperatingPoint={solvedDCOperatingPoint}
+        wireVoltages={wireVoltages}
       />
 
       {/* 2. Overlaid Floating TopBar (top-center) */}

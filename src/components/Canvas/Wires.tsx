@@ -10,6 +10,7 @@ interface WiresProps {
   drawingArrow: DrawingArrowState | null;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
   activeSnap?: { wire: ArrowElement; point: Point } | null;
+  wireVoltages?: Record<string, number>;
 }
 
 const COLOR_THEMES = [
@@ -199,8 +200,14 @@ export const Wires: React.FC<WiresProps> = ({
   drawingArrow,
   getSocketPosition,
   activeSnap,
+  wireVoltages = {},
 }) => {
   const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
+
+  const maxVoltage = Math.max(
+    ...Object.values(wireVoltages).map((v) => Math.abs(v)),
+    1e-5
+  );
 
   return (
     <svg
@@ -256,6 +263,8 @@ export const Wires: React.FC<WiresProps> = ({
           selectedId={selectedId}
           setSelectedId={setSelectedId}
           getSocketPosition={getSocketPosition}
+          voltage={wireVoltages[arrow.id]}
+          maxVoltage={maxVoltage}
         />
       ))}
  

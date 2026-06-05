@@ -330,6 +330,7 @@ interface CanvasProps {
       signedCurrent?: number;
     }
   >;
+  wireVoltages?: Record<string, number>;
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -352,6 +353,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   deleteElement,
   setToast,
   solvedDCOperatingPoint,
+  wireVoltages = {},
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { liveDCOn } = useCanvas();
@@ -1060,6 +1062,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           drawingArrow={drawingArrow}
           getSocketPosition={getSocketPosition}
           activeSnap={activeSnap}
+          wireVoltages={wireVoltages}
         />
 
         {/* Render temporary live box drawing preview */}

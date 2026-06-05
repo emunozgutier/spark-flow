@@ -81,15 +81,15 @@ export const serializeElements = (elements: CanvasElement[]): string => {
           defaultColor = 'sapphire';
         } else if (card.componentType === 'inductor') {
           defaultVal = 10e-3;
-          defaultColor = 'emerald';
+          defaultColor = 'amethyst';
         } else if (card.componentType === 'voltage') {
           defaultVal = 5;
-          defaultColor = 'coral';
+          defaultColor = 'sapphire';
         } else if (card.componentType === 'current') {
           defaultVal = 0.001;
           defaultColor = 'amethyst';
         } else if (card.componentType === 'ground') {
-          defaultColor = 'slate';
+          defaultColor = 'amethyst';
         }
 
         const valStr = card.value !== undefined && card.value !== defaultVal ? String(card.value) : '';
@@ -270,13 +270,16 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         let defaultColor = '';
         if (componentType === 'resistor') { defaultVal = 1000; defaultColor = 'amber'; }
         else if (componentType === 'capacitor') { defaultVal = 10e-6; defaultColor = 'sapphire'; }
-        else if (componentType === 'inductor') { defaultVal = 10e-3; defaultColor = 'emerald'; }
-        else if (componentType === 'voltage') { defaultVal = 5; defaultColor = 'coral'; }
+        else if (componentType === 'inductor') { defaultVal = 10e-3; defaultColor = 'amethyst'; }
+        else if (componentType === 'voltage') { defaultVal = 5; defaultColor = 'sapphire'; }
         else if (componentType === 'current') { defaultVal = 0.001; defaultColor = 'amethyst'; }
-        else if (componentType === 'ground') { defaultColor = 'slate'; }
+        else if (componentType === 'ground') { defaultColor = 'amethyst'; }
 
         const value = fields[5] ? parseFloat(fields[5]) : defaultVal;
-        const color = (fields[6] || defaultColor) as any;
+        let color = (fields[6] || defaultColor) as any;
+        if (color === 'slate' || color === 'emerald' || color === 'coral') {
+          color = 'amethyst';
+        }
 
         const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : type === 'V' ? 'V' : type === 'I' ? 'I' : 'GND';
         const cardId = `${prefix}${instanceNumber}`;
@@ -429,7 +432,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const rawVal = fields[4];
       const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 1000;
       
-      const color = fields[5] || 'amber';
+      let color = fields[5] || 'amber';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'amber';
+      }
 
       const ports = [
         { id: `${id}-left`, direction: 'left' as const, isConnected: false },
@@ -462,7 +468,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const rawVal = fields[4];
       const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 10e-6;
       
-      const color = fields[5] || 'sapphire';
+      let color = fields[5] || 'sapphire';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'sapphire';
+      }
 
       const ports = [
         { id: `${id}-left`, direction: 'left' as const, isConnected: false },
@@ -495,7 +504,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const rawVal = fields[4];
       const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 10e-3;
       
-      const color = fields[5] || 'emerald';
+      let color = fields[5] || 'amethyst';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'amethyst';
+      }
 
       const ports = [
         { id: `${id}-left`, direction: 'left' as const, isConnected: false },
@@ -528,7 +540,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const rawVal = fields[4];
       const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 5;
       
-      const color = fields[5] || 'coral';
+      let color = fields[5] || 'sapphire';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'sapphire';
+      }
 
       const ports = [
         { id: `${id}-left`, direction: 'left' as const, isConnected: false },
@@ -561,7 +576,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const rawVal = fields[4];
       const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 0.001;
       
-      const color = fields[5] || 'amethyst';
+      let color = fields[5] || 'amethyst';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'amethyst';
+      }
 
       const ports = [
         { id: `${id}-left`, direction: 'left' as const, isConnected: false },
@@ -590,7 +608,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const x = parseInt(fields[1], 10) || 0;
       const y = parseInt(fields[2], 10) || 0;
       const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
-      const color = fields[4] || 'slate';
+      let color = fields[4] || 'amethyst';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'amethyst';
+      }
 
       const ports = [
         { id: `${id}-top`, direction: 'top' as const, isConnected: false }
@@ -617,8 +638,13 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const y = parseInt(fields[3], 10) || 0;
       const width = fields[4] ? parseInt(fields[4], 10) : 60;
       const height = fields[5] ? parseInt(fields[5], 10) : 60;
-      const color = fields[6] || 'slate';
+      let color = fields[6] || 'slate';
       const componentType = fields[7] as any || undefined;
+      if (componentType !== undefined) {
+        if (color === 'slate' || color === 'emerald' || color === 'coral') {
+          color = 'amethyst';
+        }
+      }
       const instanceNumber = fields[8] ? parseInt(fields[8], 10) : undefined;
       const value = fields[9] ? parseFloat(fields[9]) : undefined;
       const rotation = fields[10] ? parseInt(fields[10], 10) : 0;
