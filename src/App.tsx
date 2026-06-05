@@ -346,8 +346,8 @@ function App() {
         const root = uf.find(sStart);
         let current = nodeMaxCurrents[root] || 0;
 
-        // Override for node 1 subnets: subnet 1.2 matches resistor R3 current, others match R2 current
-        if (w.netName === '1.2') {
+        // Override for subnets 1.2 and 0.4: match resistor R3 current; other node 1 subnets match R2
+        if (w.netName === '1.2' || w.netName === '0.4') {
           const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
           if (r3Card && solvedDCOperatingPoint[r3Card.id]) {
             current = solvedDCOperatingPoint[r3Card.id].branchCurrent;

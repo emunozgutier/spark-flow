@@ -153,6 +153,26 @@ const getSpeedForCurrent = (current: number, maxI: number): number => {
   return MIN_SPEED + ratio * (MAX_SPEED - MIN_SPEED);
 };
 
+const mergePaths = (paths: Point[][]): Point[] => {
+  const merged: Point[] = [];
+  paths.forEach((path) => {
+    path.forEach((pt) => {
+      if (merged.length === 0) {
+        merged.push(pt);
+      } else {
+        const last = merged[merged.length - 1];
+        const dx = pt.x - last.x;
+        const dy = pt.y - last.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0.1) {
+          merged.push(pt);
+        }
+      }
+    });
+  });
+  return merged;
+};
+
 export const ElectronManager: React.FC<ElectronManagerProps> = ({
   elements,
   solvedResults,
@@ -378,6 +398,64 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
 
     const newSegments: { id: string; path: Point[]; length: number; speed: number }[] = [];
 
+    const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
+    const w12 = arrows.find((w) => w.netName === '1.2');
+    const w04 = arrows.find((w) => w.netName === '0.4');
+
+    let combinedSegment: { id: string; path: Point[]; length: number; speed: number } | null = null;
+
+    if (r3Card && w12 && w04) {
+      const sStart12 = `${w12.fromId}-${w12.fromSocket}`;
+      const scoreStart12 = scoreMap[sStart12] ?? 0;
+      const scoreEnd12 = scoreMap[`${w12.toId}-${w12.toSocket}`] ?? 0;
+      const isForward12 = scoreStart12 <= scoreEnd12;
+      const path12 = getWirePoints(w12, isForward12, cards);
+
+      const ptLeft = getSocketPosition(r3Card, 'left');
+      const ptRight = getSocketPosition(r3Card, 'right');
+      const solved = solvedResults[r3Card.id];
+      const vLeft = solved?.vLeft || 0;
+      const vRight = solved?.vRight || 0;
+      const signedI = solved?.signedCurrent || 0;
+
+      let startPt = ptLeft;
+      let endPt = ptRight;
+      if (vLeft > vRight) {
+        startPt = ptLeft;
+        endPt = ptRight;
+      } else if (vRight > vLeft) {
+        startPt = ptRight;
+        endPt = ptLeft;
+      } else {
+        if (signedI > 0) {
+          startPt = ptLeft;
+          endPt = ptRight;
+        } else {
+          startPt = ptRight;
+          endPt = ptLeft;
+        }
+      }
+      const pathR3 = [startPt, endPt];
+
+      const sStart04 = `${w04.fromId}-${w04.fromSocket}`;
+      const scoreStart04 = scoreMap[sStart04] ?? 0;
+      const scoreEnd04 = scoreMap[`${w04.toId}-${w04.toSocket}`] ?? 0;
+      const isForward04 = scoreStart04 <= scoreEnd04;
+      const path04 = getWirePoints(w04, isForward04, cards);
+
+      const mergedPath = mergePaths([path12, pathR3, path04]);
+      const length = getPathLength(mergedPath);
+      const branchI = Math.abs(solved?.branchCurrent || 0);
+      const speed = getSpeedForCurrent(branchI, maxI);
+
+      combinedSegment = {
+        id: `${r3Card.id}-combined`,
+        path: mergedPath,
+        length,
+        speed
+      };
+    }
+
     // Add Component segments (excluding ground, voltage, and current sources)
     compCards.forEach((card) => {
       if (
@@ -385,6 +463,10 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
         card.componentType === 'voltage' ||
         card.componentType === 'current'
       ) {
+        return;
+      }
+
+      if (combinedSegment && card.id === r3Card?.id) {
         return;
       }
 
@@ -425,6 +507,10 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
     arrows.forEach((w) => {
       if (!w.fromId || !w.fromSocket || !w.toId || !w.toSocket) return;
 
+      if (combinedSegment && (w.id === w12?.id || w.id === w04?.id)) {
+        return;
+      }
+
       const sStart = `${w.fromId}-${w.fromSocket}`;
       const sEnd = `${w.toId}-${w.toSocket}`;
       const scoreStart = scoreMap[sStart] ?? 0;
@@ -437,8 +523,8 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const root = uf.find(sStart);
       let current = nodeMaxCurrents[root] || 0;
 
-      // Override for node 1 subnets: subnet 1.2 matches resistor R3 current speed, others match R2
-      if (w.netName === '1.2') {
+      // Override for subnets 1.2 and 0.4: match resistor R3 current speed; other node 1 subnets match R2
+      if (w.netName === '1.2' || w.netName === '0.4') {
         const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
         if (r3Card && solvedResults[r3Card.id]) {
           current = solvedResults[r3Card.id].branchCurrent;
@@ -454,6 +540,10 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
 
       newSegments.push({ id: w.id, path, length, speed });
     });
+
+    if (combinedSegment) {
+      newSegments.push(combinedSegment);
+    }
 
     // 5. Interpolate old electron progress values onto new segments
     const oldElectronsBySegment = new Map<string, number[]>();
