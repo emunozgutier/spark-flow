@@ -312,7 +312,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current' | 'diode') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;

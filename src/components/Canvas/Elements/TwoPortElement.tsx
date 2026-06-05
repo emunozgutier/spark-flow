@@ -153,5 +153,29 @@ export const TwoPortElement: React.FC<TwoPortElementProps> = ({ card }) => {
       </svg>
     );
   }
+  if (card.componentType === 'diode') {
+    return (
+      <svg
+        width="100%"
+        height="30"
+        viewBox="0 0 100 40"
+        fill="none"
+        stroke="var(--theme-color)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          position: 'absolute',
+          top: '5px',
+          left: 0,
+          filter: 'drop-shadow(0 0 4px var(--theme-color-glow))'
+        }}
+      >
+        <path d="M 0 20 L 38 20 M 55 20 L 100 20" />
+        <path d="M 38 10 L 38 30 L 55 20 Z" fill="var(--theme-color)" />
+        <path d="M 55 10 L 55 30" />
+      </svg>
+    );
+  }
   return null;
 };

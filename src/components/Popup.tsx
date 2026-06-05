@@ -285,8 +285,8 @@ export const Popup: React.FC<PopupProps> = ({
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'relative',
-            width: '680px',
-            height: '480px',
+            width: '80%',
+            height: '80%',
             background: 'rgba(15, 23, 42, 0.93)',
             border: '1.5px solid var(--theme-sapphire)',
             boxShadow: '0 20px 45px rgba(0, 0, 0, 0.6), 0 0 20px var(--theme-sapphire-glow)',
