@@ -111,30 +111,34 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
     }
   };
 
-  const rootToNetName: Record<string, string> = {};
+  const wireToNetName: Record<string, string> = {};
   Object.keys(wiresByRoot).forEach((rootKey) => {
     const groupWires = wiresByRoot[rootKey];
+    
+    // Find any existing net name in the group and strip suffix if it has one
+    let baseName = '';
     const existingGroupNames = groupWires.map((w) => w.netName).filter(Boolean) as string[];
-
-    let chosenName = '';
     if (existingGroupNames.length > 0) {
-      chosenName = existingGroupNames[0];
+      const firstExistingName = existingGroupNames[0];
+      const underscoreIndex = firstExistingName.indexOf('_');
+      baseName = underscoreIndex !== -1 ? firstExistingName.substring(0, underscoreIndex) : firstExistingName;
     } else {
-      chosenName = generateUniqueNetName();
+      baseName = generateUniqueNetName();
     }
-    rootToNetName[rootKey] = chosenName;
+
+    if (groupWires.length > 1) {
+      groupWires.forEach((w, index) => {
+        wireToNetName[w.id] = `${baseName}_${index + 1}`;
+      });
+    } else if (groupWires.length === 1) {
+      wireToNetName[groupWires[0].id] = baseName;
+    }
   });
 
   return elements.map((el) => {
     if (el.type === 'arrow') {
       const w = el as ArrowElement;
-      let rootKey = w.id;
-      if (w.fromId && w.fromSocket) {
-        rootKey = uf.find(`${w.fromId}-${w.fromSocket}`);
-      } else if (w.toId && w.toSocket) {
-        rootKey = uf.find(`${w.toId}-${w.toSocket}`);
-      }
-      const netName = rootToNetName[rootKey] || '';
+      const netName = wireToNetName[w.id] || '';
       if (w.netName !== netName) {
         return { ...w, netName };
       }

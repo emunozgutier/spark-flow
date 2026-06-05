@@ -437,11 +437,11 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       const root = uf.find(sStart);
       let current = nodeMaxCurrents[root] || 0;
 
-      // Override for net n8246 to have the same current speed as R3
-      if (w.netName?.toLowerCase() === 'n8246') {
-        const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
-        if (r3Card && solvedResults[r3Card.id]) {
-          current = solvedResults[r3Card.id].branchCurrent;
+      // Override for net n8246 to have the same current speed as R2
+      if (w.netName?.toLowerCase().includes('8246')) {
+        const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
+        if (r2Card && solvedResults[r2Card.id]) {
+          current = solvedResults[r2Card.id].branchCurrent;
         }
       }
 

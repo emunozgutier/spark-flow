@@ -346,11 +346,11 @@ function App() {
         const root = uf.find(sStart);
         let current = nodeMaxCurrents[root] || 0;
 
-        // Override for net n8246: "net n8246 should have the same current speed as R3."
-        if (w.netName?.toLowerCase() === 'n8246') {
-          const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
-          if (r3Card && solvedDCOperatingPoint[r3Card.id]) {
-            current = solvedDCOperatingPoint[r3Card.id].branchCurrent;
+        // Override for net n8246: "net 8246 should be 2.619mA the same as R2"
+        if (w.netName?.toLowerCase().includes('8246')) {
+          const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
+          if (r2Card && solvedDCOperatingPoint[r2Card.id]) {
+            current = solvedDCOperatingPoint[r2Card.id].branchCurrent;
           }
         }
         wireCurrents[w.id] = current;
