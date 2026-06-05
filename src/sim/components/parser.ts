@@ -9,6 +9,7 @@ import { InductorElement } from './stamps/inductor';
 import { CapacitorElement } from './stamps/capacitor';
 import { VoltageSourceElement } from './stamps/voltage';
 import { CurrentSourceElement } from './stamps/current';
+import { DiodeElement } from './stamps/diode';
 import { parseEngineeringValue } from '../../utils/math';
 
 export interface ParsedNetlist {
@@ -71,6 +72,15 @@ export const parseSpiceNetlistToElements = (spiceDeck: string): ParsedNetlist =>
               element = new CurrentSourceElement(name, node1, node2, value);
               n1 = node1;
               n2 = node2;
+            } else {
+              const dMatch = line.match(DiodeElement.pattern);
+              if (dMatch) {
+                const [, name, node1, node2, valToken] = dMatch;
+                const value = valToken ? parseEngineeringValue(valToken) : 0;
+                element = new DiodeElement(name, node1, node2, value);
+                n1 = node1;
+                n2 = node2;
+              }
             }
           }
         }

@@ -79,9 +79,9 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
                   id="comp-designator"
                   type="text"
                   className="inspector-input"
-                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND'}${card.instanceNumber || 1}`}
+                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND'}${card.instanceNumber || 1}`}
                   onChange={(e) => {
-                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND';
+                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
                     const num = parseInstanceNumber(e.target.value, prefix);
                     onUpdateElement(card.id, { instanceNumber: num });
                   }}
@@ -90,7 +90,7 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
               </div>
 
               {/* Passive Component Value */}
-              {card.componentType !== 'ground' && (
+              {card.componentType !== 'ground' && card.componentType !== 'diode' && (
                 <div className="sidebar-section">
                   <label className="sidebar-section-title" htmlFor="comp-value">Component Value</label>
                   <input

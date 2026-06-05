@@ -47,8 +47,8 @@ export class Spice {
   /**
    * Compiles the MNA matrix A and RHS vector B using elementsList' stamps.
    */
-  compile(): { A: number[][]; B: number[]; nodeMap: Map<string, number>; group2Elements: BaseElement[] } {
-    const { mnaModel, nodeMap, group2Elements } = buildMna(this.elementsList, this.nodes);
+  compile(voltages?: Record<string, number>): { A: number[][]; B: number[]; nodeMap: Map<string, number>; group2Elements: BaseElement[] } {
+    const { mnaModel, nodeMap, group2Elements } = buildMna(this.elementsList, this.nodes, voltages);
     return {
       A: mnaModel.getMatrix(),
       B: mnaModel.getRhs(),
@@ -61,29 +61,85 @@ export class Spice {
    * Simulates the circuit and returns detailed node voltages, branch currents, and equation reports.
    */
   solve(): SpiceSimulationResult {
-    const { A, B, nodeMap, group2Elements } = this.compile();
-    const N = nodeMap.size;
-    const S = A.length;
+    const activeNodeNames = this.nodes.filter(n => n !== '0' && n.toUpperCase() !== 'GND');
+    const hasDiodes = this.elementsList.some(el => el.type === 'diode');
+
+    // Initial guess
+    let nodeVoltages: Record<string, number> = { '0': 0 };
+    activeNodeNames.forEach(n => {
+      nodeVoltages[n] = 0.0;
+    });
 
     let solutionVector: number[] = [];
-    try {
-      solutionVector = solveLinearSystem(A, B);
-    } catch (err: any) {
-      solutionVector = new Array(S).fill(0);
-      console.error('Modular Solver failed:', err.message);
+    let A: number[][] = [];
+    let B: number[] = [];
+    let nodeMap = new Map<string, number>();
+    let group2Elements: BaseElement[] = [];
+
+    const maxIterations = hasDiodes ? 50 : 1;
+    const tolerance = 1e-5;
+
+    for (let iter = 0; iter < maxIterations; iter++) {
+      const compiled = this.compile(nodeVoltages);
+      A = compiled.A;
+      B = compiled.B;
+      nodeMap = compiled.nodeMap;
+      group2Elements = compiled.group2Elements;
+
+      const S = A.length;
+      if (S === 0) {
+        solutionVector = [];
+        break;
+      }
+
+      try {
+        solutionVector = solveLinearSystem(A, B);
+      } catch (err: any) {
+        solutionVector = new Array(S).fill(0);
+        console.error('Spice Newton-Raphson linear solver failed at iteration', iter, ':', err.message);
+        break;
+      }
+
+      // Check convergence
+      let maxDiff = 0;
+      const nextNodeVoltages: Record<string, number> = { '0': 0 };
+      activeNodeNames.forEach((nodeName, index) => {
+        const vOld = nodeVoltages[nodeName] || 0;
+        const vNew = solutionVector[index] || 0;
+        nextNodeVoltages[nodeName] = vNew;
+        const diff = Math.abs(vNew - vOld);
+        if (diff > maxDiff) {
+          maxDiff = diff;
+        }
+      });
+
+      nodeVoltages = nextNodeVoltages;
+
+      if (!hasDiodes || maxDiff < tolerance) {
+        break;
+      }
     }
 
-    // 1. Map solution to Node Voltages
-    const nodeVoltages: Record<string, number> = { '0': 0 };
-    const activeNodeNames = this.nodes.filter(n => n !== '0' && n.toUpperCase() !== 'GND');
-    activeNodeNames.forEach((nodeName, index) => {
-      nodeVoltages[nodeName] = solutionVector[index] || 0;
-    });
+    const N = nodeMap.size;
+    const S = A.length;
 
     // 2. Map solution to Group 2 branch currents
     const branchCurrents: Record<string, number> = {};
     group2Elements.forEach((el, index) => {
       branchCurrents[el.name] = solutionVector[N + index] || 0;
+    });
+
+    // Add Diode currents (Group 1 elements)
+    this.elementsList.forEach((el) => {
+      if (el.type === 'diode') {
+        const v1 = nodeVoltages[el.node1] || 0;
+        const v2 = nodeVoltages[el.node2] || 0;
+        const vd = v1 - v2;
+        const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
+        const Is = 1e-14;
+        const Vt = 0.026;
+        branchCurrents[el.name] = Is * (Math.exp(vdClamped / Vt) - 1);
+      }
     });
 
     // 3. Generate matrix equation report

@@ -16,7 +16,7 @@ export interface MnaBuildResult {
 /**
  * Builds the complete MNA system from a list of parsed elements and a standardized nodes tracking array.
  */
-export function buildMna(elementsList: BaseElement[], nodes: string[]): MnaBuildResult {
+export function buildMna(elementsList: BaseElement[], nodes: string[], voltages?: Record<string, number>): MnaBuildResult {
   // Map active nodes (nodes excluding GND / "0") to 1-based indices
   const activeNodes = nodes.filter(n => n !== '0' && n.toUpperCase() !== 'GND');
   const nodeMap = new Map<string, number>();
@@ -44,9 +44,9 @@ export function buildMna(elementsList: BaseElement[], nodes: string[]): MnaBuild
     let stamp: ElementStamp;
     if (el.getGroup2Count() > 0) {
       const g2Idx = N + group2Elements.indexOf(el);
-      stamp = el.getStampGroup2(nodeMap, g2Idx);
+      stamp = el.getStampGroup2(nodeMap, g2Idx, voltages);
     } else {
-      stamp = el.getStampGroup1(nodeMap);
+      stamp = el.getStampGroup1(nodeMap, voltages);
     }
 
     for (let r = 0; r < stamp.A.length; r++) {

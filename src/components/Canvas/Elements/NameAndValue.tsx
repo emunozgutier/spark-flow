@@ -33,9 +33,9 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
       <input
         type="text"
         className="passive-title-input"
-        value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND'}${card.instanceNumber || 1}`}
+        value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND'}${card.instanceNumber || 1}`}
         onChange={(e) => {
-          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : 'GND';
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
           const num = parseInstanceNumber(e.target.value, prefix);
           updateElement(card.id, { instanceNumber: num }, false);
         }}
@@ -58,7 +58,7 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
       />
 
       {/* Technical Value */}
-      {card.componentType !== 'ground' && (
+      {card.componentType !== 'ground' && card.componentType !== 'diode' && (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <input
             type="text"
