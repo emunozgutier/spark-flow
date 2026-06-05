@@ -397,79 +397,188 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
       }
     });
 
-    const newSegments: { id: string; path: Point[]; length: number; speed: number }[] = [];
+    const newSegments: { id: string; path: Point[]; length: number; speed: number; spawnAccumulator: number }[] = [];
 
-    const r3Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 3);
-    let wLeft: ArrowElement | undefined;
-    let wRight: ArrowElement | undefined;
-    if (r3Card) {
-      wLeft = arrows.find((w) => (w.fromId === r3Card.id && w.fromSocket === 'left') || (w.toId === r3Card.id && w.toSocket === 'left'));
-      wRight = arrows.find((w) => (w.fromId === r3Card.id && w.fromSocket === 'right') || (w.toId === r3Card.id && w.toSocket === 'right'));
-    }
+    const junctionPins = new Set<string>();
+    cards.forEach((c) => {
+      if (c.componentType === 'ground' || c.id.startsWith('join') || c.title === 'join') {
+        const sockets: ('top' | 'right' | 'bottom' | 'left')[] = c.componentType === 'ground' ? ['top'] : ['top', 'right', 'bottom', 'left'];
+        sockets.forEach((s) => junctionPins.add(`${c.id}-${s}`));
+      }
+    });
 
-    let combinedSegment: { id: string; path: Point[]; length: number; speed: number } | null = null;
+    const pinToWire = new Map<string, ArrowElement>();
+    arrows.forEach((w) => {
+      if (w.fromId && w.fromSocket) {
+        pinToWire.set(`${w.fromId}-${w.fromSocket}`, w);
+      }
+      if (w.toId && w.toSocket) {
+        pinToWire.set(`${w.toId}-${w.toSocket}`, w);
+      }
+    });
 
-    if (r3Card && wLeft && wRight) {
-      const sStartLeft = `${wLeft.fromId}-${wLeft.fromSocket}`;
-      const scoreStartLeft = scoreMap[sStartLeft] ?? 0;
-      const scoreEndLeft = scoreMap[`${wLeft.toId}-${wLeft.toSocket}`] ?? 0;
-      const isForwardLeft = scoreStartLeft <= scoreEndLeft;
-      const pathLeft = getWirePoints(wLeft, isForwardLeft, cards);
+    const visitedWires = new Set<string>();
+    const combinedCardIds = new Set<string>();
 
-      const ptLeft = getSocketPosition(r3Card, 'left');
-      const ptRight = getSocketPosition(r3Card, 'right');
-      const solved = solvedResults[r3Card.id];
-      const vLeft = solved?.vLeft || 0;
-      const vRight = solved?.vRight || 0;
-      const signedI = solved?.signedCurrent || 0;
+    const addChainSegment = (chain: { type: 'wire' | 'comp'; id: string; element: any }[]) => {
+      if (chain.length === 0) return;
 
-      let startPt = ptLeft;
-      let endPt = ptRight;
-      if (vLeft > vRight) {
-        startPt = ptLeft;
-        endPt = ptRight;
-      } else if (vRight > vLeft) {
-        startPt = ptRight;
-        endPt = ptLeft;
-      } else {
-        if (signedI > 0) {
-          startPt = ptLeft;
-          endPt = ptRight;
-        } else {
-          startPt = ptRight;
-          endPt = ptLeft;
+      // If the branch contains only 1 wire and it is a ground wire, skip it
+      if (chain.length === 1 && chain[0].type === 'wire') {
+        const w = chain[0].element as ArrowElement;
+        const isGndWire = w.netName === '0.0' || 
+                          cards.some((c) => c.componentType === 'ground' && (w.fromId === c.id || w.toId === c.id));
+        if (isGndWire) {
+          return;
         }
       }
-      const pathR3 = [startPt, endPt];
 
-      const sStartRight = `${wRight.fromId}-${wRight.fromSocket}`;
-      const scoreStartRight = scoreMap[sStartRight] ?? 0;
-      const scoreEndRight = scoreMap[`${wRight.toId}-${wRight.toSocket}`] ?? 0;
-      const isForwardRight = scoreStartRight <= scoreEndRight;
-      const pathRight = getWirePoints(wRight, isForwardRight, cards);
-
-      // Concatenate depending on flow direction
-      let mergedPath: Point[] = [];
-      if (vLeft >= vRight) {
-        mergedPath = mergePaths([pathLeft, pathR3, pathRight]);
-      } else {
-        mergedPath = mergePaths([pathRight, pathR3, pathLeft]);
+      // Determine starting pin and ending pin of the chain
+      const firstWire = (chain[0].type === 'wire' ? chain[0].element : chain[1].element) as ArrowElement;
+      const lastWire = (chain[chain.length - 1].type === 'wire' ? chain[chain.length - 1].element : chain[chain.length - 2].element) as ArrowElement;
+      
+      const pinStart = `${firstWire.fromId}-${firstWire.fromSocket}`;
+      const pinEnd = `${lastWire.toId}-${lastWire.toSocket}`;
+      
+      const scoreStart = scoreMap[pinStart] ?? 0;
+      const scoreEnd = scoreMap[pinEnd] ?? 0;
+      const reverseChain = scoreStart > scoreEnd;
+      
+      if (reverseChain) {
+        chain.reverse();
       }
 
+      const elementPaths: Point[][] = [];
+      chain.forEach((item) => {
+        if (item.type === 'wire') {
+          const w = item.element as ArrowElement;
+          const sStart = `${w.fromId}-${w.fromSocket}`;
+          const scoreStartW = scoreMap[sStart] ?? 0;
+          const scoreEndW = scoreMap[`${w.toId}-${w.toSocket}`] ?? 0;
+          const isForward = scoreStartW <= scoreEndW;
+          
+          const pathDirection = reverseChain ? !isForward : isForward;
+          elementPaths.push(getWirePoints(w, pathDirection, cards));
+        } else {
+          const comp = item.element as CardElement;
+          const ptLeft = getSocketPosition(comp, 'left');
+          const ptRight = getSocketPosition(comp, 'right');
+          const solved = solvedResults[comp.id];
+          const vLeft = solved?.vLeft || 0;
+          const vRight = solved?.vRight || 0;
+          const signedI = solved?.signedCurrent || 0;
+          
+          let leftToRight = true;
+          if (vLeft > vRight) {
+            leftToRight = true;
+          } else if (vRight > vLeft) {
+            leftToRight = false;
+          } else {
+            leftToRight = signedI > 0;
+          }
+          
+          const pathDirection = reverseChain ? !leftToRight : leftToRight;
+          elementPaths.push(pathDirection ? [ptLeft, ptRight] : [ptRight, ptLeft]);
+        }
+      });
+      
+      const mergedPath = mergePaths(elementPaths);
       const length = getPathLength(mergedPath);
-      const branchI = Math.abs(solved?.branchCurrent || 0);
-      const speed = getSpeedForCurrent(branchI, maxI);
+      
+      let branchCurrentVal = 0;
+      const compItem = chain.find((item) => item.type === 'comp');
+      if (compItem) {
+        const solved = solvedResults[compItem.id];
+        branchCurrentVal = Math.abs(solved?.branchCurrent || 0);
+      } else {
+        const wireItem = chain.find((item) => item.type === 'wire');
+        if (wireItem) {
+          const w = wireItem.element as ArrowElement;
+          const sStart = `${w.fromId}-${w.fromSocket}`;
+          const root = uf.find(sStart);
+          branchCurrentVal = nodeMaxCurrents[root] || 0;
+          
+          const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
+          if (connectedCard) {
+            const solved = solvedResults[connectedCard.id];
+            if (solved) {
+              branchCurrentVal = solved.branchCurrent;
+            }
+          } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
+            const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
+            if (r2Card && solvedResults[r2Card.id]) {
+              branchCurrentVal = solvedResults[r2Card.id].branchCurrent;
+            }
+          }
+        }
+      }
+      const speed = getSpeedForCurrent(branchCurrentVal, maxI);
 
-      combinedSegment = {
-        id: `${r3Card.id}-combined`,
+      newSegments.push({
+        id: `${chain[0].id}-combined`,
         path: mergedPath,
         length,
         speed,
         spawnAccumulator: 0
-      };
-    }
+      });
+    };
 
-    // Add Component segments (excluding ground, voltage, and current sources)
+    const traceChain = (startPin: string) => {
+      const w = pinToWire.get(startPin);
+      if (!w || visitedWires.has(w.id)) return;
+
+      const chain: { type: 'wire' | 'comp'; id: string; element: any }[] = [];
+      let currPin = startPin;
+      let currWire = w;
+
+      while (true) {
+        visitedWires.add(currWire.id);
+        chain.push({ type: 'wire', id: currWire.id, element: currWire });
+
+        const otherPin = (currPin === `${currWire.fromId}-${currWire.fromSocket}`) 
+          ? `${currWire.toId}-${currWire.toSocket}` 
+          : `${currWire.fromId}-${currWire.fromSocket}`;
+
+        const dashIdx = otherPin.lastIndexOf('-');
+        const cardId = otherPin.substring(0, dashIdx);
+        const socket = otherPin.substring(dashIdx + 1);
+
+        const card = cards.find((c) => c.id === cardId);
+        if (!card || junctionPins.has(otherPin)) {
+          break;
+        }
+
+        chain.push({ type: 'comp', id: card.id, element: card });
+        combinedCardIds.add(card.id);
+
+        const oppositeSocket = (socket === 'left') ? 'right' : 'left';
+        const nextPin = `${card.id}-${oppositeSocket}`;
+
+        const nextWire = pinToWire.get(nextPin);
+        if (!nextWire || visitedWires.has(nextWire.id)) {
+          break;
+        }
+
+        currPin = nextPin;
+        currWire = nextWire;
+      }
+
+      addChainSegment(chain);
+    };
+
+    // Trace branches starting from junctions
+    junctionPins.forEach((pin) => {
+      traceChain(pin);
+    });
+
+    // Trace any remaining untraced wires (loops)
+    arrows.forEach((w) => {
+      if (!w.fromId || !w.fromSocket || !w.toId || !w.toSocket) return;
+      if (visitedWires.has(w.id)) return;
+      traceChain(`${w.fromId}-${w.fromSocket}`);
+    });
+
+    // Add remaining Component segments (open components)
     compCards.forEach((card) => {
       if (
         card.componentType === 'ground' ||
@@ -479,7 +588,7 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
         return;
       }
 
-      if (combinedSegment && card.id === r3Card?.id) {
+      if (combinedCardIds.has(card.id)) {
         return;
       }
 
@@ -515,57 +624,6 @@ export const ElectronManager: React.FC<ElectronManagerProps> = ({
 
       newSegments.push({ id: card.id, path, length, speed, spawnAccumulator: 0 });
     });
-
-    // Add Wire segments
-    arrows.forEach((w) => {
-      if (!w.fromId || !w.fromSocket || !w.toId || !w.toSocket) return;
-
-      if (combinedSegment && (w.id === wLeft?.id || w.id === wRight?.id)) {
-        return;
-      }
-
-      // No electrons on net 0.0 or any wire directly connected to GND component
-      const isGndWire = w.netName === '0.0' || 
-                        cards.some((c) => c.componentType === 'ground' && (w.fromId === c.id || w.toId === c.id));
-      if (isGndWire) {
-        return;
-      }
-
-      const sStart = `${w.fromId}-${w.fromSocket}`;
-      const sEnd = `${w.toId}-${w.toSocket}`;
-      const scoreStart = scoreMap[sStart] ?? 0;
-      const scoreEnd = scoreMap[sEnd] ?? 0;
-
-      const isForward = scoreStart <= scoreEnd;
-      const path = getWirePoints(w, isForward, cards);
-      const length = getPathLength(path);
-
-      const root = uf.find(sStart);
-      let current = nodeMaxCurrents[root] || 0;
-
-      // Match branch current of directly connected components (R1, R3, etc.)
-      const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
-      if (connectedCard) {
-        const solved = solvedResults[connectedCard.id];
-        if (solved) {
-          current = solved.branchCurrent;
-        }
-      } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
-        // Fallback for node 1 subnets to match resistor R2 current
-        const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
-        if (r2Card && solvedResults[r2Card.id]) {
-          current = solvedResults[r2Card.id].branchCurrent;
-        }
-      }
-
-      const speed = getSpeedForCurrent(current, maxI);
-
-      newSegments.push({ id: w.id, path, length, speed, spawnAccumulator: 0 });
-    });
-
-    if (combinedSegment) {
-      newSegments.push(combinedSegment);
-    }
 
     // 5. Interpolate old electron progress values onto new segments
     const oldElectronsBySegment = new Map<string, number[]>();

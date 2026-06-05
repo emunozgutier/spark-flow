@@ -3,7 +3,7 @@ import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../da
 import { formatEngineering, parseEngineering, parseInstanceNumber } from '../utils/math';
 import { useCanvas } from '../store/useCanvas';
 
-interface ElementSettingsProps {
+interface SettingsSideMenuProps {
   selectedElement: CanvasElement | null;
   onUpdateElement: (id: string, updates: Partial<any>) => void;
   onDeleteElement: (id: string) => void;
@@ -20,7 +20,7 @@ const COLOR_THEMES: { name: ThemeColor; value: string; display: string }[] = [
   { name: 'amber', value: 'var(--theme-amber)', display: 'Amber' },
 ];
 
-export const ElementSettings: React.FC<ElementSettingsProps> = ({
+export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
   selectedElement,
   onUpdateElement,
   onDeleteElement,

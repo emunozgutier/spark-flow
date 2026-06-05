@@ -4,7 +4,7 @@ import { useZoom } from './store/useZoom';
 import { Canvas } from './components/Canvas';
 import { TopBar } from './components/TopBar';
 import { ZoomControl } from './components/ZoomControl';
-import { ElementSettings } from './components/ElementSettings';
+import { SettingsSideMenu } from './components/SettingsSideMenu';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import { formatEngineering } from './utils/math';
 import { solveLinearSystem } from './sim/components/mnaSolver';
@@ -832,7 +832,7 @@ function App() {
       />
 
       {/* 4. Slide out element settings inspector (right-side) */}
-      <ElementSettings
+      <SettingsSideMenu
         selectedElement={selectedElement}
         onUpdateElement={updateElement}
         onDeleteElement={deleteElement}
