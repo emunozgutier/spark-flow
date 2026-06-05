@@ -218,9 +218,11 @@ export const Canvas: React.FC<CanvasProps> = ({
       // Identify the ground node group
       let gndRoot: string | null = null;
       Object.keys(groups).forEach((root) => {
-        const hasGndPin = groups[root].some((pin) => 
-          pin.toLowerCase().includes('ground') || pin.toLowerCase().includes('gnd')
-        );
+        const hasGndPin = groups[root].some((pin) => {
+          const cardId = pin.substring(0, pin.lastIndexOf('-'));
+          const card = cards.find((c) => c.id === cardId);
+          return card?.componentType === 'ground';
+        });
         if (hasGndPin) {
           gndRoot = root;
         }
@@ -264,16 +266,22 @@ export const Canvas: React.FC<CanvasProps> = ({
         g2ElementMap[rGrp2.id] = g2Index++;
       });
 
-      // Fill Resistors conductances in G matrix
+      // Fill Resistors and Inductors conductances in G matrix
       cards.forEach((card) => {
-        if (card.componentType === 'resistor') {
+        if (card.componentType === 'resistor' || card.componentType === 'inductor') {
           const n1Str = getPinNode(card.id, 'left');
           const n2Str = getPinNode(card.id, 'right');
           const n1 = parseInt(n1Str, 10);
           const n2 = parseInt(n2Str, 10);
-          const rVal = card.value || 1000;
+          
+          let rVal = 1000;
+          if (card.componentType === 'inductor') {
+            rVal = 1e-3; // Inductor acts as a short circuit in DC
+          } else {
+            rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
+          }
 
-          if (card.isGroup2) {
+          if (card.componentType === 'resistor' && card.isGroup2) {
             const idx = g2ElementMap[card.id];
             if (n1 > 0) A[n1 - 1][idx] += 1;
             if (n2 > 0) A[n2 - 1][idx] -= 1;
@@ -357,7 +365,8 @@ export const Canvas: React.FC<CanvasProps> = ({
             const idx = g2ElementMap[card.id];
             iBranch = X[idx] || 0;
           } else {
-            iBranch = vDrop / (card.value || 1000);
+            const rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
+            iBranch = vDrop / rVal;
           }
         } else if (card.componentType === 'voltage') {
           const idx = g2ElementMap[card.id];
@@ -367,12 +376,17 @@ export const Canvas: React.FC<CanvasProps> = ({
         } else if (card.componentType === 'capacitor') {
           iBranch = 0; // DC open
         } else if (card.componentType === 'inductor') {
-          iBranch = 0; // Inductor branch current could be solved but DC short defaults vDrop=0
+          // Inductor behaves like a 1mOhm resistor in DC
+          iBranch = vDrop / 1e-3;
         }
 
+        // Format: Use absolute values for diagnostics display, keeping source voltages as configured
+        const displayVDrop = card.componentType === 'voltage' ? vDrop : Math.abs(vDrop);
+        const displayIBranch = Math.abs(iBranch);
+
         results[card.id] = {
-          voltageDrop: vDrop,
-          branchCurrent: iBranch
+          voltageDrop: displayVDrop,
+          branchCurrent: displayIBranch
         };
       });
 
