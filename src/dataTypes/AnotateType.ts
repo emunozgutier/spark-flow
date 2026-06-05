@@ -55,6 +55,7 @@ export interface ArrowAnnotation extends BaseType {
   color: ThemeColor;
   style: 'straight' | 'curved' | 'dashed';
   lineWidth?: number;
+  netName?: string;
 }
 
 /**
