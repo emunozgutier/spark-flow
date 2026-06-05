@@ -5,7 +5,7 @@ import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
 import { SourcesBar } from './TopBar/SourcesBar';
 import { DebugPopup } from './TopBar/DebugPopup';
-import { SimulationPanel } from './Canvas/SimulationPanel';
+import { Popup } from './Popup';
 import { useCanvas } from '../store/useCanvas';
 
 interface TopBarProps {
@@ -241,7 +241,7 @@ export const TopBar: React.FC<TopBarProps> = ({
  
       {/* Live Simulation Panel Dashboard overlay */}
       {activeTab === 'simulate' && (
-        <SimulationPanel
+        <Popup
           isOpen={true}
           onClose={() => setActiveTab('anotate')}
           elements={elements}
