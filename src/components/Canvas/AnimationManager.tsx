@@ -1,7 +1,9 @@
 import React, { useRef, useEffect } from 'react';
 import type { Point, CanvasElement, CardElement, ArrowElement } from '../../dataTypes/AnotateType';
-import { Electron, drawElectron, setupElectronStyles } from './Animation/Electron';
-import { Segment, getPositionAlongPath, getPathLength, getWirePoints, getSocketPosition, mergePaths, getSpeedForCurrent } from './Animation/ElectronPath';
+import type { Electron } from './Animation/Electron';
+import { drawElectron, setupElectronStyles } from './Animation/Electron';
+import type { Segment } from './Animation/ElectronPath';
+import { getPositionAlongPath, getPathLength, getWirePoints, getSocketPosition, mergePaths, getSpeedForCurrent } from './Animation/ElectronPath';
 
 interface AnimationManagerProps {
   elements: CanvasElement[];

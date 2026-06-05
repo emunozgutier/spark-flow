@@ -355,6 +355,8 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { liveDCOn } = useCanvas();
+  const loopCounterRef = useRef(0);
+  const loopResetTimeRef = useRef(Date.now());
 
   // Auto-assign net names to all wires in the circuit
   useEffect(() => {
@@ -393,10 +395,28 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
 
     if (changed) {
+      const now = Date.now();
+      if (now - loopResetTimeRef.current > 2000) {
+        loopCounterRef.current = 0;
+        loopResetTimeRef.current = now;
+      }
+      loopCounterRef.current++;
+
+      if (loopCounterRef.current > 10) {
+        console.error('SparkFlow: Prevented infinite update loop in ensureNetNames!');
+        if (setToast) {
+          setToast({
+            message: '⚠️ Auto-naming paused to prevent page freeze.',
+            type: 'info'
+          });
+        }
+        return;
+      }
+
       useCanvas.setState({ elements: nextElements });
       localStorage.setItem('spark-flow:board-elements', JSON.stringify(nextElements));
     }
-  }, [elements]);
+  }, [elements, setToast]);
 
   // Interactive Drag states
   const [draggingCard, setDraggingCard] = useState<DraggingCardState | null>(null);
