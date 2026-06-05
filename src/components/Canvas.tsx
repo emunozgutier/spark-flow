@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useStyle } from '../store/useStyle';
 import { useCanvas } from '../store/useCanvas';
-import { PassiveElment } from './Canvas/PassiveElment';
+import { CircuitElements } from './Canvas/CircuitElements';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Wires';
@@ -1113,9 +1113,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           const isJoin = card.id.startsWith('join') || card.title === 'join';
           
           if (isPassive) {
-            const opData = solvedDCOperatingPoint[card.id];
             return (
-              <PassiveElment
+              <CircuitElements
                 key={card.id}
                 card={card}
                 isSelected={isSelected}
@@ -1125,8 +1124,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                 initiateArrowDraw={initiateArrowDraw}
                 updateElement={updateElement}
                 finalizeDrag={finalizeDrag}
-                liveDCOn={liveDCOn}
-                dcStats={opData}
               />
             );
           }

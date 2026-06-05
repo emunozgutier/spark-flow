@@ -4,6 +4,7 @@ import { FileBar } from './TopBar/FileBar';
 import { AnotateBar } from './TopBar/AnotateBar';
 import { PassivesBar } from './TopBar/PassivesBar';
 import { SourcesBar } from './TopBar/SourcesBar';
+import { Animation } from './TopBar/Animation';
 import { DebugPopup } from './TopBar/DebugPopup';
 import { Popup } from './Popup';
 import { useCanvas } from '../store/useCanvas';
@@ -192,7 +193,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       {/* Dynamic Sub-Bar / Sub-Toolbar */}
-      <div className="topbar-sub-bar-container">
+      <div className="topbar-sub-bar-container" style={{ gap: '10px' }}>
         {activeTab === 'file' && (
           <FileBar
             undo={undo}
@@ -225,6 +226,10 @@ export const TopBar: React.FC<TopBarProps> = ({
             activeTool={activeTool}
             setActiveTool={setActiveTool}
           />
+        )}
+
+        {liveDCOn && (
+          <Animation />
         )}
       </div>
 

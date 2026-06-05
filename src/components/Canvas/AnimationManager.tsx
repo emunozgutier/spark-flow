@@ -4,6 +4,7 @@ import type { Electron } from './Animation/Electron';
 import { drawElectron, setupElectronStyles } from './Animation/Electron';
 import type { Segment } from './Animation/ElectronPath';
 import { getPositionAlongPath, getPathLength, getWirePoints, getSocketPosition, mergePaths, getSpeedForCurrent } from './Animation/ElectronPath';
+import { useAnimation } from '../../store/useAnimation';
 
 interface AnimationManagerProps {
   elements: CanvasElement[];
@@ -54,12 +55,15 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
   containerRef
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { speedMultiplier, isPaused } = useAnimation();
 
   // Keep references to latest values to avoid recreating the animation frame loop
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
   const elementsRef = useRef(elements);
   const solvedResultsRef = useRef(solvedResults);
+  const speedMultiplierRef = useRef(speedMultiplier);
+  const isPausedRef = useRef(isPaused);
 
   // Sync references
   useEffect(() => {
@@ -67,7 +71,9 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     zoomRef.current = zoom;
     elementsRef.current = elements;
     solvedResultsRef.current = solvedResults;
-  }, [pan, zoom, elements, solvedResults]);
+    speedMultiplierRef.current = speedMultiplier;
+    isPausedRef.current = isPaused;
+  }, [pan, zoom, elements, solvedResults, speedMultiplier, isPaused]);
 
   // Resize handler for Retina-sharp drawing context
   useEffect(() => {
@@ -601,8 +607,9 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
 
     const tick = (timestamp: number) => {
       // Safely cap dt at 0.1s to prevent infinite spawn loops on tab wakeup, slow renders, or HMR reloads
-      const dt = Math.min(0.1, (timestamp - lastTime) / 1000);
+      const rawDt = Math.min(0.1, (timestamp - lastTime) / 1000);
       lastTime = timestamp;
+      const dt = isPausedRef.current ? 0 : rawDt * speedMultiplierRef.current;
 
       const segments = segmentsRef.current;
       const segmentMap = new Map(segments.map((s) => [s.id, s]));

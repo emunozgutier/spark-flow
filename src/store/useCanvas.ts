@@ -346,7 +346,8 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           const idsToDelete = get().selectedIds.includes(id) ? get().selectedIds : [id];
 
-          const nextElements = get().elements.filter((el) => {
+          // 1. Initial filter to remove deleted items and any wires attached to them
+          let nextElements = get().elements.filter((el) => {
             if (idsToDelete.includes(el.id)) return false;
             if (el.type === 'arrow') {
               const arrow = el as ArrowElement;
@@ -355,6 +356,84 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             }
             return true;
           });
+
+          // Helper to trace non-join end of a wire connected to a join card
+          const getOtherEnd = (arrow: ArrowElement, joinId: string) => {
+            if (arrow.fromId === joinId) {
+              return {
+                id: arrow.toId,
+                socket: arrow.toSocket,
+                point: arrow.toPoint
+              };
+            } else {
+              return {
+                id: arrow.fromId,
+                socket: arrow.fromSocket,
+                point: arrow.fromPoint
+              };
+            }
+          };
+
+          // 2. Iteratively find joins with <= 2 connections, delete them, and merge their connections if exactly 2
+          let changed = true;
+          while (changed) {
+            changed = false;
+            const currentCards = nextElements.filter(el => el.type === 'box') as CardElement[];
+            const currentArrows = nextElements.filter(el => el.type === 'arrow') as ArrowElement[];
+
+            const joinToDelete = currentCards.find(card => {
+              const isJoin = card.id.startsWith('join') || card.title === 'join';
+              if (!isJoin) return false;
+
+              const connections = currentArrows.filter(arrow => 
+                arrow.fromId === card.id || arrow.toId === card.id
+              );
+              return connections.length <= 2;
+            });
+
+            if (joinToDelete) {
+              const connections = currentArrows.filter(arrow => 
+                arrow.fromId === joinToDelete.id || arrow.toId === joinToDelete.id
+              );
+
+              // Remove this join
+              nextElements = nextElements.filter(el => el.id !== joinToDelete.id);
+
+              if (connections.length === 2) {
+                const [arrow1, arrow2] = connections;
+
+                // Remove both arrows
+                nextElements = nextElements.filter(el => el.id !== arrow1.id && el.id !== arrow2.id);
+
+                // Merge them into one
+                const end1 = getOtherEnd(arrow1, joinToDelete.id);
+                const end2 = getOtherEnd(arrow2, joinToDelete.id);
+
+                const mergedArrow: ArrowElement = {
+                  id: arrow1.id, // reuse id
+                  type: 'arrow',
+                  fromId: end1.id,
+                  fromSocket: end1.socket,
+                  fromPoint: end1.point,
+                  toId: end2.id,
+                  toSocket: end2.socket,
+                  toPoint: end2.point,
+                  color: arrow1.color || arrow2.color || 'amber',
+                  style: arrow1.style || arrow2.style || 'straight',
+                  label: arrow1.label || arrow2.label || ''
+                };
+
+                nextElements.push(mergedArrow);
+              } else {
+                // If 1 or 0 connections, just remove the connections as well
+                connections.forEach(arrow => {
+                  nextElements = nextElements.filter(el => el.id !== arrow.id);
+                });
+              }
+
+              changed = true;
+            }
+          }
 
           set({ elements: nextElements, selectedId: null, selectedIds: [] });
           saveToStorage(nextElements);
