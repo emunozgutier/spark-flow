@@ -147,17 +147,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   let solvedX = new Array(mnaSize).fill(0);
   const hasDiodes = cards.some((c) => c.componentType === 'diode');
 
-  let voltagesGuess: Record<string, number> = { '0': 0 };
-  for (let i = 1; i <= nodeCount; i++) voltagesGuess[String(i)] = 0.0;
-  
-  const maxIterations = hasDiodes ? 50 : 1;
-  const tolerance = 1e-5;
-  
-  for (let iter = 0; iter < maxIterations; iter++) {
-    const A_iter = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
-    const B_iter = new Array(mnaSize).fill(0);
+  const compileSystemWalkthrough = (voltages: Record<string, number>) => {
+    const A_sys = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
+    const B_sys = new Array(mnaSize).fill(0);
 
-    // Stamp Resistors, Inductors
+    // Resistors, Inductors
     cards.forEach((card) => {
       if (card.componentType === 'resistor' || card.componentType === 'inductor') {
         const n1Str = getPinNode(card.id, 'left');
@@ -168,50 +162,24 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
         if (card.componentType === 'resistor' && card.isGroup2) {
           const idx = g2ElementMap[card.id];
-          if (n1 > 0) A_iter[n1 - 1][idx] += 1;
-          if (n2 > 0) A_iter[n2 - 1][idx] -= 1;
-          if (n1 > 0) A_iter[idx][n1 - 1] += 1;
-          if (n2 > 0) A_iter[idx][n2 - 1] -= 1;
-          A_iter[idx][idx] -= rVal;
+          if (n1 > 0) A_sys[n1 - 1][idx] += 1;
+          if (n2 > 0) A_sys[n2 - 1][idx] -= 1;
+          if (n1 > 0) A_sys[idx][n1 - 1] += 1;
+          if (n2 > 0) A_sys[idx][n2 - 1] -= 1;
+          A_sys[idx][idx] -= rVal;
         } else {
           const g = 1 / rVal;
-          if (n1 > 0) A_iter[n1 - 1][n1 - 1] += g;
-          if (n2 > 0) A_iter[n2 - 1][n2 - 1] += g;
+          if (n1 > 0) A_sys[n1 - 1][n1 - 1] += g;
+          if (n2 > 0) A_sys[n2 - 1][n2 - 1] += g;
           if (n1 > 0 && n2 > 0) {
-            A_iter[n1 - 1][n2 - 1] -= g;
-            A_iter[n2 - 1][n1 - 1] -= g;
+            A_sys[n1 - 1][n2 - 1] -= g;
+            A_sys[n2 - 1][n1 - 1] -= g;
           }
         }
       }
     });
 
-    // Stamp Diodes
-    cards.forEach((card) => {
-      if (card.componentType === 'diode') {
-        const n1Str = getPinNode(card.id, 'left');
-        const n2Str = getPinNode(card.id, 'right');
-        const n1 = parseInt(n1Str, 10);
-        const n2 = parseInt(n2Str, 10);
-        const vd = Math.max(-1.0, Math.min(0.8, (voltagesGuess[n1Str] || 0) - (voltagesGuess[n2Str] || 0)));
-        const Is = 1e-14;
-        const Vt = 0.026;
-        const expTerm = Math.exp(vd / Vt);
-        const gd = (Is / Vt) * expTerm;
-        const id = Is * (expTerm - 1);
-        const Ieq = id - gd * vd;
-
-        if (n1 > 0) A_iter[n1 - 1][n1 - 1] += gd;
-        if (n2 > 0) A_iter[n2 - 1][n2 - 1] += gd;
-        if (n1 > 0 && n2 > 0) {
-          A_iter[n1 - 1][n2 - 1] -= gd;
-          A_iter[n2 - 1][n1 - 1] -= gd;
-        }
-        if (n1 > 0) B_iter[n1 - 1] -= Ieq;
-        if (n2 > 0) B_iter[n2 - 1] += Ieq;
-      }
-    });
-
-    // Stamp Voltage Sources
+    // Sources
     voltageSources.forEach((vSrc) => {
       const n1Str = getPinNode(vSrc.id, 'left');
       const n2Str = getPinNode(vSrc.id, 'right');
@@ -219,27 +187,25 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       const n2 = parseInt(n2Str, 10);
       const val = vSrc.value !== undefined ? vSrc.value : 5;
       const idx = g2ElementMap[vSrc.id];
-      if (n1 > 0) A_iter[n1 - 1][idx] += 1;
-      if (n2 > 0) A_iter[n2 - 1][idx] -= 1;
-      if (n1 > 0) A_iter[idx][n1 - 1] += 1;
-      if (n2 > 0) A_iter[idx][n2 - 1] -= 1;
-      B_iter[idx] = val;
+      if (n1 > 0) A_sys[n1 - 1][idx] += 1;
+      if (n2 > 0) A_sys[n2 - 1][idx] -= 1;
+      if (n1 > 0) A_sys[idx][n1 - 1] += 1;
+      if (n2 > 0) A_sys[idx][n2 - 1] -= 1;
+      B_sys[idx] = val;
     });
 
-    // Stamp Inductors (DC op short circuit)
     inductors.forEach((card) => {
       const n1Str = getPinNode(card.id, 'left');
       const n2Str = getPinNode(card.id, 'right');
       const n1 = parseInt(n1Str, 10);
       const n2 = parseInt(n2Str, 10);
       const idx = g2ElementMap[card.id];
-      if (n1 > 0) A_iter[n1 - 1][idx] += 1;
-      if (n2 > 0) A_iter[n2 - 1][idx] -= 1;
-      if (n1 > 0) A_iter[idx][n1 - 1] += 1;
-      if (n2 > 0) A_iter[idx][n2 - 1] -= 1;
+      if (n1 > 0) A_sys[n1 - 1][idx] += 1;
+      if (n2 > 0) A_sys[n2 - 1][idx] -= 1;
+      if (n1 > 0) A_sys[idx][n1 - 1] += 1;
+      if (n2 > 0) A_sys[idx][n2 - 1] -= 1;
     });
 
-    // Stamp Current Sources
     cards.forEach((card) => {
       if (card.componentType === 'current') {
         const n1Str = getPinNode(card.id, 'left');
@@ -247,8 +213,107 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         const n1 = parseInt(n1Str, 10);
         const n2 = parseInt(n2Str, 10);
         const val = card.value !== undefined ? card.value : 0.001;
-        if (n1 > 0) B_iter[n1 - 1] -= val;
-        if (n2 > 0) B_iter[n2 - 1] += val;
+        if (n1 > 0) B_sys[n1 - 1] -= val;
+        if (n2 > 0) B_sys[n2 - 1] += val;
+      }
+    });
+
+    // Diodes
+    cards.forEach((card) => {
+      if (card.componentType === 'diode') {
+        const n1Str = getPinNode(card.id, 'left');
+        const n2Str = getPinNode(card.id, 'right');
+        const n1 = parseInt(n1Str, 10);
+        const n2 = parseInt(n2Str, 10);
+        const vd = (voltages[n1Str] || 0) - (voltages[n2Str] || 0);
+        const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
+        
+        const Is = 1e-14;
+        const Vt = 0.026;
+        const expTerm = Math.exp(vdClamped / Vt);
+        const gd = (Is / Vt) * expTerm;
+        const id = Is * (expTerm - 1);
+        const Ieq = id - gd * vdClamped;
+
+        if (n1 > 0) A_sys[n1 - 1][n1 - 1] += gd;
+        if (n2 > 0) A_sys[n2 - 1][n2 - 1] += gd;
+        if (n1 > 0 && n2 > 0) {
+          A_sys[n1 - 1][n2 - 1] -= gd;
+          A_sys[n2 - 1][n1 - 1] -= gd;
+        }
+        if (n1 > 0) B_sys[n1 - 1] -= Ieq;
+        if (n2 > 0) B_sys[n2 - 1] += Ieq;
+      }
+    });
+
+    return { A: A_sys, B: B_sys };
+  };
+
+  interface DiodeStampRecord {
+    designator: string;
+    vd: number;
+    gd: number;
+    Ieq: number;
+    highlights: string[];
+  }
+
+  interface IterationRecord {
+    iterIndex: number;
+    voltagesGuess: Record<string, number>;
+    diodeStamps: DiodeStampRecord[];
+    A: number[][];
+    B: number[];
+    nextX: number[];
+    residual: number[];
+    converged: boolean;
+  }
+
+  const iterationsList: IterationRecord[] = [];
+  let voltagesGuess: Record<string, number> = { '0': 0 };
+  for (let i = 1; i <= nodeCount; i++) voltagesGuess[String(i)] = 0.0;
+
+  const maxWalkthroughIterations = 15;
+  const tolV = 1e-3;
+  const tolI = 1e-6;
+  let finalVoltages = { ...voltagesGuess };
+  let finalX = new Array(mnaSize).fill(0);
+
+  for (let iter = 0; iter < maxWalkthroughIterations; iter++) {
+    // Compile at current voltagesGuess
+    const { A: A_iter, B: B_iter } = compileSystemWalkthrough(voltagesGuess);
+
+    // Dynamic diode info for walkthrough explanations
+    const diodeStamps: DiodeStampRecord[] = [];
+    cards.forEach((card) => {
+      if (card.componentType === 'diode') {
+        const n1Str = getPinNode(card.id, 'left');
+        const n2Str = getPinNode(card.id, 'right');
+        const n1 = parseInt(n1Str, 10);
+        const n2 = parseInt(n2Str, 10);
+        const vd = (voltagesGuess[n1Str] || 0) - (voltagesGuess[n2Str] || 0);
+        const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
+        
+        const Is = 1e-14;
+        const Vt = 0.026;
+        const expTerm = Math.exp(vdClamped / Vt);
+        const gd = (Is / Vt) * expTerm;
+        const id = Is * (expTerm - 1);
+        const Ieq = id - gd * vdClamped;
+
+        const highlights: string[] = [];
+        if (n1 > 0) highlights.push(`${n1 - 1}-${n1 - 1}`, `rhs-${n1 - 1}`);
+        if (n2 > 0) highlights.push(`${n2 - 1}-${n2 - 1}`, `rhs-${n2 - 1}`);
+        if (n1 > 0 && n2 > 0) {
+          highlights.push(`${n1 - 1}-${n2 - 1}`, `${n2 - 1}-${n1 - 1}`);
+        }
+
+        diodeStamps.push({
+          designator: getDesignator(card),
+          vd,
+          gd,
+          Ieq,
+          highlights
+        });
       }
     });
 
@@ -259,22 +324,55 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       break;
     }
 
-    let maxDiff = 0;
     const nextVoltages: Record<string, number> = { '0': 0 };
     for (let i = 1; i <= nodeCount; i++) {
-      const vOld = voltagesGuess[String(i)] || 0;
-      const vNew = nextX[i - 1] || 0;
-      nextVoltages[String(i)] = vNew;
-      maxDiff = Math.max(maxDiff, Math.abs(vNew - vOld));
+      nextVoltages[String(i)] = nextX[i - 1] || 0;
     }
-    voltagesGuess = nextVoltages;
-    solvedX = nextX;
-    if (!hasDiodes || maxDiff < tolerance) break;
-  }
-  solvedVoltages = voltagesGuess;
 
-  // Helper to add a card's stamp into a matrix and RHS and return modified cell IDs
-  const addStampToSystem = (card: CardElement, A_sys: number[][], B_sys: number[], voltages_estimate: Record<string, number>) => {
+    // Compile at nextVoltages to compute residual f(x_next) = A_next * x_next - B_next
+    const { A: A_next, B: B_next } = compileSystemWalkthrough(nextVoltages);
+    const residual = new Array(mnaSize).fill(0);
+    for (let r = 0; r < mnaSize; r++) {
+      let sum = 0;
+      for (let c = 0; c < mnaSize; c++) {
+        sum += A_next[r][c] * nextX[c];
+      }
+      residual[r] = sum - B_next[r];
+    }
+
+    // Convergence check
+    let converged = true;
+    for (let i = 0; i < mnaSize; i++) {
+      if (i < nodeCount) {
+        if (Math.abs(residual[i]) >= tolI) converged = false;
+      } else {
+        if (Math.abs(residual[i]) >= tolV) converged = false;
+      }
+    }
+
+    iterationsList.push({
+      iterIndex: iter + 1,
+      voltagesGuess: { ...voltagesGuess },
+      diodeStamps,
+      A: A_iter.map(row => [...row]),
+      B: [...B_iter],
+      nextX: [...nextX],
+      residual,
+      converged
+    });
+
+    voltagesGuess = nextVoltages;
+    finalVoltages = nextVoltages;
+    finalX = nextX;
+
+    if (converged) break;
+  }
+
+  solvedVoltages = finalVoltages;
+  solvedX = finalX;
+
+  // Helper to add a card's stamp into a matrix and RHS and return modified cell IDs (for Step 2 linear stamps)
+  const addStampToSystem = (card: CardElement, A_sys: number[][], B_sys: number[]) => {
     const n1Str = getPinNode(card.id, 'left');
     const n2Str = getPinNode(card.id, 'right');
     const n1 = parseInt(n1Str, 10);
@@ -299,23 +397,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           A_sys[n2 - 1][n1 - 1] -= g; modifiedCells.push(`${n2 - 1}-${n1 - 1}`);
         }
       }
-    } else if (card.componentType === 'diode') {
-      const vd = Math.max(-1.0, Math.min(0.8, (voltages_estimate[n1Str] || 0) - (voltages_estimate[n2Str] || 0)));
-      const Is = 1e-14;
-      const Vt = 0.026;
-      const expTerm = Math.exp(vd / Vt);
-      const gd = (Is / Vt) * expTerm;
-      const id = Is * (expTerm - 1);
-      const Ieq = id - gd * vd;
-
-      if (n1 > 0) { A_sys[n1 - 1][n1 - 1] += gd; modifiedCells.push(`${n1 - 1}-${n1 - 1}`); }
-      if (n2 > 0) { A_sys[n2 - 1][n2 - 1] += gd; modifiedCells.push(`${n2 - 1}-${n2 - 1}`); }
-      if (n1 > 0 && n2 > 0) {
-        A_sys[n1 - 1][n2 - 1] -= gd; modifiedCells.push(`${n1 - 1}-${n2 - 1}`);
-        A_sys[n2 - 1][n1 - 1] -= gd; modifiedCells.push(`${n2 - 1}-${n1 - 1}`);
-      }
-      if (n1 > 0) { B_sys[n1 - 1] -= Ieq; modifiedCells.push(`rhs-${n1 - 1}`); }
-      if (n2 > 0) { B_sys[n2 - 1] += Ieq; modifiedCells.push(`rhs-${n2 - 1}`); }
     } else if (card.componentType === 'voltage') {
       const val = card.value !== undefined ? card.value : 5;
       const idx = g2ElementMap[card.id];
@@ -340,6 +421,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     matrix: number[][];
     rhs: number[];
     highlights: string[];
+    variableValues: string[];
   }
 
   const nmaSteps: WalkthroughStep[] = [];
@@ -350,18 +432,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     desc: `We construct a ${mnaSize}x${mnaSize} Modified Nodal Analysis (MNA) matrix system to solve for the unknown node voltages and branch currents of the actual circuit. The variables vector is [${variableLabels.join(', ')}]. All cells start at 0.`,
     matrix: Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0)),
     rhs: new Array(mnaSize).fill(0),
-    highlights: []
+    highlights: [],
+    variableValues: variableLabels
   });
 
-  // Step 2: Accumulate Element Stamps
+  // Step 2: Accumulate Linear Element Stamps
   const A_temp = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
   const B_temp = new Array(mnaSize).fill(0);
-  const elementsToStamp = cards.filter((c) => c.componentType !== undefined && c.componentType !== 'ground');
+  const elementsToStamp = cards.filter((c) => c.componentType !== undefined && c.componentType !== 'ground' && c.componentType !== 'diode');
   
   const substeps: Array<{ title: string; stepIndex: number }> = [];
 
   elementsToStamp.forEach((card) => {
-    const highlights = addStampToSystem(card, A_temp, B_temp, solvedVoltages);
+    const highlights = addStampToSystem(card, A_temp, B_temp);
     const designator = getDesignator(card);
     const n1Str = getPinNode(card.id, 'left');
     const n2Str = getPinNode(card.id, 'right');
@@ -370,8 +453,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     if (card.componentType === 'resistor') {
       const val = card.value !== undefined ? card.value : 1000;
       desc += `Resistor connects Node ${n1Str} and Node ${n2Str}. We stamp a conductance of 1/R = ${(1 / (val || 1e-3)).toFixed(4)} S.`;
-    } else if (card.componentType === 'diode') {
-      desc += `Diode connects Node ${n1Str} and Node ${n2Str}. Formulated using Newton-Raphson companion model stamps.`;
     } else if (card.componentType === 'voltage') {
       const val = card.value !== undefined ? card.value : 5;
       desc += `Voltage source connects Node ${n1Str} (+) and Node ${n2Str} (-), enforcing a fixed potential difference of ${val}V.`;
@@ -389,7 +470,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       desc,
       matrix: A_temp.map(row => [...row]),
       rhs: [...B_temp],
-      highlights
+      highlights,
+      variableValues: variableLabels
     });
 
     substeps.push({
@@ -398,28 +480,63 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     });
   });
 
-  // Step 3: Solve System
+  const nrSubsteps: Array<{ title: string; stepIndex: number }> = [];
+
+  if (hasDiodes) {
+    // Newton-Raphson iterations steps
+    iterationsList.forEach((record) => {
+      let desc = `Newton-Raphson Iteration ${record.iterIndex}. `;
+      record.diodeStamps.forEach(ds => {
+        desc += `Diode ${ds.designator} has guessed Vd = ${ds.vd.toFixed(4)} V. Stamped companion conductance gd = ${ds.gd.toFixed(4)} S and companion current Ieq = ${(ds.Ieq * 1000).toFixed(4)} mA. `;
+      });
+
+      const maxKcl = Math.max(...record.residual.slice(0, nodeCount).map(Math.abs));
+      const maxBranch = record.residual.length > nodeCount ? Math.max(...record.residual.slice(nodeCount).map(Math.abs)) : 0;
+      desc += `KCL Residual = ${(maxKcl * 1e6).toFixed(2)} uA, Branch Residual = ${(maxBranch * 1000).toFixed(2)} mV. `;
+
+      if (record.converged) {
+        desc += `Residuals are within tolerances (<1 uA, <1 mV). System has CONVERGED!`;
+      } else {
+        desc += `Residuals exceed tolerances. Continuing to next iteration.`;
+      }
+
+      nmaSteps.push({
+        title: `Iteration ${record.iterIndex}`,
+        desc,
+        matrix: record.A,
+        rhs: record.B,
+        highlights: record.diodeStamps.flatMap(ds => ds.highlights),
+        variableValues: variableLabels.map((label, idx) => {
+          const val = record.nextX[idx] || 0;
+          const isCurrent = label.startsWith('i');
+          return isCurrent ? `${(val * 1000).toFixed(2)} mA` : `${val.toFixed(2)} V`;
+        })
+      });
+
+      nrSubsteps.push({
+        title: `Iteration ${record.iterIndex}${record.converged ? ' (Converged)' : ''}`,
+        stepIndex: nmaSteps.length - 1
+      });
+    });
+  }
+
+  // Final summary step
+  const finalSystem = compileSystemWalkthrough(solvedVoltages);
   nmaSteps.push({
-    title: 'Step 3: Solve System',
-    desc: `Solving the complete matrix equation yields the exact electrical values for all of our unknown variables: voltages and branch currents. The solved values are populated in the variables vector below.`,
-    matrix: A_temp.map(row => [...row]),
-    rhs: [...B_temp],
-    highlights: []
+    title: hasDiodes ? 'Step 4: Final Solution' : 'Step 3: Final Solution',
+    desc: hasDiodes 
+      ? `Newton-Raphson iterations converged successfully. The final matrix and solved values are displayed below.`
+      : `Solving the linear MNA equations yields the exact node voltages and branch currents shown below.`,
+    matrix: finalSystem.A,
+    rhs: finalSystem.B,
+    highlights: [],
+    variableValues: variableLabels.map((label, idx) => {
+      const val = solvedX[idx] || 0;
+      const isCurrent = label.startsWith('i');
+      return isCurrent ? `${(val * 1000).toFixed(2)} mA` : `${val.toFixed(2)} V`;
+    })
   });
   const solveStepIndex = nmaSteps.length - 1;
-
-  // Step 4: Non-linear MNA
-  let nonLinearStepIndex = -1;
-  if (hasDiodes) {
-    nmaSteps.push({
-      title: 'Step 4: Non-linear Newton-Raphson',
-      desc: `Since the circuit contains non-linear elements (Diodes), the system is solved iteratively using Newton-Raphson. At each iteration, the diode is linearized into a companion conductance gd and equivalent current source Ieq based on the guessed voltages.`,
-      matrix: A_temp.map(row => [...row]),
-      rhs: [...B_temp],
-      highlights: []
-    });
-    nonLinearStepIndex = nmaSteps.length - 1;
-  }
 
   interface MenuSection {
     id: string;
@@ -440,35 +557,28 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   if (substeps.length > 0) {
     menuSections.push({
       id: 'step2',
-      title: 'Step 2: Add Element Stamps',
+      title: 'Step 2: Add Linear Stamps',
       substeps
     });
   }
 
-  menuSections.push({
-    id: 'step3',
-    title: 'Step 3: Solve System',
-    stepIndex: solveStepIndex
-  });
-
-  if (hasDiodes && nonLinearStepIndex !== -1) {
+  if (hasDiodes && nrSubsteps.length > 0) {
     menuSections.push({
-      id: 'step4',
-      title: 'Step 4: Non-linear MNA',
-      stepIndex: nonLinearStepIndex
+      id: 'step3_nr',
+      title: 'Step 3: Newton-Raphson',
+      substeps: nrSubsteps
     });
   }
 
+  menuSections.push({
+    id: hasDiodes ? 'step4_solve' : 'step3_solve',
+    title: hasDiodes ? 'Step 4: Final Solution' : 'Step 3: Solve System',
+    stepIndex: solveStepIndex
+  });
+
   const [nmaStep, setNmaStep] = useState<number>(0);
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
-
-  const displayVariableLabels = currentStep === solveStepIndex || (nonLinearStepIndex !== -1 && currentStep === nonLinearStepIndex)
-    ? variableLabels.map((label, idx) => {
-        const val = solvedX[idx] || 0;
-        const isCurrent = label.startsWith('i');
-        return isCurrent ? `${(val * 1000).toFixed(2)} mA` : `${val.toFixed(2)} V`;
-      })
-    : variableLabels;
+  const displayVariableLabels = nmaSteps[currentStep].variableValues;
 
   return (
     <div style={{ display: 'flex', height: '100%', gap: '16px', minHeight: 0 }}>
@@ -491,7 +601,9 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         </div>
         {menuSections.map((sec) => {
           if (sec.substeps) {
-            const isParentActive = currentStep >= 1 && currentStep < solveStepIndex;
+            const isParentActive = sec.id === 'step2'
+              ? (currentStep >= 1 && currentStep <= substeps.length)
+              : (currentStep > substeps.length && currentStep < solveStepIndex);
             return (
               <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <div style={{
@@ -668,24 +780,27 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             background: 'rgba(255, 255, 255, 0.01)'
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', justifyContent: 'center' }}>
-              {displayVariableLabels.map((vLabel, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    width: currentStep === solveStepIndex ? '56px' : '40px',
-                    padding: '4px 0',
-                    background: currentStep === solveStepIndex ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)',
-                    border: currentStep === solveStepIndex ? '1px solid var(--theme-emerald)' : '1px solid rgba(255,255,255,0.06)',
-                    borderRadius: '4px',
-                    color: currentStep === solveStepIndex ? 'var(--theme-emerald)' : 'var(--theme-sapphire)',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    fontSize: currentStep === solveStepIndex ? '8.5px' : '9.5px'
-                  }}
-                >
-                  {vLabel}
-                </div>
-              ))}
+              {displayVariableLabels.map((vLabel, idx) => {
+                const isValue = vLabel.includes('V') || vLabel.includes('mA');
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      width: isValue ? '56px' : '40px',
+                      padding: '4px 0',
+                      background: isValue ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)',
+                      border: isValue ? '1px solid var(--theme-emerald)' : '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '4px',
+                      color: isValue ? 'var(--theme-emerald)' : 'var(--theme-sapphire)',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: isValue ? '8.5px' : '9.5px'
+                    }}
+                  >
+                    {vLabel}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -727,7 +842,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         </div>
 
         {/* Solved Solutions Grid Panel */}
-        {(currentStep === solveStepIndex || (nonLinearStepIndex !== -1 && currentStep === nonLinearStepIndex)) && (
+        {currentStep === solveStepIndex && (
           <div style={{
             background: 'rgba(52, 211, 153, 0.04)',
             border: '1px solid rgba(52, 211, 153, 0.12)',
