@@ -31,6 +31,7 @@ export interface BoxAnnotation extends BaseType {
   componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode';
   instanceNumber?: number;
   value?: number;
+  frequency?: number;
   ports?: Port[];
   borderColor?: string;
   backgroundColor?: string;

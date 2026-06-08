@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { CanvasElement, CardElement, ArrowElement } from '../../../dataTypes/AnotateType';
 import { solveLinearSystem } from '../../../sim/components/mnaSolver';
+import { formatEngineering } from '../../../utils/math';
+
 
 interface MNAWalkthroughProps {
   elements: CanvasElement[];
@@ -579,7 +581,169 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
   const [nmaStep, setNmaStep] = useState<number>(0);
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
-  const displayVariableLabels = nmaSteps[currentStep].variableValues;
+
+
+  const { G, H, x: xVector, gx: gxVector, s: sVector, fx: fxVector, diodeLabels } = (() => {
+    let x = new Array(mnaSize).fill(0);
+    let v: Record<string, number> = { '0': 0 };
+    for (let i = 1; i <= nodeCount; i++) v[String(i)] = 0;
+
+    if (currentStep === solveStepIndex) {
+      x = solvedX;
+      v = solvedVoltages;
+    } else if (currentStep > 0 && currentStep < solveStepIndex) {
+      const stepObj = nmaSteps[currentStep];
+      const iterItem = iterationsList.find(item => `Iteration ${item.iterIndex}` === stepObj.title || `Iteration ${item.iterIndex} (Converged)` === stepObj.title);
+      if (iterItem) {
+        x = iterItem.nextX;
+        for (let i = 1; i <= nodeCount; i++) {
+          v[String(i)] = x[i - 1] || 0;
+        }
+      }
+    }
+
+    let G: number[][];
+    let s: number[];
+
+    if (currentStep < 1 + substeps.length) {
+      // Use partial matrix and RHS stamps from the current step
+      G = nmaSteps[currentStep].matrix.map(row => [...row]);
+      s = [...nmaSteps[currentStep].rhs];
+    } else {
+      // Use fully assembled linear conductive system
+      G = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
+      s = new Array(mnaSize).fill(0);
+
+      cards.forEach((card) => {
+        if (card.componentType === 'resistor' || card.componentType === 'inductor') {
+          const n1Str = getPinNode(card.id, 'left');
+          const n2Str = getPinNode(card.id, 'right');
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          let rVal = card.componentType === 'inductor' ? 1e-3 : (card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000);
+
+          if (card.componentType === 'resistor' && card.isGroup2) {
+            const idx = g2ElementMap[card.id];
+            if (n1 > 0) { G[n1 - 1][idx] += 1; G[idx][n1 - 1] += 1; }
+            if (n2 > 0) { G[n2 - 1][idx] -= 1; G[idx][n2 - 1] -= 1; }
+            G[idx][idx] -= rVal;
+          } else {
+            const g = 1 / rVal;
+            if (n1 > 0) G[n1 - 1][n1 - 1] += g;
+            if (n2 > 0) G[n2 - 1][n2 - 1] += g;
+            if (n1 > 0 && n2 > 0) {
+              G[n1 - 1][n2 - 1] -= g;
+              G[n2 - 1][n1 - 1] -= g;
+            }
+          }
+        }
+      });
+
+      voltageSources.forEach((vSrc) => {
+        const n1Str = getPinNode(vSrc.id, 'left');
+        const n2Str = getPinNode(vSrc.id, 'right');
+        const n1 = parseInt(n1Str, 10);
+        const n2 = parseInt(n2Str, 10);
+        const val = vSrc.value !== undefined ? vSrc.value : 5;
+        const idx = g2ElementMap[vSrc.id];
+        if (n1 > 0) { G[n1 - 1][idx] += 1; G[idx][n1 - 1] += 1; }
+        if (n2 > 0) { G[n2 - 1][idx] -= 1; G[idx][n2 - 1] -= 1; }
+        s[idx] = val;
+      });
+
+      inductors.forEach((card) => {
+        const n1Str = getPinNode(card.id, 'left');
+        const n2Str = getPinNode(card.id, 'right');
+        const n1 = parseInt(n1Str, 10);
+        const n2 = parseInt(n2Str, 10);
+        const idx = g2ElementMap[card.id];
+        if (n1 > 0) { G[n1 - 1][idx] += 1; G[idx][n1 - 1] += 1; }
+        if (n2 > 0) { G[n2 - 1][idx] -= 1; G[idx][n2 - 1] -= 1; }
+      });
+
+      cards.forEach((card) => {
+        if (card.componentType === 'current') {
+          const n1Str = getPinNode(card.id, 'left');
+          const n2Str = getPinNode(card.id, 'right');
+          const n1 = parseInt(n1Str, 10);
+          const n2 = parseInt(n2Str, 10);
+          const val = card.value !== undefined ? card.value : 0.001;
+          if (n1 > 0) s[n1 - 1] -= val;
+          if (n2 > 0) s[n2 - 1] += val;
+        }
+      });
+    }
+
+    const Gx = new Array(mnaSize).fill(0);
+    for (let r = 0; r < mnaSize; r++) {
+      let sum = 0;
+      for (let c = 0; c < mnaSize; c++) {
+        sum += G[r][c] * x[c];
+      }
+      Gx[r] = sum;
+    }
+
+    const diodeCards = cards.filter((c) => c.componentType === 'diode');
+    const D = diodeCards.length;
+    const H = Array.from({ length: mnaSize }, () => new Array(D).fill(0));
+    const gx = new Array(D).fill(0);
+    const diodeLabels = diodeCards.map((c) => getDesignator(c));
+
+    diodeCards.forEach((card, dIdx) => {
+      const n1Str = getPinNode(card.id, 'left');
+      const n2Str = getPinNode(card.id, 'right');
+      const n1 = parseInt(n1Str, 10);
+      const n2 = parseInt(n2Str, 10);
+
+      if (n1 > 0) H[n1 - 1][dIdx] = 1;
+      if (n2 > 0) H[n2 - 1][dIdx] = -1;
+
+      const vd = (v[n1Str] || 0) - (v[n2Str] || 0);
+      const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
+      const Is = 1e-14;
+      const Vt = 0.026;
+      gx[dIdx] = Is * (Math.exp(vdClamped / Vt) - 1);
+    });
+
+    const Hg = new Array(mnaSize).fill(0);
+    for (let r = 0; r < mnaSize; r++) {
+      let sum = 0;
+      for (let c = 0; c < D; c++) {
+        sum += H[r][c] * gx[c];
+      }
+      Hg[r] = sum;
+    }
+
+    const fx = Gx.map((val, r) => val + Hg[r] - s[r]);
+
+    return { G, H, x, gx, s, fx, diodeLabels };
+  })();
+
+  const LeftBracket = () => (
+    <div style={{
+      width: '4px',
+      borderLeft: '1.5px solid rgba(255, 255, 255, 0.35)',
+      borderTop: '1.5px solid rgba(255, 255, 255, 0.35)',
+      borderBottom: '1.5px solid rgba(255, 255, 255, 0.35)',
+      borderRadius: '3px 0 0 3px',
+      marginRight: '3px',
+      alignSelf: 'stretch'
+    }} />
+  );
+
+  const RightBracket = () => (
+    <div style={{
+      width: '4px',
+      borderRight: '1.5px solid rgba(255, 255, 255, 0.35)',
+      borderTop: '1.5px solid rgba(255, 255, 255, 0.35)',
+      borderBottom: '1.5px solid rgba(255, 255, 255, 0.35)',
+      borderRadius: '0 3px 3px 0',
+      marginLeft: '3px',
+      alignSelf: 'stretch'
+    }} />
+  );
+
+  const D = diodeLabels.length;
 
   return (
     <div style={{ display: 'flex', height: '100%', gap: '16px', minHeight: 0 }}>
@@ -691,153 +855,294 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           {nmaSteps[currentStep].desc}
         </div>
 
-        {/* Mathematical Formulation Badge */}
+        {/* Full MNA System Formulation: G * x + H * g(x) - s = f(x) */}
         <div style={{
+          marginTop: '4px',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: '2px',
-          margin: '2px 0'
+          alignItems: 'stretch',
+          gap: '8px',
+          flex: 1,
+          minHeight: 0
         }}>
           <div style={{
-            fontSize: '12.5px',
-            fontFamily: 'monospace',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '10.5px',
             fontWeight: 'bold',
             color: 'var(--theme-sapphire)',
-            background: 'rgba(59, 130, 246, 0.05)',
-            border: '1px solid rgba(59, 130, 246, 0.15)',
-            padding: '5px 12px',
-            borderRadius: '6px',
-            textShadow: '0 0 8px var(--theme-sapphire-glow)'
+            textTransform: 'uppercase',
+            letterSpacing: '0.03em',
+            padding: '0 4px'
           }}>
-            f(x) = G·x + H·g(x) - s = 0
+            <span>MNA Formulation: G&middot;x + H&middot;g(x) - s = f(x)</span>
+            <span style={{ fontSize: '9px', textTransform: 'none', color: 'rgba(255,255,255,0.4)', fontWeight: 'normal' }}>
+              Hover over cells to see physical stamps and variables
+            </span>
           </div>
-          <div style={{ fontSize: '8.5px', color: 'rgba(255,255,255,0.45)', fontStyle: 'italic' }}>
-            {hasDiodes 
-              ? 'Non-linear system solved iteratively using Newton-Raphson companion stamps' 
-              : 'Linear system (where non-linear vector g(x) = 0, simplifying to G·x = s)'}
-          </div>
-        </div>
 
-        {/* Grid bracket math equations viewer */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          margin: '4px 0',
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          background: 'rgba(0,0,0,0.12)',
-          padding: '10px 8px',
-          borderRadius: '8px',
-          border: '1px solid rgba(255,255,255,0.03)',
-          flex: 1,
-          overflow: 'auto'
-        }}>
-          {/* Matrix A with Brackets */}
           <div style={{
             display: 'flex',
-            borderLeft: '1.5px solid rgba(255,255,255,0.35)',
-            borderRight: '1.5px solid rgba(255,255,255,0.35)',
-            borderRadius: '4px',
-            padding: '2px 4px',
-            background: 'rgba(255, 255, 255, 0.01)'
+            alignItems: 'center',
+            gap: '8px',
+            fontFamily: 'monospace',
+            background: 'rgba(0,0,0,0.18)',
+            padding: '12px 8px',
+            borderRadius: '8px',
+            border: '1px solid rgba(255,255,255,0.04)',
+            overflowX: 'auto',
+            minHeight: 0
           }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nmaSteps[currentStep].matrix[0].length}, 42px)`, gap: '3px', textAlign: 'center' }}>
-              {nmaSteps[currentStep].matrix.map((row, rIdx) =>
-                row.map((val, cIdx) => {
-                  const isHighlighted = nmaSteps[currentStep].highlights.includes(`${rIdx}-${cIdx}`);
-                  return (
-                    <div
-                      key={`${rIdx}-${cIdx}`}
-                      style={{
-                        padding: '4px 2px',
-                        background: isHighlighted ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.02)',
-                        border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.04)',
-                        borderRadius: '4px',
-                        color: isHighlighted ? 'var(--theme-amber)' : '#ffffff',
-                        fontWeight: isHighlighted ? 'bold' : 'normal',
-                        fontSize: '9.5px'
-                      }}
-                    >
-                      {val.toFixed(2)}
+            {/* 1. G Matrix (S x S) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '8.5px', color: 'var(--theme-sapphire)', fontWeight: 'bold' }}>Matrix G ({mnaSize}x{mnaSize})</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <LeftBracket />
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${mnaSize}, minmax(44px, max-content))`,
+                  gap: '3px',
+                  textAlign: 'center'
+                }}>
+                  {G.map((row, rIdx) =>
+                    row.map((val, cIdx) => {
+                      const isHighlighted = nmaSteps[currentStep]?.highlights?.includes(`${rIdx}-${cIdx}`);
+                      const rowLabel = rIdx < nodeCount ? `KCL Node ${rIdx + 1}` : `Branch ${getDesignator(group2Elements[rIdx - nodeCount])}`;
+                      const colLabel = variableLabels[cIdx];
+                      const title = `G[${rIdx},${cIdx}] = ${val}\nRow: ${rowLabel}\nCol: ${colLabel}`;
+                      return (
+                        <div
+                          key={`${rIdx}-${cIdx}`}
+                          title={title}
+                          style={{
+                            padding: '3px 4px',
+                            background: isHighlighted ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255,255,255,0.02)',
+                            border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.05)',
+                            borderRadius: '3px',
+                            color: isHighlighted ? 'var(--theme-amber)' : (val !== 0 ? '#ffffff' : 'rgba(255,255,255,0.25)'),
+                            fontSize: '9px',
+                            fontWeight: isHighlighted ? 'bold' : 'normal',
+                            cursor: 'help'
+                          }}
+                        >
+                          {val === 0 ? '0' : val.toFixed(3)}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <RightBracket />
+              </div>
+            </div>
+
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>&bull;</div>
+
+            {/* 2. x Vector (S x 1) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '8.5px', color: 'var(--theme-emerald)', fontWeight: 'bold' }}>State x ({mnaSize}x1)</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <LeftBracket />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {xVector.map((val, idx) => {
+                    const label = variableLabels[idx];
+                    const isCurrent = idx >= nodeCount;
+                    const unit = isCurrent ? 'A' : 'V';
+                    const formatted = formatEngineering(val) + unit;
+                    const title = `State variable: ${label}\nValue: ${val} ${unit}`;
+                    return (
+                      <div
+                        key={idx}
+                        title={title}
+                        style={{
+                          width: '64px',
+                          padding: '3px 4px',
+                          background: 'rgba(52, 211, 153, 0.05)',
+                          border: '1px solid rgba(52, 211, 153, 0.15)',
+                          borderRadius: '3px',
+                          color: 'var(--theme-emerald)',
+                          fontSize: '9px',
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          cursor: 'help'
+                        }}
+                      >
+                        {formatted}
+                      </div>
+                    );
+                  })}
+                </div>
+                <RightBracket />
+              </div>
+            </div>
+
+            {/* 3. + H * g(x) non-linear terms (only if D > 0) */}
+            {D > 0 && (
+              <>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>+</div>
+
+                {/* H Matrix (S x D) */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ fontSize: '8.5px', color: 'var(--theme-amber)', fontWeight: 'bold' }}>Matrix H ({mnaSize}x{D})</div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <LeftBracket />
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${D}, minmax(32px, max-content))`,
+                      gap: '3px',
+                      textAlign: 'center'
+                    }}>
+                      {H.map((row, rIdx) =>
+                        row.map((val, cIdx) => {
+                          const rowLabel = rIdx < nodeCount ? `KCL Node ${rIdx + 1}` : `Branch ${getDesignator(group2Elements[rIdx - nodeCount])}`;
+                          const diodeLabel = diodeLabels[cIdx];
+                          const title = `H[${rIdx},${cIdx}] = ${val}\nRow: ${rowLabel}\nDiode: ${diodeLabel}`;
+                          return (
+                            <div
+                              key={`${rIdx}-${cIdx}`}
+                              title={title}
+                              style={{
+                                padding: '3px 4px',
+                                background: val !== 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.01)',
+                                border: val !== 0 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.03)',
+                                borderRadius: '3px',
+                                color: val !== 0 ? 'var(--theme-amber)' : 'rgba(255,255,255,0.25)',
+                                fontSize: '9px',
+                                fontWeight: val !== 0 ? 'bold' : 'normal',
+                                cursor: 'help'
+                              }}
+                            >
+                              {val > 0 ? '+1' : val < 0 ? '-1' : '0'}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div style={{ color: 'rgba(255,255,255,0.4)', padding: '0 1px', fontSize: '11px' }}>&bull;</div>
-
-          {/* Variables Vector X with Brackets */}
-          <div style={{
-            display: 'flex',
-            borderLeft: '1.5px solid rgba(255,255,255,0.35)',
-            borderRight: '1.5px solid rgba(255,255,255,0.35)',
-            borderRadius: '4px',
-            padding: '2px 4px',
-            background: 'rgba(255, 255, 255, 0.01)'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', justifyContent: 'center' }}>
-              {displayVariableLabels.map((vLabel, idx) => {
-                const isValue = vLabel.includes('V') || vLabel.includes('mA');
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      width: isValue ? '56px' : '40px',
-                      padding: '4px 0',
-                      background: isValue ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.03)',
-                      border: isValue ? '1px solid var(--theme-emerald)' : '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: '4px',
-                      color: isValue ? 'var(--theme-emerald)' : 'var(--theme-sapphire)',
-                      textAlign: 'center',
-                      fontWeight: 'bold',
-                      fontSize: isValue ? '8.5px' : '9.5px'
-                    }}
-                  >
-                    {vLabel}
+                    <RightBracket />
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
 
-          <div style={{ color: 'rgba(255,255,255,0.4)', padding: '0 1px', fontSize: '11px' }}>=</div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>&bull;</div>
 
-          {/* RHS Vector B with Brackets */}
-          <div style={{
-            display: 'flex',
-            borderLeft: '1.5px solid rgba(255,255,255,0.35)',
-            borderRight: '1.5px solid rgba(255,255,255,0.35)',
-            borderRadius: '4px',
-            padding: '2px 4px',
-            background: 'rgba(255, 255, 255, 0.01)'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', justifyContent: 'center' }}>
-              {nmaSteps[currentStep].rhs.map((rhsVal, rIdx) => {
-                const isHighlighted = nmaSteps[currentStep].highlights.includes(`rhs-${rIdx}`);
-                return (
-                  <div
-                    key={rIdx}
-                    style={{
-                      width: '42px',
-                      padding: '4px 0',
-                      background: isHighlighted ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255,255,255,0.02)',
-                      border: isHighlighted ? '1px solid var(--theme-coral)' : '1px solid rgba(255,255,255,0.04)',
-                      borderRadius: '4px',
-                      color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
-                      textAlign: 'center',
-                      fontWeight: isHighlighted ? 'bold' : 'normal',
-                      fontSize: '9.5px'
-                    }}
-                  >
-                    {rhsVal.toFixed(2)}
+                {/* g(x) Vector (D x 1) */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ fontSize: '8.5px', color: 'var(--theme-coral)', fontWeight: 'bold' }}>Diode g(x) ({D}x1)</div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <LeftBracket />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      {gxVector.map((val, idx) => {
+                        const diodeLabel = diodeLabels[idx];
+                        const formatted = formatEngineering(val) + 'A';
+                        const title = `Diode Current: i(${diodeLabel})\nValue: ${val.toExponential(4)} A`;
+                        return (
+                          <div
+                            key={idx}
+                            title={title}
+                            style={{
+                              width: '64px',
+                              padding: '3px 4px',
+                              background: 'rgba(244, 63, 94, 0.05)',
+                              border: '1px solid rgba(244, 63, 94, 0.15)',
+                              borderRadius: '3px',
+                              color: 'var(--theme-coral)',
+                              fontSize: '9px',
+                              textAlign: 'center',
+                              fontWeight: 'bold',
+                              cursor: 'help'
+                            }}
+                          >
+                            {formatted}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <RightBracket />
                   </div>
-                );
-              })}
+                </div>
+              </>
+            )}
+
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>-</div>
+
+            {/* 4. s Vector (S x 1) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '8.5px', color: 'var(--theme-sapphire)', fontWeight: 'bold' }}>Source s ({mnaSize}x1)</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <LeftBracket />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {sVector.map((val, idx) => {
+                    const isKcl = idx < nodeCount;
+                    const unit = isKcl ? 'A' : 'V';
+                    const formatted = formatEngineering(val) + unit;
+                    const rowLabel = idx < nodeCount ? `KCL Node ${idx + 1}` : `Branch ${getDesignator(group2Elements[idx - nodeCount])}`;
+                    const title = `Independent source term\nRow: ${rowLabel}\nValue: ${val} ${unit}`;
+                    const isHighlighted = nmaSteps[currentStep]?.highlights?.includes(`rhs-${idx}`);
+                    return (
+                      <div
+                        key={idx}
+                        title={title}
+                        style={{
+                          width: '64px',
+                          padding: '3px 4px',
+                          background: isHighlighted ? 'rgba(244, 63, 94, 0.18)' : 'rgba(59, 130, 246, 0.05)',
+                          border: isHighlighted ? '1px solid var(--theme-coral)' : '1px solid rgba(59, 130, 246, 0.15)',
+                          borderRadius: '3px',
+                          color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
+                          fontWeight: isHighlighted ? 'bold' : 'normal',
+                          fontSize: '9px',
+                          textAlign: 'center',
+                          cursor: 'help'
+                        }}
+                      >
+                        {formatted}
+                      </div>
+                    );
+                  })}
+                </div>
+                <RightBracket />
+              </div>
+            </div>
+
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>=</div>
+
+            {/* 5. f(x) Vector (S x 1) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '8.5px', color: 'var(--theme-coral)', fontWeight: 'bold' }}>Residual f(x) ({mnaSize}x1)</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <LeftBracket />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {fxVector.map((val, idx) => {
+                    const isKcl = idx < nodeCount;
+                    const unit = isKcl ? 'A' : 'V';
+                    const tolerance = isKcl ? tolI : tolV;
+                    const isZero = Math.abs(val) < tolerance;
+                    const formatted = formatEngineering(val) + unit;
+                    const rowLabel = idx < nodeCount ? `KCL Node ${idx + 1}` : `Branch ${getDesignator(group2Elements[idx - nodeCount])}`;
+                    const title = `Residual error (target: 0)\nRow: ${rowLabel}\nValue: ${val.toExponential(4)} ${unit}\nTolerance: ${tolerance} ${unit}`;
+                    return (
+                      <div
+                        key={idx}
+                        title={title}
+                        style={{
+                          width: '72px',
+                          padding: '3px 4px',
+                          background: isZero ? 'rgba(52, 211, 153, 0.08)' : 'rgba(244, 63, 94, 0.08)',
+                          border: isZero ? '1px solid rgba(52, 211, 153, 0.25)' : '1px solid rgba(244, 63, 94, 0.25)',
+                          borderRadius: '3px',
+                          color: isZero ? 'var(--theme-emerald)' : 'var(--theme-coral)',
+                          fontSize: '9px',
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          cursor: 'help'
+                        }}
+                      >
+                        {formatted}
+                      </div>
+                    );
+                  })}
+                </div>
+                <RightBracket />
+              </div>
             </div>
           </div>
         </div>

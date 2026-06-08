@@ -139,7 +139,7 @@ export const Popup: React.FC<PopupProps> = ({
         } else if (card.componentType === 'voltage') {
           netlist += `V${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
         } else if (card.componentType === 'acvoltage') {
-          netlist += `Vac${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} AC ${formatEngineering(card.value)}\n`;
+          netlist += `Vac${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} AC ${formatEngineering(card.value)} ${formatEngineering(card.frequency ?? 60)}\n`;
         } else if (card.componentType === 'current') {
           netlist += `I${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
         }

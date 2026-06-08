@@ -116,6 +116,10 @@ export const serializeElements = (elements: CanvasElement[]): string => {
 
         if (card.componentType !== 'ground' && card.componentType !== 'diode') {
           fields.push(valStr);
+          if (card.componentType === 'acvoltage') {
+            const freqStr = card.frequency !== undefined && card.frequency !== 60 ? String(card.frequency) : '';
+            fields.push(freqStr);
+          }
         }
         fields.push(colorStr);
 
@@ -591,7 +595,18 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       const rawVal = fields[4];
       const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 5;
       
-      let color = fields[5] || 'sapphire';
+      let frequency = 60;
+      let color = 'sapphire';
+      if (fields[5] !== undefined && fields[5] !== '') {
+        if (!isNaN(parseFloat(fields[5]))) {
+          frequency = parseFloat(fields[5]);
+          if (fields[6] !== undefined && fields[6] !== '') {
+            color = fields[6];
+          }
+        } else {
+          color = fields[5];
+        }
+      }
       if (color === 'slate' || color === 'emerald' || color === 'coral') {
         color = 'sapphire';
       }
@@ -612,6 +627,7 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         componentType: 'acvoltage',
         instanceNumber,
         value,
+        frequency,
         ports,
         rotation
       } as CardElement);

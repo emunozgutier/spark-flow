@@ -368,6 +368,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           let color: ThemeColor = 'amethyst';
 
           let val: number | undefined = undefined;
+          let freq: number | undefined = undefined;
           let instanceNumber: number | undefined = undefined;
           let ports: Port[] | undefined = undefined;
 
@@ -407,6 +408,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
                 color = 'sapphire';
               } else if (componentType === 'acvoltage') {
                 val = 5; // 5V amplitude
+                freq = 60; // 60Hz
                 color = 'sapphire';
               } else if (componentType === 'current') {
                 val = 0.001; // 1mA
@@ -436,6 +438,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             componentType,
             instanceNumber,
             value: val,
+            frequency: freq,
             ports
           };
 

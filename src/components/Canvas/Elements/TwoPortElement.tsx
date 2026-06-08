@@ -129,6 +129,7 @@ export const TwoPortElement: React.FC<TwoPortElementProps> = ({ card }) => {
     );
   }
   if (card.componentType === 'acvoltage') {
+    const isVertical = Math.abs(card.rotation || 0) % 180 === 90;
     return (
       <svg
         width="100%"
@@ -148,7 +149,13 @@ export const TwoPortElement: React.FC<TwoPortElementProps> = ({ card }) => {
       >
         <path d="M 0 20 L 35 20 M 65 20 L 100 20" />
         <circle cx="50" cy="20" r="15" />
-        <path d="M 42 20 Q 46 12, 50 20 T 58 20" strokeWidth="2.5" />
+        <path d="M 44 20 Q 47 13, 50 20 T 56 20" strokeWidth="2.5" />
+        <path d="M 38 20 H 42 M 40 18 V 22" strokeWidth="1.5" />
+        <path
+          d="M 58 20 H 62"
+          strokeWidth="1.5"
+          transform={isVertical ? "rotate(90 60 20)" : undefined}
+        />
       </svg>
     );
   }

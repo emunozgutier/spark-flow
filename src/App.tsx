@@ -784,7 +784,9 @@ function App() {
           } else if (card.componentType === 'acvoltage') {
             symbolPathMarkup = `<path d="M 0 15 L 35 15 M 65 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 <circle cx="50" cy="15" r="15" fill="none" stroke="${theme.main}" stroke-width="3"/>
-                                <path d="M 42 15 Q 46 7, 50 15 T 58 15" fill="none" stroke="${theme.main}" stroke-width="2" stroke-linecap="round"/>`;
+                                <path d="M 44 15 Q 47 8, 50 15 T 56 15" fill="none" stroke="${theme.main}" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M 38 15 H 42 M 40 13 V 17" stroke="${theme.main}" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M 58 15 H 62" stroke="${theme.main}" stroke-width="1.5" stroke-linecap="round"/>`;
           } else if (card.componentType === 'current') {
             symbolPathMarkup = `<path d="M 0 15 L 35 15 M 65 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 <circle cx="50" cy="15" r="15" fill="none" stroke="${theme.main}" stroke-width="3"/>

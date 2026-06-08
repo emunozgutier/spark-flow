@@ -107,6 +107,24 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
                 </div>
               )}
 
+              {/* AC Frequency (For AC Voltage Source) */}
+              {card.componentType === 'acvoltage' && (
+                <div className="sidebar-section">
+                  <label className="sidebar-section-title" htmlFor="comp-frequency">Source Frequency (Hz)</label>
+                  <input
+                    id="comp-frequency"
+                    type="text"
+                    className="inspector-input"
+                    value={formatEngineering(card.frequency ?? 60)}
+                    onChange={(e) => {
+                      const val = parseEngineering(e.target.value);
+                      onUpdateElement(card.id, { frequency: val });
+                    }}
+                    placeholder="e.g. 60"
+                  />
+                </div>
+              )}
+
               {/* Group 2 Toggle (For Resistors) */}
               {card.componentType === 'resistor' && (
                 <div className="sidebar-section" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '12px' }}>

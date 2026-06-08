@@ -85,6 +85,35 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
             }}
             placeholder="Value"
           />
+          {card.componentType === 'acvoltage' && (
+            <input
+              type="text"
+              className="passive-value-input"
+              value={`${formatEngineering(card.frequency ?? 60)}Hz`}
+              onChange={(e) => {
+                const cleanVal = e.target.value.replace(/hz/i, '');
+                const num = parseEngineering(cleanVal);
+                updateElement(card.id, { frequency: num }, false);
+              }}
+              onBlur={finalizeDrag}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.45)',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 500,
+                fontSize: '9px',
+                textAlign: 'center',
+                outline: 'none',
+                width: '100%',
+                pointerEvents: 'auto',
+                height: '12px',
+                lineHeight: '12px',
+                marginTop: '1px'
+              }}
+              placeholder="Frequency"
+            />
+          )}
           {card.componentType === 'resistor' && card.isGroup2 && (
             <span style={{ fontSize: '8px', fontWeight: 'bold', color: 'var(--theme-sapphire)', textShadow: '0 0 3px var(--theme-sapphire-glow)', marginTop: '2px', textTransform: 'uppercase' }}>
               MNA G2
