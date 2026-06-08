@@ -594,6 +594,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   const useAspectRatio = false;
   const cellFontSize = 14;
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
+  const isIterationOrSolve = hasDiodes && currentStep > substeps.length;
 
 
   const { G, H, x: xVector, gx: gxVector, s: sVector, fx: fxVector, diodeLabels } = (() => {
@@ -740,7 +741,17 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
     const fx = Gx.map((val, r) => val + Hg[r] - s[r]);
 
-    return { G, H, x, gx, s, fx, diodeLabels };
+    const J_g = diodeCards.map((card) => {
+      const n1Str = getPinNode(card.id, 'left');
+      const n2Str = getPinNode(card.id, 'right');
+      const vd = (v[n1Str] || 0) - (v[n2Str] || 0);
+      const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
+      const Is = 1e-14;
+      const Vt = 0.026;
+      return (Is / Vt) * Math.exp(vdClamped / Vt);
+    });
+
+    return { G, H, x, gx, s, fx, diodeLabels, J_g };
   })();
 
   const LeftBracket = () => (
@@ -900,157 +911,117 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             letterSpacing: '0.03em',
             padding: '0 4px'
           }}>
-            <span>MNA Formulation: G&middot;x + H&middot;g(x) - s = f(x)</span>
+            <span>MNA Nodal Solver Formulation</span>
             <span style={{ fontSize: '9px', textTransform: 'none', color: 'rgba(255,255,255,0.4)', fontWeight: 'normal' }}>
               Hover over cells to see physical stamps and variables
             </span>
           </div>
 
+          {/* Math Equations Panel */}
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontFamily: 'monospace',
-            background: 'rgba(0,0,0,0.18)',
-            padding: '12px 8px',
+            flexDirection: 'column',
+            gap: '6px',
+            fontSize: '11px',
+            color: 'rgba(255, 255, 255, 0.85)',
+            background: 'rgba(15, 23, 42, 0.35)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
             borderRadius: '8px',
-            border: '1px solid rgba(255,255,255,0.04)',
-            overflowX: 'auto',
-            minHeight: 0
+            padding: '8px 12px'
           }}>
-            {/* 1. G Matrix (S x S) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-              <div style={{ fontSize: '8.5px', color: 'var(--theme-sapphire)', fontWeight: 'bold' }}>Matrix G ({mnaSize}x{mnaSize})</div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <LeftBracket />
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${mnaSize}, ${cellWidth}px)`,
-                  gap: '3px',
-                  textAlign: 'center'
-                }}>
-                  {G.map((row, rIdx) =>
-                    row.map((val, cIdx) => {
-                      const isHighlighted = nmaSteps[currentStep]?.highlights?.includes(`${rIdx}-${cIdx}`);
-                      const rowLabel = rIdx < nodeCount ? `KCL Node ${rIdx + 1}` : `Branch ${getDesignator(group2Elements[rIdx - nodeCount])}`;
-                      const colLabel = variableLabels[cIdx];
-                      const title = `G[${rIdx},${cIdx}] = ${val}\nRow: ${rowLabel}\nCol: ${colLabel}`;
-                      return (
-                        <div
-                          key={`${rIdx}-${cIdx}`}
-                          title={title}
-                          style={{
-                            width: `${cellWidth}px`,
-                            height: `${useAspectRatio ? cellWidth : cellHeight}px`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: isHighlighted ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255,255,255,0.02)',
-                            border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.05)',
-                            borderRadius: '3px',
-                            color: isHighlighted ? 'var(--theme-amber)' : (val !== 0 ? '#ffffff' : 'rgba(255,255,255,0.25)'),
-                            fontSize: `${cellFontSize}px`,
-                            fontWeight: isHighlighted ? 'bold' : 'normal',
-                            cursor: 'help',
-                            boxSizing: 'border-box'
-                          }}
-                        >
-                          {val === 0 ? '0' : val.toFixed(3)}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                <RightBracket />
-              </div>
+            {/* Equation 1: System Equation */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: 'var(--theme-emerald)', fontWeight: 'bold', minWidth: '130px' }}>1. System Equation:</span>
+              <span style={{
+                fontFamily: 'monospace',
+                fontSize: '11.5px',
+                color: !isIterationOrSolve ? '#fff' : 'rgba(255,255,255,0.6)',
+                fontWeight: !isIterationOrSolve ? 'bold' : 'normal'
+              }}>
+                G&middot;x + H&middot;g(x) - s = f(x)
+              </span>
             </div>
-
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>&bull;</div>
-
-            {/* 2. x Vector (S x 1) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-              <div style={{ fontSize: '8.5px', color: 'var(--theme-emerald)', fontWeight: 'bold' }}>State x ({mnaSize}x1)</div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <LeftBracket />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
-                  {xVector.map((val, idx) => {
-                    const label = variableLabels[idx];
-                    const isCurrent = idx >= nodeCount;
-                    const unit = isCurrent ? 'A' : 'V';
-                    const formatted = formatEngineering(val) + unit;
-                    const title = `State variable: ${label}\nValue: ${val} ${unit}`;
-                    return (
-                      <div
-                        key={idx}
-                        title={title}
-                        style={{
-                          width: '100%',
-                          height: `${useAspectRatio ? cellWidth : cellHeight}px`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: 'rgba(52, 211, 153, 0.05)',
-                          border: '1px solid rgba(52, 211, 153, 0.15)',
-                          borderRadius: '3px',
-                          color: 'var(--theme-emerald)',
-                          fontSize: `${cellFontSize}px`,
-                          fontWeight: 'bold',
-                          cursor: 'help',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        {formatted}
-                      </div>
-                    );
-                  })}
-                </div>
-                <RightBracket />
-              </div>
-            </div>
-
-            {/* 3. + H * g(x) non-linear terms (only if D > 0) */}
-            {D > 0 && (
+            
+            {hasDiodes && (
               <>
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>+</div>
+                {/* Equation 2: Linearized Step */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--theme-amber)', fontWeight: 'bold', minWidth: '130px' }}>2. Linearized Step:</span>
+                  <span style={{
+                    fontFamily: 'monospace',
+                    fontSize: '11.5px',
+                    color: isIterationOrSolve ? '#fff' : 'rgba(255,255,255,0.6)',
+                    fontWeight: isIterationOrSolve ? 'bold' : 'normal'
+                  }}>
+                    J<sub>f</sub>(x<sub>k</sub>)&middot;x<sub>k+1</sub> = s<sub>k</sub>
+                  </span>
+                </div>
+                
+                {/* Equation 3: Jacobian Definition */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--theme-sapphire)', fontWeight: 'bold', minWidth: '130px' }}>3. Jacobian Definition:</span>
+                  <span style={{
+                    fontFamily: 'monospace',
+                    fontSize: '11.5px',
+                    color: 'rgba(255,255,255,0.85)'
+                  }}>
+                    J<sub>f</sub>(x) = G + H&middot;J<sub>g</sub>(x)
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
 
-                {/* H Matrix (S x D) */}
+          {/* 3. Stacked Equations Matrix Visualizers */}
+          {(() => {
+            const renderMatrixInEquation = (
+              data: number[][],
+              label: string,
+              color: string,
+              cellFormatter: (val: number, r: number, c: number) => string,
+              titleTooltip: (val: number, r: number, c: number) => string,
+              highlights?: string[]
+            ) => {
+              const rows = data.length;
+              const cols = data[0]?.length || 0;
+              return (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                  <div style={{ fontSize: '8.5px', color: 'var(--theme-amber)', fontWeight: 'bold' }}>Matrix H ({mnaSize}x{D})</div>
+                  <div style={{ fontSize: '8.5px', color, fontWeight: 'bold' }}>{label} ({rows}x{cols})</div>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <LeftBracket />
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: `repeat(${D}, ${cellWidth}px)`,
+                      gridTemplateColumns: `repeat(${cols}, ${cellWidth}px)`,
                       gap: '3px',
                       textAlign: 'center'
                     }}>
-                      {H.map((row, rIdx) =>
+                      {data.map((row, rIdx) =>
                         row.map((val, cIdx) => {
-                          const isHighlighted = nmaSteps[currentStep]?.highlights?.includes(`H-${rIdx}-${cIdx}`);
-                          const rowLabel = rIdx < nodeCount ? `KCL Node ${rIdx + 1}` : `Branch ${getDesignator(group2Elements[rIdx - nodeCount])}`;
-                          const diodeLabel = diodeLabels[cIdx];
-                          const title = `H[${rIdx},${cIdx}] = ${val}\nRow: ${rowLabel}\nDiode: ${diodeLabel}`;
+                          const key = `${rIdx}-${cIdx}`;
+                          const isHighlighted = highlights?.includes(key);
+                          const cellText = cellFormatter(val, rIdx, cIdx);
+                          const tooltip = titleTooltip(val, rIdx, cIdx);
                           return (
                             <div
-                              key={`${rIdx}-${cIdx}`}
-                              title={title}
+                              key={key}
+                              title={tooltip}
                               style={{
                                 width: `${cellWidth}px`,
-                                height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                                height: `${cellHeight}px`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: isHighlighted ? 'rgba(245, 158, 11, 0.22)' : (val !== 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.01)'),
-                                border: isHighlighted ? '1px solid var(--theme-amber)' : (val !== 0 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.03)'),
+                                background: isHighlighted ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255,255,255,0.02)',
+                                border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.05)',
                                 borderRadius: '3px',
-                                color: isHighlighted ? '#ffffff' : (val !== 0 ? 'var(--theme-amber)' : 'rgba(255,255,255,0.25)'),
+                                color: isHighlighted ? 'var(--theme-amber)' : (val !== 0 ? '#ffffff' : 'rgba(255,255,255,0.25)'),
                                 fontSize: `${cellFontSize}px`,
-                                fontWeight: (isHighlighted || val !== 0) ? 'bold' : 'normal',
+                                fontWeight: isHighlighted ? 'bold' : 'normal',
                                 cursor: 'help',
                                 boxSizing: 'border-box'
                               }}
                             >
-                              {val > 0 ? '+1' : val < 0 ? '-1' : '0'}
+                              {cellText}
                             </div>
                           );
                         })
@@ -1059,139 +1030,215 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                     <RightBracket />
                   </div>
                 </div>
+              );
+            };
 
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>&bull;</div>
+            const Operator = ({ char }: { char: string }) => (
+              <div style={{
+                color: 'rgba(255,255,255,0.4)',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                alignSelf: 'center',
+                marginTop: '12px',
+                padding: '0 4px',
+                flexShrink: 0
+              }}>
+                {char}
+              </div>
+            );
 
-                {/* g(x) Vector (D x 1) */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                  <div style={{ fontSize: '8.5px', color: 'var(--theme-coral)', fontWeight: 'bold' }}>Diode g(x) ({D}x1)</div>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <LeftBracket />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
-                      {gxVector.map((val, idx) => {
-                        const diodeLabel = diodeLabels[idx];
-                        const formatted = formatEngineering(val) + 'A';
-                        const title = `Diode Current: i(${diodeLabel})\nValue: ${val.toExponential(4)} A`;
-                        return (
-                          <div
-                            key={idx}
-                            title={title}
-                            style={{
-                              width: '100%',
-                              height: `${useAspectRatio ? cellWidth : cellHeight}px`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: 'rgba(244, 63, 94, 0.05)',
-                              border: '1px solid rgba(244, 63, 94, 0.15)',
-                              borderRadius: '3px',
-                              color: 'var(--theme-coral)',
-                              fontSize: `${cellFontSize}px`,
-                              fontWeight: 'bold',
-                              cursor: 'help',
-                              boxSizing: 'border-box'
-                            }}
-                          >
-                            {formatted}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <RightBracket />
+            const equationRowStyle: React.CSSProperties = {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontFamily: 'monospace',
+              background: 'rgba(0,0,0,0.18)',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.04)',
+              overflowX: 'auto',
+              minHeight: 0,
+              width: '100%',
+              boxSizing: 'border-box'
+            };
+
+            // Formatting & Tooltip functions
+            const gFormat = (val: number) => val === 0 ? '0' : val.toFixed(3);
+            const gTooltip = (val: number, r: number, c: number) => {
+              const rowLabel = r < nodeCount ? `KCL Node ${r + 1}` : `Branch ${getDesignator(group2Elements[r - nodeCount])}`;
+              const colLabel = variableLabels[c];
+              return `G[${r},${c}] = ${val}\nRow: ${rowLabel}\nCol: ${colLabel}`;
+            };
+
+            const xFormat = (val: number, r: number) => {
+              const isCurrent = r >= nodeCount;
+              const unit = isCurrent ? 'A' : 'V';
+              return formatEngineering(val) + unit;
+            };
+            const xTooltip = (val: number, r: number) => {
+              const label = variableLabels[r];
+              const unit = r >= nodeCount ? 'A' : 'V';
+              return `State variable: ${label}\nValue: ${val} ${unit}`;
+            };
+
+            const hFormat = (val: number) => val > 0 ? '+1' : val < 0 ? '-1' : '0';
+            const hTooltip = (val: number, r: number, c: number) => {
+              const rowLabel = r < nodeCount ? `KCL Node ${r + 1}` : `Branch ${getDesignator(group2Elements[r - nodeCount])}`;
+              const diodeLabel = diodeLabels[c];
+              return `H[${r},${c}] = ${val}\nRow: ${rowLabel}\nDiode: ${diodeLabel}`;
+            };
+
+            const gxFormat = (val: number) => formatEngineering(val) + 'A';
+            const gxTooltip = (val: number, r: number) => {
+              const diodeLabel = diodeLabels[r];
+              return `Diode Current: i(${diodeLabel})\nValue: ${val.toExponential(4)} A`;
+            };
+
+            const sFormat = (val: number, r: number) => {
+              const isKcl = r < nodeCount;
+              const unit = isKcl ? 'A' : 'V';
+              return formatEngineering(val) + unit;
+            };
+            const sTooltip = (val: number, r: number) => {
+              const isKcl = r < nodeCount;
+              const unit = isKcl ? 'A' : 'V';
+              const rowLabel = r < nodeCount ? `KCL Node ${r + 1}` : `Branch ${getDesignator(group2Elements[r - nodeCount])}`;
+              return `Independent source term\nRow: ${rowLabel}\nValue: ${val} ${unit}`;
+            };
+
+            const fxFormat = (val: number, r: number) => {
+              const isKcl = r < nodeCount;
+              const unit = isKcl ? 'A' : 'V';
+              return formatEngineering(val) + unit;
+            };
+            const fxTooltip = (val: number, r: number) => {
+              const isKcl = r < nodeCount;
+              const unit = isKcl ? 'A' : 'V';
+              const tolerance = isKcl ? tolI : tolV;
+              const rowLabel = r < nodeCount ? `KCL Node ${r + 1}` : `Branch ${getDesignator(group2Elements[r - nodeCount])}`;
+              return `Residual error (target: 0)\nRow: ${rowLabel}\nValue: ${val.toExponential(4)} ${unit}\nTolerance: ${tolerance} ${unit}`;
+            };
+
+            const jfFormat = (val: number) => val === 0 ? '0' : val.toFixed(3);
+            const jfTooltip = (val: number, r: number, c: number) => {
+              const rowLabel = r < nodeCount ? `KCL Node ${r + 1}` : `Branch ${getDesignator(group2Elements[r - nodeCount])}`;
+              const colLabel = variableLabels[c];
+              return `J_f[${r},${c}] = ${val}\nRow: ${rowLabel}\nCol: ${colLabel}`;
+            };
+
+            const jgFormat = (val: number) => val === 0 ? '0' : val.toExponential(2) + 'S';
+            const jgTooltip = (val: number, r: number, c: number) => {
+              const diodeLabel = diodeLabels[r];
+              return `J_g[${r},${c}] = ${val}\nDiode: ${diodeLabel}\ngd = ${val} S`;
+            };
+
+            const htFormat = (val: number) => val > 0 ? '+1' : val < 0 ? '-1' : '0';
+            const htTooltip = (val: number, r: number, c: number) => {
+              const rowLabel = c < nodeCount ? `KCL Node ${c + 1}` : `Branch ${getDesignator(group2Elements[c - nodeCount])}`;
+              const diodeLabel = diodeLabels[r];
+              return `H^T[${r},${c}] = ${val}\nDiode: ${diodeLabel}\nCol: ${rowLabel}`;
+            };
+
+            // Setup Equations Data
+            const G_data = G;
+            const x_data = xVector.map(val => [val]);
+            const H_data = H;
+            const gx_data = gxVector.map(val => [val]);
+            const s_data = sVector.map(val => [val]);
+            const fx_data = fxVector.map(val => [val]);
+
+            const Jf_data = nmaSteps[currentStep].matrix;
+            const sk_data = nmaSteps[currentStep].rhs.map(val => [val]);
+
+            const J_g_matrix = Array.from({ length: D }, (_, r) =>
+              Array.from({ length: D }, (_, c) => (r === c ? J_g[r] : 0))
+            );
+            const HT_data = Array.from({ length: D }, (_, c) =>
+              Array.from({ length: mnaSize }, (_, r) => H[r][c])
+            );
+
+            // Setup Transposed Highlights
+            const baseHighlights = nmaSteps[currentStep]?.highlights || [];
+            const htHighlights = baseHighlights
+              .filter(hl => hl.startsWith('H-'))
+              .map(hl => {
+                const parts = hl.replace('H-', '').split('-');
+                return `${parts[1]}-${parts[0]}`;
+              });
+            const jgHighlights = Array.from({ length: D }, (_, idx) => `${idx}-${idx}`);
+
+            return (
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                overflowY: 'auto',
+                minHeight: 0,
+                paddingRight: '2px'
+              }}>
+                {/* 1. System Equation Row */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--theme-emerald)', fontWeight: 'bold', paddingLeft: '4px' }}>
+                    Equation 1: System Equation (G&middot;x + H&middot;g(x) - s = f(x))
+                  </div>
+                  <div style={equationRowStyle}>
+                    {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, baseHighlights)}
+                    <Operator char="&bull;" />
+                    {renderMatrixInEquation(x_data, 'State x', 'var(--theme-emerald)', xFormat, xTooltip)}
+                    {D > 0 && (
+                      <>
+                        <Operator char="+" />
+                        {renderMatrixInEquation(H_data, 'Matrix H', 'var(--theme-amber)', hFormat, hTooltip, baseHighlights)}
+                        <Operator char="&bull;" />
+                        {renderMatrixInEquation(gx_data, 'Diode g(x)', 'var(--theme-coral)', gxFormat, gxTooltip)}
+                      </>
+                    )}
+                    <Operator char="-" />
+                    {renderMatrixInEquation(s_data, 'Source s', 'var(--theme-sapphire)', sFormat, sTooltip, baseHighlights)}
+                    <Operator char="=" />
+                    {renderMatrixInEquation(fx_data, 'Residual f(x)', 'var(--theme-coral)', fxFormat, fxTooltip)}
                   </div>
                 </div>
-              </>
-            )}
 
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>-</div>
+                {/* 2. Linearized NR Step Row */}
+                {hasDiodes && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--theme-amber)', fontWeight: 'bold', paddingLeft: '4px' }}>
+                      Equation 2: Linearized Step (J<sub>f</sub>(x<sub>k</sub>)&middot;x<sub>k+1</sub> = s<sub>k</sub>)
+                    </div>
+                    <div style={equationRowStyle}>
+                      {renderMatrixInEquation(Jf_data, 'Jacobian J_f(x_k)', 'var(--theme-amber)', jfFormat, jfTooltip, baseHighlights)}
+                      <Operator char="&bull;" />
+                      {renderMatrixInEquation(x_data, 'State x_k+1', 'var(--theme-emerald)', xFormat, xTooltip)}
+                      <Operator char="=" />
+                      {renderMatrixInEquation(sk_data, 'Companion s_k', 'var(--theme-sapphire)', sFormat, sTooltip, baseHighlights)}
+                    </div>
+                  </div>
+                )}
 
-            {/* 4. s Vector (S x 1) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-              <div style={{ fontSize: '8.5px', color: 'var(--theme-sapphire)', fontWeight: 'bold' }}>Source s ({mnaSize}x1)</div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <LeftBracket />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
-                  {sVector.map((val, idx) => {
-                    const isKcl = idx < nodeCount;
-                    const unit = isKcl ? 'A' : 'V';
-                    const formatted = formatEngineering(val) + unit;
-                    const rowLabel = idx < nodeCount ? `KCL Node ${idx + 1}` : `Branch ${getDesignator(group2Elements[idx - nodeCount])}`;
-                    const title = `Independent source term\nRow: ${rowLabel}\nValue: ${val} ${unit}`;
-                    const isHighlighted = nmaSteps[currentStep]?.highlights?.includes(`rhs-${idx}`);
-                    return (
-                      <div
-                        key={idx}
-                        title={title}
-                        style={{
-                          width: '100%',
-                          height: `${useAspectRatio ? cellWidth : cellHeight}px`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: isHighlighted ? 'rgba(244, 63, 94, 0.18)' : 'rgba(59, 130, 246, 0.05)',
-                          border: isHighlighted ? '1px solid var(--theme-coral)' : '1px solid rgba(59, 130, 246, 0.15)',
-                          borderRadius: '3px',
-                          color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
-                          fontWeight: isHighlighted ? 'bold' : 'normal',
-                          fontSize: `${cellFontSize}px`,
-                          cursor: 'help',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        {formatted}
-                      </div>
-                    );
-                  })}
-                </div>
-                <RightBracket />
+                {/* 3. Jacobian Definition Row */}
+                {hasDiodes && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--theme-sapphire)', fontWeight: 'bold', paddingLeft: '4px' }}>
+                      Equation 3: Jacobian Composition (J<sub>f</sub>(x) = G + H&middot;J<sub>g</sub>(x)&middot;H<sup>T</sup>)
+                    </div>
+                    <div style={equationRowStyle}>
+                      {renderMatrixInEquation(Jf_data, 'Jacobian J_f(x_k)', 'var(--theme-amber)', jfFormat, jfTooltip, baseHighlights)}
+                      <Operator char="=" />
+                      {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, baseHighlights.filter(hl => !hl.startsWith('H-') && !hl.startsWith('rhs-')))}
+                      <Operator char="+" />
+                      {renderMatrixInEquation(H_data, 'Matrix H', 'var(--theme-amber)', hFormat, hTooltip, baseHighlights)}
+                      <Operator char="&bull;" />
+                      {renderMatrixInEquation(J_g_matrix, 'Diode J_g(x_k)', 'var(--theme-coral)', jgFormat, jgTooltip, jgHighlights)}
+                      <Operator char="&bull;" />
+                      {renderMatrixInEquation(HT_data, 'Matrix H^T', 'var(--theme-amber)', htFormat, htTooltip, htHighlights)}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>=</div>
-
-            {/* 5. f(x) Vector (S x 1) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-              <div style={{ fontSize: '8.5px', color: 'var(--theme-coral)', fontWeight: 'bold' }}>Residual f(x) ({mnaSize}x1)</div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <LeftBracket />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
-                  {fxVector.map((val, idx) => {
-                    const isKcl = idx < nodeCount;
-                    const unit = isKcl ? 'A' : 'V';
-                    const tolerance = isKcl ? tolI : tolV;
-                    const isZero = Math.abs(val) < tolerance;
-                    const formatted = formatEngineering(val) + unit;
-                    const rowLabel = idx < nodeCount ? `KCL Node ${idx + 1}` : `Branch ${getDesignator(group2Elements[idx - nodeCount])}`;
-                    const title = `Residual error (target: 0)\nRow: ${rowLabel}\nValue: ${val.toExponential(4)} ${unit}\nTolerance: ${tolerance} ${unit}`;
-                    return (
-                      <div
-                        key={idx}
-                        title={title}
-                        style={{
-                          width: '100%',
-                          height: `${useAspectRatio ? cellWidth : cellHeight}px`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: isZero ? 'rgba(52, 211, 153, 0.08)' : 'rgba(244, 63, 94, 0.08)',
-                          border: isZero ? '1px solid rgba(52, 211, 153, 0.25)' : '1px solid rgba(244, 63, 94, 0.25)',
-                          borderRadius: '3px',
-                          color: isZero ? 'var(--theme-emerald)' : 'var(--theme-coral)',
-                          fontSize: `${cellFontSize}px`,
-                          fontWeight: 'bold',
-                          cursor: 'help',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        {formatted}
-                      </div>
-                    );
-                  })}
-                </div>
-                <RightBracket />
-              </div>
-            </div>
-          </div>
+            )();
+          })()}
         </div>
 
         {/* Solved Solutions Grid Panel */}
