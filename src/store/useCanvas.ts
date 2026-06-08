@@ -3,70 +3,244 @@ import type { UseBoundStore, StoreApi } from 'zustand';
 import { temporal } from 'zundo';
 import type { TemporalState } from 'zundo';
 import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor, Port } from '../dataTypes/AnotateType';
+import { deserializeElements } from '../url';
 
 const STORAGE_KEY = 'spark-flow:board-elements';
 
 // Beautiful preloaded starter board elements (safely cast as CardElement/ArrowElement)
 const DEFAULT_ELEMENTS: CanvasElement[] = [
   {
-    id: 'node-welcome',
+    id: 'R1',
     type: 'box',
-    x: 100,
-    y: 100,
-    width: 240,
-    height: 140,
-    title: '✨ Welcome to Spark Flow',
-    content: 'An elegant, high-performance infinite board. Double-click here to edit or customize colors in the right-side inspector.',
-    color: 'amethyst'
+    x: 190,
+    y: -50,
+    width: 60,
+    height: 60,
+    color: 'amber',
+    componentType: 'resistor',
+    instanceNumber: 1,
+    value: 1000,
+    ports: [
+      { id: 'R1-left', direction: 'left', isConnected: false },
+      { id: 'R1-right', direction: 'right', isConnected: false }
+    ],
+    rotation: 0
   } as CardElement,
   {
-    id: 'node-canvas',
+    id: 'R2',
     type: 'box',
-    x: 480,
+    x: 360,
     y: 0,
-    width: 220,
-    height: 120,
-    title: '🚀 High Performance Grid',
-    content: 'Pan around by holding Spacebar + Dragging, or scroll to zoom in/out relative to your mouse pointer.',
-    color: 'sapphire'
+    width: 60,
+    height: 60,
+    color: 'amber',
+    componentType: 'resistor',
+    instanceNumber: 2,
+    value: 50,
+    ports: [
+      { id: 'R2-left', direction: 'left', isConnected: false },
+      { id: 'R2-right', direction: 'right', isConnected: false }
+    ],
+    rotation: 0
   } as CardElement,
   {
-    id: 'node-arrows',
+    id: 'GND1',
     type: 'box',
-    x: 480,
-    y: 220,
-    width: 220,
-    height: 120,
-    title: '🔗 Anchored Connectors',
-    content: 'Drag from card edge sockets to create arrows. Move cards, and arrows automatically stretch with them!',
-    color: 'emerald'
+    x: 130,
+    y: 200,
+    width: 60,
+    height: 60,
+    color: 'amethyst',
+    componentType: 'ground',
+    instanceNumber: 1,
+    ports: [
+      { id: 'GND1-top', direction: 'top', isConnected: false }
+    ],
+    rotation: 0
   } as CardElement,
   {
-    id: 'arrow-1',
+    id: 'V1',
+    type: 'box',
+    x: 430,
+    y: 60,
+    width: 60,
+    height: 60,
+    color: 'amethyst',
+    componentType: 'voltage',
+    instanceNumber: 1,
+    value: 5,
+    ports: [
+      { id: 'V1-left', direction: 'left', isConnected: false },
+      { id: 'V1-right', direction: 'right', isConnected: false }
+    ],
+    rotation: 90
+  } as CardElement,
+  {
+    id: 'arrow-R2-r-V1-l',
     type: 'arrow',
-    fromId: 'node-welcome',
+    fromId: 'R2',
     fromSocket: 'right',
-    toId: 'node-canvas',
+    toId: 'V1',
     toSocket: 'left',
-    color: 'slate',
-    style: 'curved',
-    label: 'Interactive Zoom'
+    color: 'amber',
+    style: 'straight',
+    label: ''
   } as ArrowElement,
   {
-    id: 'arrow-2',
+    id: 'R3',
+    type: 'box',
+    x: 210,
+    y: 60,
+    width: 60,
+    height: 60,
+    color: 'amber',
+    componentType: 'resistor',
+    instanceNumber: 3,
+    value: 10,
+    ports: [
+      { id: 'R3-left', direction: 'left', isConnected: false },
+      { id: 'R3-right', direction: 'right', isConnected: false }
+    ],
+    rotation: 0
+  } as CardElement,
+  {
+    id: 'join-1780645267972',
+    type: 'box',
+    x: 152,
+    y: 137,
+    width: 16,
+    height: 16,
+    color: 'amber',
+    title: 'join'
+  } as CardElement,
+  {
+    id: 'arrow-GND1-t-join1',
     type: 'arrow',
-    fromId: 'node-welcome',
+    fromId: 'GND1',
+    fromSocket: 'top',
+    toId: 'join-1780645267972',
+    toSocket: 'bottom',
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'arrow-join1-r-V1-r',
+    type: 'arrow',
+    fromId: 'join-1780645267972',
     fromSocket: 'right',
-    toId: 'node-arrows',
+    toId: 'V1',
+    toSocket: 'right',
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'join-1780645279085',
+    type: 'box',
+    x: 152,
+    y: 72,
+    width: 16,
+    height: 16,
+    color: 'amber',
+    title: 'join'
+  } as CardElement,
+  {
+    id: 'arrow-R1-l-join2',
+    type: 'arrow',
+    fromId: 'R1',
+    fromSocket: 'left',
+    toId: 'join-1780645279085',
+    toSocket: 'top',
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'arrow-join2-b-join1',
+    type: 'arrow',
+    fromId: 'join-1780645279085',
+    fromSocket: 'bottom',
+    toId: 'join-1780645267972',
+    toSocket: 'top',
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'arrow-R3-l-join2',
+    type: 'arrow',
+    fromId: 'R3',
+    fromSocket: 'left',
+    toId: 'join-1780645279085',
+    toSocket: 'right',
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'join-1780647108155',
+    type: 'box',
+    x: 296,
+    y: 12,
+    width: 16,
+    height: 16,
+    color: 'amber',
+    title: 'join'
+  } as CardElement,
+  {
+    id: 'arrow-R1-r-join3',
+    type: 'arrow',
+    fromId: 'R1',
+    fromSocket: 'right',
+    toId: 'join-1780647108155',
     toSocket: 'left',
-    color: 'amethyst',
-    style: 'dashed',
-    label: 'Dynamic Links'
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'arrow-join3-b-R3-r',
+    type: 'arrow',
+    fromId: 'join-1780647108155',
+    fromSocket: 'bottom',
+    toId: 'R3',
+    toSocket: 'right',
+    color: 'amber',
+    style: 'curved',
+    label: ''
+  } as ArrowElement,
+  {
+    id: 'arrow-R2-l-join3',
+    type: 'arrow',
+    fromId: 'R2',
+    fromSocket: 'left',
+    toId: 'join-1780647108155',
+    toSocket: 'right',
+    color: 'amber',
+    style: 'curved',
+    label: ''
   } as ArrowElement
 ];
 
 const loadInitialElements = (): CanvasElement[] => {
   try {
+    // 1. Try to load from URL hash if present
+    const hash = window.location.hash;
+    if (hash && hash.length > 1) {
+      let cleanHash = hash.substring(1);
+      if (cleanHash.startsWith('/')) {
+        cleanHash = cleanHash.substring(1);
+      }
+      if (cleanHash.includes('~') || cleanHash.includes('.')) {
+        const decoded = deserializeElements(cleanHash);
+        if (decoded && decoded.length > 0) {
+          return decoded;
+        }
+      }
+    }
+
+    // 2. Try to load from localStorage
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
