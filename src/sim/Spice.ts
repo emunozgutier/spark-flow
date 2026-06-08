@@ -5,8 +5,7 @@
 
 import type { BaseElement } from './components/stamps/BaseElement';
 import { parseSpiceNetlistToElements } from './components/parser';
-import { buildMna } from './components/mnaBuilder';
-import { solveLinearSystem } from './components/mnaSolver';
+import { buildMna, solveNonLinearCircuit } from './components/mnaBuilder';
 
 export interface SpiceSimulationResult {
   nodeVoltages: Record<string, number>;
@@ -62,84 +61,28 @@ export class Spice {
    */
   solve(): SpiceSimulationResult {
     const activeNodeNames = this.nodes.filter(n => n !== '0' && n.toUpperCase() !== 'GND');
-    const hasDiodes = this.elementsList.some(el => el.type === 'diode');
+    const { nodeVoltages, branchCurrents } = solveNonLinearCircuit(
+      this.elementsList,
+      this.nodes
+    );
 
-    // Initial guess
-    let nodeVoltages: Record<string, number> = { '0': 0 };
-    activeNodeNames.forEach(n => {
-      nodeVoltages[n] = 0.0;
-    });
-
-    let solutionVector: number[] = [];
-    let A: number[][] = [];
-    let B: number[] = [];
-    let nodeMap = new Map<string, number>();
-    let group2Elements: BaseElement[] = [];
-
-    const maxIterations = hasDiodes ? 50 : 1;
-    const tolerance = 1e-5;
-
-    for (let iter = 0; iter < maxIterations; iter++) {
-      const compiled = this.compile(nodeVoltages);
-      A = compiled.A;
-      B = compiled.B;
-      nodeMap = compiled.nodeMap;
-      group2Elements = compiled.group2Elements;
-
-      const S = A.length;
-      if (S === 0) {
-        solutionVector = [];
-        break;
-      }
-
-      try {
-        solutionVector = solveLinearSystem(A, B);
-      } catch (err: any) {
-        solutionVector = new Array(S).fill(0);
-        console.error('Spice Newton-Raphson linear solver failed at iteration', iter, ':', err.message);
-        break;
-      }
-
-      // Check convergence
-      let maxDiff = 0;
-      const nextNodeVoltages: Record<string, number> = { '0': 0 };
-      activeNodeNames.forEach((nodeName, index) => {
-        const vOld = nodeVoltages[nodeName] || 0;
-        const vNew = solutionVector[index] || 0;
-        nextNodeVoltages[nodeName] = vNew;
-        const diff = Math.abs(vNew - vOld);
-        if (diff > maxDiff) {
-          maxDiff = diff;
-        }
-      });
-
-      nodeVoltages = nextNodeVoltages;
-
-      if (!hasDiodes || maxDiff < tolerance) {
-        break;
-      }
-    }
+    // Final compile to get matrix A and RHS B at the solved operating point
+    const compiled = this.compile(nodeVoltages);
+    const A = compiled.A;
+    const B = compiled.B;
+    const nodeMap = compiled.nodeMap;
+    const group2Elements = compiled.group2Elements;
 
     const N = nodeMap.size;
     const S = A.length;
 
-    // 2. Map solution to Group 2 branch currents
-    const branchCurrents: Record<string, number> = {};
-    group2Elements.forEach((el, index) => {
-      branchCurrents[el.name] = solutionVector[N + index] || 0;
+    // Reconstruct solutionVector
+    const solutionVector = new Array(S).fill(0);
+    activeNodeNames.forEach((nodeName, idx) => {
+      solutionVector[idx] = nodeVoltages[nodeName] || 0;
     });
-
-    // Add Diode currents (Group 1 elements)
-    this.elementsList.forEach((el) => {
-      if (el.type === 'diode') {
-        const v1 = nodeVoltages[el.node1] || 0;
-        const v2 = nodeVoltages[el.node2] || 0;
-        const vd = v1 - v2;
-        const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
-        const Is = 1e-14;
-        const Vt = 0.026;
-        branchCurrents[el.name] = Is * (Math.exp(vdClamped / Vt) - 1);
-      }
+    group2Elements.forEach((el, idx) => {
+      solutionVector[N + idx] = branchCurrents[el.name] || 0;
     });
 
     // 3. Generate matrix equation report

@@ -70,3 +70,84 @@ export function buildMna(elementsList: BaseElement[], nodes: string[], voltages?
     group2Elements
   };
 }
+
+import { solveNonLinearMna } from './mnaSolver';
+
+export interface NonLinearSolveResult {
+  nodeVoltages: Record<string, number>;
+  branchCurrents: Record<string, number>;
+  iterations: number;
+  converged: boolean;
+  residual: number[];
+}
+
+/**
+ * Iteratively solves non-linear MNA systems (e.g. networks with diodes) using Newton-Raphson.
+ * Verifies convergence using residual tolerances (1mV for voltage, 1uA for current).
+ */
+export function solveNonLinearCircuit(
+  elementsList: BaseElement[],
+  nodes: string[],
+  maxIterations = 50,
+  tolV = 1e-3,
+  tolI = 1e-6
+): NonLinearSolveResult {
+  const activeNodes = nodes.filter(n => n !== '0' && n.toUpperCase() !== 'GND');
+  
+  const group2Elements: BaseElement[] = [];
+  elementsList.forEach(el => {
+    if (el.getGroup2Count() > 0) {
+      group2Elements.push(el);
+    }
+  });
+
+  const compileSystem = (voltages: Record<string, number>) => {
+    const { mnaModel } = buildMna(elementsList, nodes, voltages);
+    return {
+      A: mnaModel.getMatrix(),
+      B: mnaModel.getRhs()
+    };
+  };
+
+  const group2Names = group2Elements.map(el => el.name);
+
+  const { solution, iterations, converged, residual } = solveNonLinearMna(
+    compileSystem,
+    activeNodes,
+    group2Names,
+    maxIterations,
+    tolV,
+    tolI
+  );
+
+  const nodeVoltages: Record<string, number> = { '0': 0 };
+  activeNodes.forEach((name, idx) => {
+    nodeVoltages[name] = solution[idx] || 0;
+  });
+
+  const branchCurrents: Record<string, number> = {};
+  group2Elements.forEach((el, idx) => {
+    branchCurrents[el.name] = solution[activeNodes.length + idx] || 0;
+  });
+
+  // Calculate Diode currents (Group 1 elements) if any
+  elementsList.forEach((el) => {
+    if (el.type === 'diode') {
+      const v1 = nodeVoltages[el.node1] || 0;
+      const v2 = nodeVoltages[el.node2] || 0;
+      const vd = v1 - v2;
+      const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
+      const Is = 1e-14;
+      const Vt = 0.026;
+      branchCurrents[el.name] = Is * (Math.exp(vdClamped / Vt) - 1);
+    }
+  });
+
+  return {
+    nodeVoltages,
+    branchCurrents,
+    iterations,
+    converged,
+    residual
+  };
+}
