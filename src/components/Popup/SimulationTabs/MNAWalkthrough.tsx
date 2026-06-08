@@ -589,10 +589,10 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   });
 
   const [nmaStep, setNmaStep] = useState<number>(0);
-  const [cellWidth, setCellWidth] = useState<number>(90);
-  const [cellHeight, setCellHeight] = useState<number>(56);
-  const [useAspectRatio, setUseAspectRatio] = useState<boolean>(false);
-  const [cellFontSize, setCellFontSize] = useState<number>(14);
+  const cellWidth = 90;
+  const cellHeight = 56;
+  const useAspectRatio = false;
+  const cellFontSize = 14;
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
 
 
@@ -781,207 +781,85 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         padding: '10px',
         display: 'flex',
         flexDirection: 'column',
-        userSelect: 'none',
-        height: '100%',
-        boxSizing: 'border-box'
+        gap: '6px',
+        overflowY: 'auto',
+        userSelect: 'none'
       }}>
-        {/* Steps List */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px',
-          overflowY: 'auto',
-          flex: 1,
-          paddingBottom: '10px'
-        }}>
-          <div style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.35)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '4px' }}>
-            MNA Walkthrough
-          </div>
-          {menuSections.map((sec) => {
-            if (sec.substeps) {
-              const isParentActive = sec.id === 'step2'
-                ? (currentStep >= 1 && currentStep <= substeps.length)
-                : (currentStep > substeps.length && currentStep < solveStepIndex);
-              return (
-                <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <div style={{
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    color: isParentActive ? 'var(--theme-sapphire)' : 'rgba(255,255,255,0.8)',
-                    padding: '4px 6px',
-                    borderRadius: '4px',
-                    background: isParentActive ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-                  }}>
-                    {sec.title}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.08)', marginLeft: '4px' }}>
-                    {sec.substeps.map((sub: any) => {
-                      const isActive = currentStep === sub.stepIndex;
-                      return (
-                        <button
-                          key={sub.stepIndex}
-                          onClick={() => setNmaStep(sub.stepIndex)}
-                          style={{
-                            background: isActive ? 'var(--theme-sapphire)' : 'transparent',
-                            color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '4px 6px',
-                            fontSize: '10px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            fontWeight: isActive ? 'bold' : 'normal',
-                            boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
-                            transition: 'all 0.15s',
-                            width: '100%'
-                          }}
-                        >
-                          {sub.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            } else {
-              const isActive = currentStep === sec.stepIndex;
-              return (
-                <button
-                  key={sec.id}
-                  onClick={() => setNmaStep(sec.stepIndex!)}
-                  style={{
-                    background: isActive ? 'var(--theme-sapphire)' : 'transparent',
-                    color: isActive ? '#fff' : 'rgba(255,255,255,0.8)',
-                    border: 'none',
-                    borderRadius: '5px',
-                    padding: '6px 8px',
-                    fontSize: '11px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
-                    transition: 'all 0.15s',
-                    width: '100%'
-                  }}
-                >
+        <div style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.35)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '4px' }}>
+          MNA Walkthrough
+        </div>
+        {menuSections.map((sec) => {
+          if (sec.substeps) {
+            const isParentActive = sec.id === 'step2'
+              ? (currentStep >= 1 && currentStep <= substeps.length)
+              : (currentStep > substeps.length && currentStep < solveStepIndex);
+            return (
+              <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  color: isParentActive ? 'var(--theme-sapphire)' : 'rgba(255,255,255,0.8)',
+                  padding: '4px 6px',
+                  borderRadius: '4px',
+                  background: isParentActive ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                }}>
                   {sec.title}
-                </button>
-              );
-            }
-          })}
-        </div>
-
-        {/* Dynamic Knobs / Controls */}
-        <div style={{
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          paddingTop: '10px',
-          marginTop: '10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '2px' }}>
-            Cell Controls
-          </div>
-          
-          {/* Cell Width Knob */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
-              <span>Width</span>
-              <span>{cellWidth}px</span>
-            </div>
-            <input
-              type="range"
-              min="24"
-              max="150"
-              value={cellWidth}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                setCellWidth(val);
-                if (useAspectRatio) {
-                  setCellHeight(val);
-                }
-              }}
-              style={{
-                width: '100%',
-                height: '4px',
-                borderRadius: '2px',
-                background: 'rgba(255,255,255,0.1)',
-                outline: 'none',
-                accentColor: 'var(--theme-sapphire)',
-                cursor: 'pointer'
-              }}
-            />
-          </div>
-
-          {/* Cell Height Knob */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
-              <span>Height</span>
-              <span>{useAspectRatio ? 'Linked (Square)' : `${cellHeight}px`}</span>
-            </div>
-            <input
-              type="range"
-              min="24"
-              max="150"
-              value={useAspectRatio ? cellWidth : cellHeight}
-              disabled={useAspectRatio}
-              onChange={(e) => setCellHeight(parseInt(e.target.value, 10))}
-              style={{
-                width: '100%',
-                height: '4px',
-                borderRadius: '2px',
-                background: 'rgba(255,255,255,0.1)',
-                outline: 'none',
-                accentColor: 'var(--theme-sapphire)',
-                cursor: useAspectRatio ? 'not-allowed' : 'pointer',
-                opacity: useAspectRatio ? 0.4 : 1
-              }}
-            />
-          </div>
-
-          {/* Aspect Ratio Lock */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '9px', color: 'rgba(255,255,255,0.6)', paddingLeft: '1px' }}>
-            <input
-              type="checkbox"
-              checked={useAspectRatio}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setUseAspectRatio(checked);
-                if (checked) {
-                  setCellHeight(cellWidth);
-                }
-              }}
-              style={{ accentColor: 'var(--theme-sapphire)', cursor: 'pointer' }}
-            />
-            Lock Aspect Ratio
-          </label>
-
-          {/* Font Size Knob */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
-              <span>Font Size</span>
-              <span>{cellFontSize.toFixed(1)}px</span>
-            </div>
-            <input
-              type="range"
-              min="6"
-              max="16"
-              step="0.5"
-              value={cellFontSize}
-              onChange={(e) => setCellFontSize(parseFloat(e.target.value))}
-              style={{
-                width: '100%',
-                height: '4px',
-                borderRadius: '2px',
-                background: 'rgba(255,255,255,0.1)',
-                outline: 'none',
-                accentColor: 'var(--theme-sapphire)',
-                cursor: 'pointer'
-              }}
-            />
-          </div>
-        </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.08)', marginLeft: '4px' }}>
+                  {sec.substeps.map((sub: any) => {
+                    const isActive = currentStep === sub.stepIndex;
+                    return (
+                      <button
+                        key={sub.stepIndex}
+                        onClick={() => setNmaStep(sub.stepIndex)}
+                        style={{
+                          background: isActive ? 'var(--theme-sapphire)' : 'transparent',
+                          color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                          fontSize: '10px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontWeight: isActive ? 'bold' : 'normal',
+                          boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
+                          transition: 'all 0.15s',
+                          width: '100%'
+                        }}
+                      >
+                        {sub.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          } else {
+            const isActive = currentStep === sec.stepIndex;
+            return (
+              <button
+                key={sec.id}
+                onClick={() => setNmaStep(sec.stepIndex!)}
+                style={{
+                  background: isActive ? 'var(--theme-sapphire)' : 'transparent',
+                  color: isActive ? '#fff' : 'rgba(255,255,255,0.8)',
+                  border: 'none',
+                  borderRadius: '5px',
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
+                  transition: 'all 0.15s',
+                  width: '100%'
+                }}
+              >
+                {sec.title}
+              </button>
+            );
+          }
+        })}
       </div>
 
       {/* Main Content Area */}
