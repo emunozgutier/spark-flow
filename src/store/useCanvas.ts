@@ -285,7 +285,7 @@ interface CanvasState {
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
   setLiveDCOn: (on: boolean) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current' | 'diode') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -358,7 +358,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current' | 'diode') => {
+        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode') => {
           (useCanvas as any).temporal?.getState().resume();
           
           let defaultWidth = 200;
@@ -404,6 +404,9 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
                 color = 'amethyst';
               } else if (componentType === 'voltage') {
                 val = 5; // 5V
+                color = 'sapphire';
+              } else if (componentType === 'acvoltage') {
+                val = 5; // 5V amplitude
                 color = 'sapphire';
               } else if (componentType === 'current') {
                 val = 0.001; // 1mA

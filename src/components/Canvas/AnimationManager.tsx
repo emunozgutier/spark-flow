@@ -340,6 +340,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       const hasSource = chain.some(
         (item) => item.type === 'comp' &&
                   ((item.element as CardElement).componentType === 'voltage' ||
+                   (item.element as CardElement).componentType === 'acvoltage' ||
                    (item.element as CardElement).componentType === 'current')
       );
 

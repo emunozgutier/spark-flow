@@ -149,7 +149,7 @@ function App() {
       };
 
       const nodeCount = nodeCounter - 1;
-      const voltageSources = cards.filter((c) => c.componentType === 'voltage');
+      const voltageSources = cards.filter((c) => c.componentType === 'voltage' || c.componentType === 'acvoltage');
       const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
       const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
 
@@ -334,7 +334,7 @@ function App() {
             const rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
             iBranch = vDrop / rVal;
           }
-        } else if (card.componentType === 'voltage') {
+        } else if (card.componentType === 'voltage' || card.componentType === 'acvoltage') {
           const idx = g2ElementMap[card.id];
           iBranch = X[idx] || 0;
         } else if (card.componentType === 'current') {
@@ -759,7 +759,7 @@ function App() {
         const theme = hexColors[card.color] || hexColors.slate;
         
         if (card.componentType) {
-          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : 'GND';
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
           const compName = `${prefix}${card.instanceNumber || 1}`;
           const compVal = formatEngineering(card.value);
 
@@ -776,6 +776,24 @@ function App() {
                                 <path d="M 20 25 L 40 25" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M 24 33 L 36 33" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M 28 41 L 32 41" fill="none" stroke="${theme.main}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else if (card.componentType === 'voltage') {
+            symbolPathMarkup = `<path d="M 0 15 L 35 15 M 65 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="50" cy="15" r="15" fill="none" stroke="${theme.main}" stroke-width="3"/>
+                                <path d="M 40 15 H 46 M 43 12 V 18" stroke="${theme.main}" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M 54 15 H 60" stroke="${theme.main}" stroke-width="2" stroke-linecap="round"/>`;
+          } else if (card.componentType === 'acvoltage') {
+            symbolPathMarkup = `<path d="M 0 15 L 35 15 M 65 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="50" cy="15" r="15" fill="none" stroke="${theme.main}" stroke-width="3"/>
+                                <path d="M 42 15 Q 46 7, 50 15 T 58 15" fill="none" stroke="${theme.main}" stroke-width="2" stroke-linecap="round"/>`;
+          } else if (card.componentType === 'current') {
+            symbolPathMarkup = `<path d="M 0 15 L 35 15 M 65 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="50" cy="15" r="15" fill="none" stroke="${theme.main}" stroke-width="3"/>
+                                <path d="M 42 15 H 58" stroke="${theme.main}" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M 52 10 L 58 15 L 52 20" fill="none" stroke="${theme.main}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else if (card.componentType === 'diode') {
+            symbolPathMarkup = `<path d="M 0 15 L 38 15 M 55 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 38 5 L 38 25 L 55 15 Z" fill="${theme.main}" stroke="${theme.main}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 55 5 L 55 25" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
           }
 
           const rot = card.rotation || 0;

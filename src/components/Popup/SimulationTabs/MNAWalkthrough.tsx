@@ -88,7 +88,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   };
 
   const nodeCount = nodeCounter - 1;
-  const voltageSources = cards.filter((c) => c.componentType === 'voltage');
+  const voltageSources = cards.filter((c) => c.componentType === 'voltage' || c.componentType === 'acvoltage');
   const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
   const inductors = cards.filter((c) => c.componentType === 'inductor');
   
@@ -124,7 +124,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   }
 
   const getDesignator = (card: CardElement) => {
-    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
+    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
     return `${prefix}${card.instanceNumber || 1}`;
   };
 
@@ -397,7 +397,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           A_sys[n2 - 1][n1 - 1] -= g; modifiedCells.push(`${n2 - 1}-${n1 - 1}`);
         }
       }
-    } else if (card.componentType === 'voltage') {
+    } else if (card.componentType === 'voltage' || card.componentType === 'acvoltage') {
       const val = card.value !== undefined ? card.value : 5;
       const idx = g2ElementMap[card.id];
       if (n1 > 0) { A_sys[n1 - 1][idx] += 1; modifiedCells.push(`${n1 - 1}-${idx}`); }
@@ -453,9 +453,10 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     if (card.componentType === 'resistor') {
       const val = card.value !== undefined ? card.value : 1000;
       desc += `Resistor connects Node ${n1Str} and Node ${n2Str}. We stamp a conductance of 1/R = ${(1 / (val || 1e-3)).toFixed(4)} S.`;
-    } else if (card.componentType === 'voltage') {
+    } else if (card.componentType === 'voltage' || card.componentType === 'acvoltage') {
       const val = card.value !== undefined ? card.value : 5;
-      desc += `Voltage source connects Node ${n1Str} (+) and Node ${n2Str} (-), enforcing a fixed potential difference of ${val}V.`;
+      const srcType = card.componentType === 'voltage' ? 'Voltage source' : 'AC voltage source';
+      desc += `${srcType} connects Node ${n1Str} (+) and Node ${n2Str} (-), enforcing a fixed potential difference of ${val}V.`;
     } else if (card.componentType === 'current') {
       const val = card.value !== undefined ? card.value : 0.001;
       desc += `Current source connects Node ${n1Str} (positive) and Node ${n2Str} (negative), injecting a current of ${val} A.`;

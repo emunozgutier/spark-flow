@@ -5,7 +5,7 @@ export interface Point {
   y: number;
 }
 
-export type ToolType = 'select' | 'text' | 'arrow' | 'hand' | 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current' | 'diode';
+export type ToolType = 'select' | 'text' | 'arrow' | 'hand' | 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode';
 
 export type ThemeColor = 'amethyst' | 'emerald' | 'sapphire' | 'amber' | 'coral' | 'slate';
 
@@ -28,7 +28,7 @@ export interface BoxAnnotation extends BaseType {
   title?: string;
   content?: string;
   color: ThemeColor;
-  componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current' | 'diode';
+  componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode';
   instanceNumber?: number;
   value?: number;
   ports?: Port[];

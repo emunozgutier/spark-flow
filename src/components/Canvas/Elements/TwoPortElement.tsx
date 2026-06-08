@@ -128,6 +128,30 @@ export const TwoPortElement: React.FC<TwoPortElementProps> = ({ card }) => {
       </svg>
     );
   }
+  if (card.componentType === 'acvoltage') {
+    return (
+      <svg
+        width="100%"
+        height="30"
+        viewBox="0 0 100 40"
+        fill="none"
+        stroke="var(--theme-color)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          position: 'absolute',
+          top: '5px',
+          left: 0,
+          filter: 'drop-shadow(0 0 4px var(--theme-color-glow))'
+        }}
+      >
+        <path d="M 0 20 L 35 20 M 65 20 L 100 20" />
+        <circle cx="50" cy="20" r="15" />
+        <path d="M 42 20 Q 46 12, 50 20 T 58 20" strokeWidth="2.5" />
+      </svg>
+    );
+  }
   if (card.componentType === 'current') {
     return (
       <svg

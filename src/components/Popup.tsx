@@ -138,6 +138,8 @@ export const Popup: React.FC<PopupProps> = ({
           netlist += `L${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
         } else if (card.componentType === 'voltage') {
           netlist += `V${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'acvoltage') {
+          netlist += `Vac${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} AC ${formatEngineering(card.value)}\n`;
         } else if (card.componentType === 'current') {
           netlist += `I${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
         }
@@ -151,7 +153,7 @@ export const Popup: React.FC<PopupProps> = ({
     // --- 2. ELECTRICAL GRID SOLVER ---
     try {
       const nodeCount = nodeCounter - 1; // Nodes 1 to N
-      const voltageSources = cards.filter((c) => c.componentType === 'voltage');
+      const voltageSources = cards.filter((c) => c.componentType === 'voltage' || c.componentType === 'acvoltage');
       const group2Resistors = cards.filter((c) => c.componentType === 'resistor' && c.isGroup2);
       const mnaSize = nodeCount + voltageSources.length + group2Resistors.length;
 

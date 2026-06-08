@@ -311,7 +311,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'current' | 'diode') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -581,13 +581,13 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if (isUI) return;
 
-    // 2. Click-to-spawn for fixed-size passive elements (including ground, sources, and diode)
     if (
       activeTool === 'resistor' ||
       activeTool === 'capacitor' ||
       activeTool === 'inductor' ||
       activeTool === 'ground' ||
       activeTool === 'voltage' ||
+      activeTool === 'acvoltage' ||
       activeTool === 'current' ||
       activeTool === 'diode'
     ) {

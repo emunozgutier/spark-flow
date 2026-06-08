@@ -31,6 +31,9 @@ const getCompactId = (card: CardElement): string => {
   if (card.componentType === 'voltage') {
     return `V${card.instanceNumber || 1}`;
   }
+  if (card.componentType === 'acvoltage') {
+    return `Vac${card.instanceNumber || 1}`;
+  }
   if (card.componentType === 'current') {
     return `I${card.instanceNumber || 1}`;
   }
@@ -86,6 +89,9 @@ export const serializeElements = (elements: CanvasElement[]): string => {
           defaultVal = 10e-3;
           defaultColor = 'amethyst';
         } else if (card.componentType === 'voltage') {
+          defaultVal = 5;
+          defaultColor = 'sapphire';
+        } else if (card.componentType === 'acvoltage') {
           defaultVal = 5;
           defaultColor = 'sapphire';
         } else if (card.componentType === 'current') {
@@ -258,12 +264,13 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       if (fields.length < 4) return;
 
       const type = fields[0];
-      if (type === 'R' || type === 'C' || type === 'L' || type === 'G' || type === 'V' || type === 'I' || type === 'D') {
+      if (type === 'R' || type === 'C' || type === 'L' || type === 'G' || type === 'V' || type === 'Vac' || type === 'I' || type === 'D') {
         const componentType =
           type === 'R' ? 'resistor' :
           type === 'C' ? 'capacitor' :
           type === 'L' ? 'inductor' :
           type === 'V' ? 'voltage' :
+          type === 'Vac' ? 'acvoltage' :
           type === 'I' ? 'current' :
           type === 'D' ? 'diode' : 'ground';
         
@@ -278,6 +285,7 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         else if (componentType === 'capacitor') { defaultVal = 10e-6; defaultColor = 'sapphire'; }
         else if (componentType === 'inductor') { defaultVal = 10e-3; defaultColor = 'amethyst'; }
         else if (componentType === 'voltage') { defaultVal = 5; defaultColor = 'sapphire'; }
+        else if (componentType === 'acvoltage') { defaultVal = 5; defaultColor = 'sapphire'; }
         else if (componentType === 'current') { defaultVal = 0.001; defaultColor = 'amethyst'; }
         else if (componentType === 'ground') { defaultColor = 'amethyst'; }
         else if (componentType === 'diode') { defaultColor = 'amber'; }
@@ -288,7 +296,7 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
           color = 'amethyst';
         }
 
-        const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : type === 'V' ? 'V' : type === 'I' ? 'I' : type === 'D' ? 'D' : 'GND';
+        const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : type === 'V' ? 'V' : type === 'Vac' ? 'Vac' : type === 'I' ? 'I' : type === 'D' ? 'D' : 'GND';
         const cardId = `${prefix}${instanceNumber}`;
 
         let ports = undefined;
@@ -341,10 +349,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
 
       } else if (type === 'W') {
         const fromShort = fields[1];
-        const fromId = (fromShort.match(/^[RCLG]/) || fromShort === 'GND') ? fromShort : `card-${fromShort}`;
+        const fromId = (fromShort.match(/^[RCLGV]/) || fromShort.startsWith('Vac') || fromShort.startsWith('I') || fromShort.startsWith('D') || fromShort === 'GND') ? fromShort : `card-${fromShort}`;
         const fromSocket = fields[2] as any;
         const toShort = fields[3];
-        const toId = (toShort.match(/^[RCLG]/) || toShort === 'GND') ? toShort : `card-${toShort}`;
+        const toId = (toShort.match(/^[RCLGV]/) || toShort.startsWith('Vac') || toShort.startsWith('I') || toShort.startsWith('D') || toShort === 'GND') ? toShort : `card-${toShort}`;
         const toSocket = fields[4] as any;
         const color = (fields[5] || 'slate') as any;
         const style = (fields[6] || 'curved') as any;
@@ -566,6 +574,42 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         height: 60,
         color,
         componentType: 'voltage',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // Vac[num] -> AC Voltage Source
+    else if (/^Vac\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(3), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 5;
+      
+      let color = fields[5] || 'sapphire';
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'sapphire';
+      }
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-right`, direction: 'right' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'acvoltage',
         instanceNumber,
         value,
         ports,

@@ -24,6 +24,20 @@ export const SourcesBar: React.FC<SourcesBarProps> = ({ activeTool, setActiveToo
         <span className="tooltip">Add Voltage Source Card</span>
       </button>
 
+      {/* AC Voltage Source */}
+      <button
+        className={`tool-btn text-btn ${activeTool === 'acvoltage' ? 'active' : ''}`}
+        onClick={() => setActiveTool('acvoltage')}
+        aria-label="Add AC Voltage Source"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M 8 12 Q 10 7, 12 12 T 16 12" strokeWidth="2" /> {/* sine wave */}
+        </svg>
+        <span>AC voltage</span>
+        <span className="tooltip">Add AC Voltage Source Card</span>
+      </button>
+
       {/* Current Source */}
       <button
         className={`tool-btn text-btn ${activeTool === 'current' ? 'active' : ''}`}
