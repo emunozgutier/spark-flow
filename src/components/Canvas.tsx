@@ -581,14 +581,15 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if (isUI) return;
 
-    // 2. Click-to-spawn for fixed-size passive elements (including ground and sources)
+    // 2. Click-to-spawn for fixed-size passive elements (including ground, sources, and diode)
     if (
       activeTool === 'resistor' ||
       activeTool === 'capacitor' ||
       activeTool === 'inductor' ||
       activeTool === 'ground' ||
       activeTool === 'voltage' ||
-      activeTool === 'current'
+      activeTool === 'current' ||
+      activeTool === 'diode'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
       if (activeTool === 'ground') {
