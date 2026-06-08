@@ -411,6 +411,13 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       const val = card.value !== undefined ? card.value : 0.001;
       if (n1 > 0) { B_sys[n1 - 1] -= val; modifiedCells.push(`rhs-${n1 - 1}`); }
       if (n2 > 0) { B_sys[n2 - 1] += val; modifiedCells.push(`rhs-${n2 - 1}`); }
+    } else if (card.componentType === 'diode') {
+      const diodeCards = cards.filter((c) => c.componentType === 'diode');
+      const dIdx = diodeCards.findIndex((c) => c.id === card.id);
+      if (dIdx !== -1) {
+        if (n1 > 0) modifiedCells.push(`H-${n1 - 1}-${dIdx}`);
+        if (n2 > 0) modifiedCells.push(`H-${n2 - 1}-${dIdx}`);
+      }
     }
 
     return modifiedCells;
@@ -438,10 +445,10 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     variableValues: variableLabels
   });
 
-  // Step 2: Accumulate Linear Element Stamps
+  // Step 2: Accumulate Element Stamps
   const A_temp = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
   const B_temp = new Array(mnaSize).fill(0);
-  const elementsToStamp = cards.filter((c) => c.componentType !== undefined && c.componentType !== 'ground' && c.componentType !== 'diode');
+  const elementsToStamp = cards.filter((c) => c.componentType !== undefined && c.componentType !== 'ground');
   
   const substeps: Array<{ title: string; stepIndex: number }> = [];
 
@@ -466,6 +473,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       desc += `Inductor connects Node ${n1Str} and Node ${n2Str}, stamped as a short circuit in DC analysis.`;
     } else if (card.componentType === 'capacitor') {
       desc += `Capacitor connects Node ${n1Str} and Node ${n2Str}, stamped as an open circuit in DC analysis.`;
+    } else if (card.componentType === 'diode') {
+      desc += `Diode connects Node ${n1Str} (Anode) and Node ${n2Str} (Cathode). In the MNA formulation, it introduces a column in selector matrix H. We stamp +1 at Node ${n1Str}'s KCL (leaving anode) and -1 at Node ${n2Str}'s KCL (entering cathode).`;
     }
 
     nmaSteps.push({
@@ -695,8 +704,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       const n1 = parseInt(n1Str, 10);
       const n2 = parseInt(n2Str, 10);
 
-      if (n1 > 0) H[n1 - 1][dIdx] = 1;
-      if (n2 > 0) H[n2 - 1][dIdx] = -1;
+      // Check if this diode has been stamped up to the current walkthrough step
+      let isStamped = true;
+      if (currentStep < 1 + substeps.length) {
+        const stampIdx = elementsToStamp.findIndex((el) => el.id === card.id);
+        if (stampIdx === -1 || stampIdx >= currentStep) {
+          isStamped = false;
+        }
+      }
+
+      if (isStamped) {
+        if (n1 > 0) H[n1 - 1][dIdx] = 1;
+        if (n2 > 0) H[n2 - 1][dIdx] = -1;
+      }
 
       const vd = (v[n1Str] || 0) - (v[n2Str] || 0);
       const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
@@ -994,6 +1014,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                     }}>
                       {H.map((row, rIdx) =>
                         row.map((val, cIdx) => {
+                          const isHighlighted = nmaSteps[currentStep]?.highlights?.includes(`H-${rIdx}-${cIdx}`);
                           const rowLabel = rIdx < nodeCount ? `KCL Node ${rIdx + 1}` : `Branch ${getDesignator(group2Elements[rIdx - nodeCount])}`;
                           const diodeLabel = diodeLabels[cIdx];
                           const title = `H[${rIdx},${cIdx}] = ${val}\nRow: ${rowLabel}\nDiode: ${diodeLabel}`;
@@ -1003,12 +1024,12 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                               title={title}
                               style={{
                                 padding: '3px 4px',
-                                background: val !== 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.01)',
-                                border: val !== 0 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.03)',
+                                background: isHighlighted ? 'rgba(245, 158, 11, 0.22)' : (val !== 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.01)'),
+                                border: isHighlighted ? '1px solid var(--theme-amber)' : (val !== 0 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.03)'),
                                 borderRadius: '3px',
-                                color: val !== 0 ? 'var(--theme-amber)' : 'rgba(255,255,255,0.25)',
+                                color: isHighlighted ? '#ffffff' : (val !== 0 ? 'var(--theme-amber)' : 'rgba(255,255,255,0.25)'),
                                 fontSize: '9px',
-                                fontWeight: val !== 0 ? 'bold' : 'normal',
+                                fontWeight: (isHighlighted || val !== 0) ? 'bold' : 'normal',
                                 cursor: 'help'
                               }}
                             >
