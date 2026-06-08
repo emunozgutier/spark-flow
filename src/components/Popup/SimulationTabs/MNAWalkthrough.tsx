@@ -421,8 +421,15 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     nonLinearStepIndex = nmaSteps.length - 1;
   }
 
+  interface MenuSection {
+    id: string;
+    title: string;
+    stepIndex?: number;
+    substeps?: Array<{ title: string; stepIndex: number }>;
+  }
+
   // Side menu structure mapping
-  const menuSections = [
+  const menuSections: MenuSection[] = [
     {
       id: 'step1',
       title: 'Step 1: Equation Dimensions',
@@ -435,7 +442,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       id: 'step2',
       title: 'Step 2: Add Element Stamps',
       substeps
-    } as any);
+    });
   }
 
   menuSections.push({

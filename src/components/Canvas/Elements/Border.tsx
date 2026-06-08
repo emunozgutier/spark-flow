@@ -3,7 +3,6 @@ import type { CardElement, ArrowElement, ToolType } from '../../../dataTypes/Ano
 
 interface BorderProps {
   card: CardElement;
-  isSelected: boolean;
   activeTool: ToolType;
   arrows: ArrowElement[];
   initiateArrowDraw: (card: CardElement, socketDir: 'top' | 'right' | 'bottom' | 'left', e: React.MouseEvent) => void;
@@ -11,7 +10,6 @@ interface BorderProps {
 
 export const Border: React.FC<BorderProps> = ({
   card,
-  isSelected,
   activeTool,
   arrows,
   initiateArrowDraw

@@ -5,7 +5,6 @@ import { CircuitElements } from './Canvas/CircuitElements';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Wires';
-import { solveLinearSystem } from '../sim/components/mnaSolver';
 import { AnimationManager } from './Canvas/AnimationManager';
 
 

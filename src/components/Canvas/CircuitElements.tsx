@@ -42,7 +42,6 @@ export const CircuitElements: React.FC<CircuitElementsProps> = ({
     >
       <Border
         card={card}
-        isSelected={isSelected}
         activeTool={activeTool}
         arrows={arrows}
         initiateArrowDraw={initiateArrowDraw}
