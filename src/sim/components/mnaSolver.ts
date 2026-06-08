@@ -103,46 +103,28 @@ export function solveNonLinearMna(
   let residual = new Array(size).fill(0);
 
   for (let iter = 0; iter < maxIterations; iter++) {
-    iterations = iter + 1;
+    // 1. Compile system at current voltages guess.
+    // Matrix A represents the Jacobian (J) and RHS B is compiled.
     const { A, B } = compileSystem(voltages);
     if (A.length === 0) {
       break;
     }
 
-    // Solve for the next guess: A * xNext = B
-    let xNext: number[];
-    try {
-      xNext = solveLinearSystem(A, B);
-    } catch (err) {
-      // If linear system fails to solve, stop
-      break;
-    }
+    const Jacobian = A; // Jacobian matrix J = A
 
-    // Update state to xNext
-    x = xNext;
-
-    // Update voltages for next iteration and residual calculation
-    const nextVoltages: Record<string, number> = { '0': 0 };
-    nodeNames.forEach((name, idx) => {
-      nextVoltages[name] = x[idx];
-    });
-    voltages = nextVoltages;
-
-    // Compile at the new voltages to compute residual f(xNext)
-    const compiledNext = compileSystem(voltages);
-    const A_next = compiledNext.A;
-    const B_next = compiledNext.B;
-
-    residual = new Array(size).fill(0);
+    // 2. Calculate residual vector F = J * x - B
+    const F = new Array(size).fill(0);
     for (let r = 0; r < size; r++) {
       let sum = 0;
       for (let c = 0; c < size; c++) {
-        sum += A_next[r][c] * x[c];
+        sum += Jacobian[r][c] * x[c];
       }
-      residual[r] = sum - B_next[r];
+      F[r] = sum - B[r];
     }
 
-    // Check convergence of the new state residual
+    residual = F;
+
+    // Check convergence of the current guess residual
     let allConverged = true;
     for (let i = 0; i < size; i++) {
       if (i < N) {
@@ -162,6 +144,30 @@ export function solveNonLinearMna(
       converged = true;
       break;
     }
+
+    // 3. Solve for update step: J * deltaX = -F
+    const minusF = F.map(val => -val);
+    let deltaX: number[];
+    try {
+      deltaX = solveLinearSystem(Jacobian, minusF);
+    } catch (err) {
+      // If linear system fails to solve, stop
+      break;
+    }
+
+    // 4. Update state vector: x^(k+1) = x^(k) + deltaX
+    for (let i = 0; i < size; i++) {
+      x[i] += deltaX[i];
+    }
+
+    iterations = iter + 1;
+
+    // Update voltages for the next iteration
+    const nextVoltages: Record<string, number> = { '0': 0 };
+    nodeNames.forEach((name, idx) => {
+      nextVoltages[name] = x[idx];
+    });
+    voltages = nextVoltages;
   }
 
   return {
