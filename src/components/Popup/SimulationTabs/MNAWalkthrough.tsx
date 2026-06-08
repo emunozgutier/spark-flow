@@ -591,7 +591,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   const [nmaStep, setNmaStep] = useState<number>(0);
   const cellWidth = 90;
   const cellHeight = 56;
-  const useAspectRatio = false;
   const cellFontSize = 14;
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
   const isIterationOrSolve = hasDiodes && currentStep > substeps.length;
@@ -920,56 +919,29 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           {/* Math Equations Panel */}
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
             fontSize: '11px',
             color: 'rgba(255, 255, 255, 0.85)',
             background: 'rgba(15, 23, 42, 0.35)',
             border: '1px solid rgba(255, 255, 255, 0.05)',
             borderRadius: '8px',
-            padding: '8px 12px'
+            padding: '10px 14px'
           }}>
-            {/* Equation 1: System Equation */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'var(--theme-emerald)', fontWeight: 'bold', minWidth: '130px' }}>1. System Equation:</span>
-              <span style={{
-                fontFamily: 'monospace',
-                fontSize: '11.5px',
-                color: !isIterationOrSolve ? '#fff' : 'rgba(255,255,255,0.6)',
-                fontWeight: !isIterationOrSolve ? 'bold' : 'normal'
-              }}>
-                G&middot;x + H&middot;g(x) - s = f(x)
-              </span>
-            </div>
-            
-            {hasDiodes && (
-              <>
-                {/* Equation 2: Linearized Step */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ color: 'var(--theme-amber)', fontWeight: 'bold', minWidth: '130px' }}>2. Linearized Step:</span>
-                  <span style={{
-                    fontFamily: 'monospace',
-                    fontSize: '11.5px',
-                    color: isIterationOrSolve ? '#fff' : 'rgba(255,255,255,0.6)',
-                    fontWeight: isIterationOrSolve ? 'bold' : 'normal'
-                  }}>
-                    J<sub>f</sub>(x<sub>k</sub>)&middot;x<sub>k+1</sub> = s<sub>k</sub>
-                  </span>
-                </div>
-                
-                {/* Equation 3: Jacobian Definition */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ color: 'var(--theme-sapphire)', fontWeight: 'bold', minWidth: '130px' }}>3. Jacobian Definition:</span>
-                  <span style={{
-                    fontFamily: 'monospace',
-                    fontSize: '11.5px',
-                    color: 'rgba(255,255,255,0.85)'
-                  }}>
-                    J<sub>f</sub>(x) = G + H&middot;J<sub>g</sub>(x)
-                  </span>
-                </div>
-              </>
-            )}
+            <span style={{ color: 'var(--theme-emerald)', fontWeight: 'bold', fontSize: '12.5px' }}>System Equation:</span>
+            <span style={{
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              color: '#fff',
+              fontWeight: 'bold'
+            }}>
+              {D > 0 ? (
+                <>G&middot;x + H&middot;g(x) - s = f(x)</>
+              ) : (
+                <>G&middot;x - s = f(x)</>
+              )}
+            </span>
           </div>
 
           {/* 3. Stacked Equations Matrix Visualizers */}
@@ -1119,26 +1091,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
               return `Residual error (target: 0)\nRow: ${rowLabel}\nValue: ${val.toExponential(4)} ${unit}\nTolerance: ${tolerance} ${unit}`;
             };
 
-            const jfFormat = (val: number) => val === 0 ? '0' : val.toFixed(3);
-            const jfTooltip = (val: number, r: number, c: number) => {
-              const rowLabel = r < nodeCount ? `KCL Node ${r + 1}` : `Branch ${getDesignator(group2Elements[r - nodeCount])}`;
-              const colLabel = variableLabels[c];
-              return `J_f[${r},${c}] = ${val}\nRow: ${rowLabel}\nCol: ${colLabel}`;
-            };
-
-            const jgFormat = (val: number) => val === 0 ? '0' : val.toExponential(2) + 'S';
-            const jgTooltip = (val: number, r: number, c: number) => {
-              const diodeLabel = diodeLabels[r];
-              return `J_g[${r},${c}] = ${val}\nDiode: ${diodeLabel}\ngd = ${val} S`;
-            };
-
-            const htFormat = (val: number) => val > 0 ? '+1' : val < 0 ? '-1' : '0';
-            const htTooltip = (val: number, r: number, c: number) => {
-              const rowLabel = c < nodeCount ? `KCL Node ${c + 1}` : `Branch ${getDesignator(group2Elements[c - nodeCount])}`;
-              const diodeLabel = diodeLabels[r];
-              return `H^T[${r},${c}] = ${val}\nDiode: ${diodeLabel}\nCol: ${rowLabel}`;
-            };
-
             // Setup Equations Data
             const G_data = G;
             const x_data = xVector.map(val => [val]);
@@ -1147,40 +1099,23 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             const s_data = sVector.map(val => [val]);
             const fx_data = fxVector.map(val => [val]);
 
-            const Jf_data = nmaSteps[currentStep].matrix;
-            const sk_data = nmaSteps[currentStep].rhs.map(val => [val]);
-
-            const J_g_matrix = Array.from({ length: D }, (_, r) =>
-              Array.from({ length: D }, (_, c) => (r === c ? J_g[r] : 0))
-            );
-            const HT_data = Array.from({ length: D }, (_, c) =>
-              Array.from({ length: mnaSize }, (_, r) => H[r][c])
-            );
-
-            // Setup Transposed Highlights
             const baseHighlights = nmaSteps[currentStep]?.highlights || [];
-            const htHighlights = baseHighlights
-              .filter(hl => hl.startsWith('H-'))
-              .map(hl => {
-                const parts = hl.replace('H-', '').split('-');
-                return `${parts[1]}-${parts[0]}`;
-              });
-            const jgHighlights = Array.from({ length: D }, (_, idx) => `${idx}-${idx}`);
 
             return (
               <div style={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
+                justifyContent: 'center',
                 gap: '14px',
                 overflowY: 'auto',
                 minHeight: 0,
                 paddingRight: '2px'
               }}>
-                {/* 1. System Equation Row */}
+                {/* System Equation Row */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--theme-emerald)', fontWeight: 'bold', paddingLeft: '4px' }}>
-                    Equation 1: System Equation (G&middot;x + H&middot;g(x) - s = f(x))
+                  <div style={{ fontSize: '10.5px', color: 'var(--theme-emerald)', fontWeight: 'bold', paddingLeft: '4px' }}>
+                    System Equation (G&middot;x{D > 0 && <> + H&middot;g(x)</>} - s = f(x))
                   </div>
                   <div style={equationRowStyle}>
                     {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, baseHighlights)}
@@ -1200,44 +1135,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                     {renderMatrixInEquation(fx_data, 'Residual f(x)', 'var(--theme-coral)', fxFormat, fxTooltip)}
                   </div>
                 </div>
-
-                {/* 2. Linearized NR Step Row */}
-                {hasDiodes && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--theme-amber)', fontWeight: 'bold', paddingLeft: '4px' }}>
-                      Equation 2: Linearized Step (J<sub>f</sub>(x<sub>k</sub>)&middot;x<sub>k+1</sub> = s<sub>k</sub>)
-                    </div>
-                    <div style={equationRowStyle}>
-                      {renderMatrixInEquation(Jf_data, 'Jacobian J_f(x_k)', 'var(--theme-amber)', jfFormat, jfTooltip, baseHighlights)}
-                      <Operator char="&bull;" />
-                      {renderMatrixInEquation(x_data, 'State x_k+1', 'var(--theme-emerald)', xFormat, xTooltip)}
-                      <Operator char="=" />
-                      {renderMatrixInEquation(sk_data, 'Companion s_k', 'var(--theme-sapphire)', sFormat, sTooltip, baseHighlights)}
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Jacobian Definition Row */}
-                {hasDiodes && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--theme-sapphire)', fontWeight: 'bold', paddingLeft: '4px' }}>
-                      Equation 3: Jacobian Composition (J<sub>f</sub>(x) = G + H&middot;J<sub>g</sub>(x)&middot;H<sup>T</sup>)
-                    </div>
-                    <div style={equationRowStyle}>
-                      {renderMatrixInEquation(Jf_data, 'Jacobian J_f(x_k)', 'var(--theme-amber)', jfFormat, jfTooltip, baseHighlights)}
-                      <Operator char="=" />
-                      {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, baseHighlights.filter(hl => !hl.startsWith('H-') && !hl.startsWith('rhs-')))}
-                      <Operator char="+" />
-                      {renderMatrixInEquation(H_data, 'Matrix H', 'var(--theme-amber)', hFormat, hTooltip, baseHighlights)}
-                      <Operator char="&bull;" />
-                      {renderMatrixInEquation(J_g_matrix, 'Diode J_g(x_k)', 'var(--theme-coral)', jgFormat, jgTooltip, jgHighlights)}
-                      <Operator char="&bull;" />
-                      {renderMatrixInEquation(HT_data, 'Matrix H^T', 'var(--theme-amber)', htFormat, htTooltip, htHighlights)}
-                    </div>
-                  </div>
-                )}
               </div>
-            )();
+            );
           })()}
         </div>
 
