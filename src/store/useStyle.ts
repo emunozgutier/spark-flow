@@ -10,7 +10,7 @@ export interface ColorThemeDefinition {
   display: string;
 }
 
-export type FontSizeOption = 'small' | 'medium' | 'large' | 'xlarge';
+export type FontSizeOption = 'small' | 'medium' | 'normal' | 'large' | 'xlarge';
 
 export interface FontSizeDefinition {
   size: number;
@@ -88,6 +88,7 @@ const COLOR_THEMES: Record<ThemeColor, ColorThemeDefinition> = {
 const FONT_SIZES: Record<FontSizeOption, FontSizeDefinition> = {
   small: { size: 11, label: 'Small' },
   medium: { size: 13, label: 'Medium' },
+  normal: { size: 14, label: 'Normal' },
   large: { size: 16, label: 'Large' },
   xlarge: { size: 20, label: 'Extra Large' }
 };

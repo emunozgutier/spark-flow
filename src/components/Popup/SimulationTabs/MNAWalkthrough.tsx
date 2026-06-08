@@ -589,10 +589,10 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   });
 
   const [nmaStep, setNmaStep] = useState<number>(0);
-  const [cellWidth, setCellWidth] = useState<number>(45);
-  const [cellHeight, setCellHeight] = useState<number>(45);
-  const [useAspectRatio, setUseAspectRatio] = useState<boolean>(true);
-  const [cellFontSize, setCellFontSize] = useState<number>(8.5);
+  const [cellWidth, setCellWidth] = useState<number>(90);
+  const [cellHeight, setCellHeight] = useState<number>(56);
+  const [useAspectRatio, setUseAspectRatio] = useState<boolean>(false);
+  const [cellFontSize, setCellFontSize] = useState<number>(14);
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
 
 
