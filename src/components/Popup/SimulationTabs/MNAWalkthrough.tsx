@@ -589,6 +589,10 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   });
 
   const [nmaStep, setNmaStep] = useState<number>(0);
+  const [cellWidth, setCellWidth] = useState<number>(45);
+  const [cellHeight, setCellHeight] = useState<number>(45);
+  const [useAspectRatio, setUseAspectRatio] = useState<boolean>(true);
+  const [cellFontSize, setCellFontSize] = useState<number>(8.5);
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
 
 
@@ -777,85 +781,207 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         padding: '10px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px',
-        overflowY: 'auto',
-        userSelect: 'none'
+        userSelect: 'none',
+        height: '100%',
+        boxSizing: 'border-box'
       }}>
-        <div style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.35)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '4px' }}>
-          MNA Walkthrough
-        </div>
-        {menuSections.map((sec) => {
-          if (sec.substeps) {
-            const isParentActive = sec.id === 'step2'
-              ? (currentStep >= 1 && currentStep <= substeps.length)
-              : (currentStep > substeps.length && currentStep < solveStepIndex);
-            return (
-              <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <div style={{
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: isParentActive ? 'var(--theme-sapphire)' : 'rgba(255,255,255,0.8)',
-                  padding: '4px 6px',
-                  borderRadius: '4px',
-                  background: isParentActive ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-                }}>
+        {/* Steps List */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          overflowY: 'auto',
+          flex: 1,
+          paddingBottom: '10px'
+        }}>
+          <div style={{ fontSize: '10px', fontWeight: 'bold', color: 'rgba(255,255,255,0.35)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '4px' }}>
+            MNA Walkthrough
+          </div>
+          {menuSections.map((sec) => {
+            if (sec.substeps) {
+              const isParentActive = sec.id === 'step2'
+                ? (currentStep >= 1 && currentStep <= substeps.length)
+                : (currentStep > substeps.length && currentStep < solveStepIndex);
+              return (
+                <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: isParentActive ? 'var(--theme-sapphire)' : 'rgba(255,255,255,0.8)',
+                    padding: '4px 6px',
+                    borderRadius: '4px',
+                    background: isParentActive ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                  }}>
+                    {sec.title}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.08)', marginLeft: '4px' }}>
+                    {sec.substeps.map((sub: any) => {
+                      const isActive = currentStep === sub.stepIndex;
+                      return (
+                        <button
+                          key={sub.stepIndex}
+                          onClick={() => setNmaStep(sub.stepIndex)}
+                          style={{
+                            background: isActive ? 'var(--theme-sapphire)' : 'transparent',
+                            color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 6px',
+                            fontSize: '10px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontWeight: isActive ? 'bold' : 'normal',
+                            boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
+                            transition: 'all 0.15s',
+                            width: '100%'
+                          }}
+                        >
+                          {sub.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            } else {
+              const isActive = currentStep === sec.stepIndex;
+              return (
+                <button
+                  key={sec.id}
+                  onClick={() => setNmaStep(sec.stepIndex!)}
+                  style={{
+                    background: isActive ? 'var(--theme-sapphire)' : 'transparent',
+                    color: isActive ? '#fff' : 'rgba(255,255,255,0.8)',
+                    border: 'none',
+                    borderRadius: '5px',
+                    padding: '6px 8px',
+                    fontSize: '11px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
+                    transition: 'all 0.15s',
+                    width: '100%'
+                  }}
+                >
                   {sec.title}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.08)', marginLeft: '4px' }}>
-                  {sec.substeps.map((sub: any) => {
-                    const isActive = currentStep === sub.stepIndex;
-                    return (
-                      <button
-                        key={sub.stepIndex}
-                        onClick={() => setNmaStep(sub.stepIndex)}
-                        style={{
-                          background: isActive ? 'var(--theme-sapphire)' : 'transparent',
-                          color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
-                          fontSize: '10px',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          fontWeight: isActive ? 'bold' : 'normal',
-                          boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
-                          transition: 'all 0.15s',
-                          width: '100%'
-                        }}
-                      >
-                        {sub.title}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          } else {
-            const isActive = currentStep === sec.stepIndex;
-            return (
-              <button
-                key={sec.id}
-                onClick={() => setNmaStep(sec.stepIndex!)}
-                style={{
-                  background: isActive ? 'var(--theme-sapphire)' : 'transparent',
-                  color: isActive ? '#fff' : 'rgba(255,255,255,0.8)',
-                  border: 'none',
-                  borderRadius: '5px',
-                  padding: '6px 8px',
-                  fontSize: '11px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  boxShadow: isActive ? '0 0 6px var(--theme-sapphire-glow)' : 'none',
-                  transition: 'all 0.15s',
-                  width: '100%'
-                }}
-              >
-                {sec.title}
-              </button>
-            );
-          }
-        })}
+                </button>
+              );
+            }
+          })}
+        </div>
+
+        {/* Dynamic Knobs / Controls */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          paddingTop: '10px',
+          marginTop: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <div style={{ fontSize: '9px', fontWeight: 'bold', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', paddingLeft: '2px' }}>
+            Cell Controls
+          </div>
+          
+          {/* Cell Width Knob */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
+              <span>Width</span>
+              <span>{cellWidth}px</span>
+            </div>
+            <input
+              type="range"
+              min="24"
+              max="150"
+              value={cellWidth}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setCellWidth(val);
+                if (useAspectRatio) {
+                  setCellHeight(val);
+                }
+              }}
+              style={{
+                width: '100%',
+                height: '4px',
+                borderRadius: '2px',
+                background: 'rgba(255,255,255,0.1)',
+                outline: 'none',
+                accentColor: 'var(--theme-sapphire)',
+                cursor: 'pointer'
+              }}
+            />
+          </div>
+
+          {/* Cell Height Knob */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
+              <span>Height</span>
+              <span>{useAspectRatio ? 'Linked (Square)' : `${cellHeight}px`}</span>
+            </div>
+            <input
+              type="range"
+              min="24"
+              max="150"
+              value={useAspectRatio ? cellWidth : cellHeight}
+              disabled={useAspectRatio}
+              onChange={(e) => setCellHeight(parseInt(e.target.value, 10))}
+              style={{
+                width: '100%',
+                height: '4px',
+                borderRadius: '2px',
+                background: 'rgba(255,255,255,0.1)',
+                outline: 'none',
+                accentColor: 'var(--theme-sapphire)',
+                cursor: useAspectRatio ? 'not-allowed' : 'pointer',
+                opacity: useAspectRatio ? 0.4 : 1
+              }}
+            />
+          </div>
+
+          {/* Aspect Ratio Lock */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '9px', color: 'rgba(255,255,255,0.6)', paddingLeft: '1px' }}>
+            <input
+              type="checkbox"
+              checked={useAspectRatio}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setUseAspectRatio(checked);
+                if (checked) {
+                  setCellHeight(cellWidth);
+                }
+              }}
+              style={{ accentColor: 'var(--theme-sapphire)', cursor: 'pointer' }}
+            />
+            Lock Aspect Ratio
+          </label>
+
+          {/* Font Size Knob */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
+              <span>Font Size</span>
+              <span>{cellFontSize.toFixed(1)}px</span>
+            </div>
+            <input
+              type="range"
+              min="6"
+              max="16"
+              step="0.5"
+              value={cellFontSize}
+              onChange={(e) => setCellFontSize(parseFloat(e.target.value))}
+              style={{
+                width: '100%',
+                height: '4px',
+                borderRadius: '2px',
+                background: 'rgba(255,255,255,0.1)',
+                outline: 'none',
+                accentColor: 'var(--theme-sapphire)',
+                cursor: 'pointer'
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -915,13 +1041,13 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             minHeight: 0
           }}>
             {/* 1. G Matrix (S x S) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
               <div style={{ fontSize: '8.5px', color: 'var(--theme-sapphire)', fontWeight: 'bold' }}>Matrix G ({mnaSize}x{mnaSize})</div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <LeftBracket />
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${mnaSize}, minmax(44px, max-content))`,
+                  gridTemplateColumns: `repeat(${mnaSize}, ${cellWidth}px)`,
                   gap: '3px',
                   textAlign: 'center'
                 }}>
@@ -936,14 +1062,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                           key={`${rIdx}-${cIdx}`}
                           title={title}
                           style={{
-                            padding: '3px 4px',
+                            width: `${cellWidth}px`,
+                            height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             background: isHighlighted ? 'rgba(245, 158, 11, 0.18)' : 'rgba(255,255,255,0.02)',
                             border: isHighlighted ? '1px solid var(--theme-amber)' : '1px solid rgba(255,255,255,0.05)',
                             borderRadius: '3px',
                             color: isHighlighted ? 'var(--theme-amber)' : (val !== 0 ? '#ffffff' : 'rgba(255,255,255,0.25)'),
-                            fontSize: '9px',
+                            fontSize: `${cellFontSize}px`,
                             fontWeight: isHighlighted ? 'bold' : 'normal',
-                            cursor: 'help'
+                            cursor: 'help',
+                            boxSizing: 'border-box'
                           }}
                         >
                           {val === 0 ? '0' : val.toFixed(3)}
@@ -959,11 +1090,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>&bull;</div>
 
             {/* 2. x Vector (S x 1) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
               <div style={{ fontSize: '8.5px', color: 'var(--theme-emerald)', fontWeight: 'bold' }}>State x ({mnaSize}x1)</div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <LeftBracket />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
                   {xVector.map((val, idx) => {
                     const label = variableLabels[idx];
                     const isCurrent = idx >= nodeCount;
@@ -975,16 +1106,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                         key={idx}
                         title={title}
                         style={{
-                          width: '64px',
-                          padding: '3px 4px',
+                          width: '100%',
+                          height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           background: 'rgba(52, 211, 153, 0.05)',
                           border: '1px solid rgba(52, 211, 153, 0.15)',
                           borderRadius: '3px',
                           color: 'var(--theme-emerald)',
-                          fontSize: '9px',
-                          textAlign: 'center',
+                          fontSize: `${cellFontSize}px`,
                           fontWeight: 'bold',
-                          cursor: 'help'
+                          cursor: 'help',
+                          boxSizing: 'border-box'
                         }}
                       >
                         {formatted}
@@ -1002,13 +1136,13 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>+</div>
 
                 {/* H Matrix (S x D) */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                   <div style={{ fontSize: '8.5px', color: 'var(--theme-amber)', fontWeight: 'bold' }}>Matrix H ({mnaSize}x{D})</div>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <LeftBracket />
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: `repeat(${D}, minmax(32px, max-content))`,
+                      gridTemplateColumns: `repeat(${D}, ${cellWidth}px)`,
                       gap: '3px',
                       textAlign: 'center'
                     }}>
@@ -1023,14 +1157,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                               key={`${rIdx}-${cIdx}`}
                               title={title}
                               style={{
-                                padding: '3px 4px',
+                                width: `${cellWidth}px`,
+                                height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 background: isHighlighted ? 'rgba(245, 158, 11, 0.22)' : (val !== 0 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.01)'),
                                 border: isHighlighted ? '1px solid var(--theme-amber)' : (val !== 0 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(255,255,255,0.03)'),
                                 borderRadius: '3px',
                                 color: isHighlighted ? '#ffffff' : (val !== 0 ? 'var(--theme-amber)' : 'rgba(255,255,255,0.25)'),
-                                fontSize: '9px',
+                                fontSize: `${cellFontSize}px`,
                                 fontWeight: (isHighlighted || val !== 0) ? 'bold' : 'normal',
-                                cursor: 'help'
+                                cursor: 'help',
+                                boxSizing: 'border-box'
                               }}
                             >
                               {val > 0 ? '+1' : val < 0 ? '-1' : '0'}
@@ -1046,11 +1185,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>&bull;</div>
 
                 {/* g(x) Vector (D x 1) */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                   <div style={{ fontSize: '8.5px', color: 'var(--theme-coral)', fontWeight: 'bold' }}>Diode g(x) ({D}x1)</div>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <LeftBracket />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
                       {gxVector.map((val, idx) => {
                         const diodeLabel = diodeLabels[idx];
                         const formatted = formatEngineering(val) + 'A';
@@ -1060,16 +1199,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                             key={idx}
                             title={title}
                             style={{
-                              width: '64px',
-                              padding: '3px 4px',
+                              width: '100%',
+                              height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                               background: 'rgba(244, 63, 94, 0.05)',
                               border: '1px solid rgba(244, 63, 94, 0.15)',
                               borderRadius: '3px',
                               color: 'var(--theme-coral)',
-                              fontSize: '9px',
-                              textAlign: 'center',
+                              fontSize: `${cellFontSize}px`,
                               fontWeight: 'bold',
-                              cursor: 'help'
+                              cursor: 'help',
+                              boxSizing: 'border-box'
                             }}
                           >
                             {formatted}
@@ -1086,11 +1228,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>-</div>
 
             {/* 4. s Vector (S x 1) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
               <div style={{ fontSize: '8.5px', color: 'var(--theme-sapphire)', fontWeight: 'bold' }}>Source s ({mnaSize}x1)</div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <LeftBracket />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
                   {sVector.map((val, idx) => {
                     const isKcl = idx < nodeCount;
                     const unit = isKcl ? 'A' : 'V';
@@ -1103,16 +1245,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                         key={idx}
                         title={title}
                         style={{
-                          width: '64px',
-                          padding: '3px 4px',
+                          width: '100%',
+                          height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           background: isHighlighted ? 'rgba(244, 63, 94, 0.18)' : 'rgba(59, 130, 246, 0.05)',
                           border: isHighlighted ? '1px solid var(--theme-coral)' : '1px solid rgba(59, 130, 246, 0.15)',
                           borderRadius: '3px',
                           color: isHighlighted ? 'var(--theme-coral)' : '#ffffff',
                           fontWeight: isHighlighted ? 'bold' : 'normal',
-                          fontSize: '9px',
-                          textAlign: 'center',
-                          cursor: 'help'
+                          fontSize: `${cellFontSize}px`,
+                          cursor: 'help',
+                          boxSizing: 'border-box'
                         }}
                       >
                         {formatted}
@@ -1127,11 +1272,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 'bold', alignSelf: 'center', marginTop: '12px' }}>=</div>
 
             {/* 5. f(x) Vector (S x 1) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
               <div style={{ fontSize: '8.5px', color: 'var(--theme-coral)', fontWeight: 'bold' }}>Residual f(x) ({mnaSize}x1)</div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <LeftBracket />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: `${cellWidth}px` }}>
                   {fxVector.map((val, idx) => {
                     const isKcl = idx < nodeCount;
                     const unit = isKcl ? 'A' : 'V';
@@ -1145,16 +1290,19 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                         key={idx}
                         title={title}
                         style={{
-                          width: '72px',
-                          padding: '3px 4px',
+                          width: '100%',
+                          height: `${useAspectRatio ? cellWidth : cellHeight}px`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           background: isZero ? 'rgba(52, 211, 153, 0.08)' : 'rgba(244, 63, 94, 0.08)',
                           border: isZero ? '1px solid rgba(52, 211, 153, 0.25)' : '1px solid rgba(244, 63, 94, 0.25)',
                           borderRadius: '3px',
                           color: isZero ? 'var(--theme-emerald)' : 'var(--theme-coral)',
-                          fontSize: '9px',
-                          textAlign: 'center',
+                          fontSize: `${cellFontSize}px`,
                           fontWeight: 'bold',
-                          cursor: 'help'
+                          cursor: 'help',
+                          boxSizing: 'border-box'
                         }}
                       >
                         {formatted}
