@@ -208,5 +208,40 @@ export const TwoPortElement: React.FC<TwoPortElementProps> = ({ card }) => {
       </svg>
     );
   }
+  if (card.componentType === 'bjt') {
+    return (
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 60 60"
+        fill="none"
+        stroke="var(--theme-color)"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          filter: 'drop-shadow(0 0 4px var(--theme-color-glow))'
+        }}
+      >
+        {/* Base terminal lead */}
+        <path d="M 0 30 L 22 30" />
+        {/* Base plate */}
+        <path d="M 22 16 L 22 44" strokeWidth="5" />
+        {/* Collector */}
+        <path d="M 30 0 L 30 16 L 22 23" />
+        {/* Emitter */}
+        <path d="M 22 37 L 30 44 L 30 60" />
+        {/* Emitter Arrowhead (NPN) */}
+        <polygon
+          points="25,43 30,44 28,38"
+          fill="var(--theme-color)"
+          stroke="none"
+        />
+      </svg>
+    );
+  }
   return null;
 };

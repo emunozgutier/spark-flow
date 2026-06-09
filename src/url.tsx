@@ -40,6 +40,9 @@ const getCompactId = (card: CardElement): string => {
   if (card.componentType === 'diode') {
     return `D${card.instanceNumber || 1}`;
   }
+  if (card.componentType === 'bjt') {
+    return `Q${card.instanceNumber || 1}`;
+  }
   if (card.componentType === 'ground') {
     return card.instanceNumber ? `GND${card.instanceNumber}` : 'GND';
   }
@@ -101,6 +104,9 @@ export const serializeElements = (elements: CanvasElement[]): string => {
           defaultColor = 'amethyst';
         } else if (card.componentType === 'diode') {
           defaultColor = 'amber';
+        } else if (card.componentType === 'bjt') {
+          defaultVal = 100;
+          defaultColor = 'amethyst';
         }
 
         const valStr = card.value !== undefined && card.value !== defaultVal ? String(card.value) : '';
@@ -725,6 +731,48 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         color,
         componentType: 'diode',
         instanceNumber,
+        ports,
+        rotation
+      } as CardElement);
+    }
+    // Q[num] -> BJT
+    else if (/^Q\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 100;
+      
+      let color = 'amethyst';
+      if (fields[5] !== undefined && fields[5] !== '') {
+        color = fields[5];
+      } else if (fields[4] !== undefined && fields[4] !== '' && isNaN(parseFloat(fields[4]))) {
+        color = fields[4];
+      }
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'amethyst';
+      }
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-top`, direction: 'top' as const, isConnected: false },
+        { id: `${id}-bottom`, direction: 'bottom' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'bjt',
+        instanceNumber,
+        value,
         ports,
         rotation
       } as CardElement);

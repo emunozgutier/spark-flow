@@ -285,7 +285,7 @@ interface CanvasState {
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
   setLiveDCOn: (on: boolean) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -358,7 +358,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode') => {
+        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => {
           (useCanvas as any).temporal?.getState().resume();
           
           let defaultWidth = 200;
@@ -385,6 +385,16 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
                 { id: `${cardId}-top`, direction: 'top', isConnected: false }
               ];
               val = undefined;
+              color = 'amethyst';
+              defaultWidth = 60;
+              defaultHeight = 60;
+            } else if (componentType === 'bjt') {
+              ports = [
+                { id: `${cardId}-left`, direction: 'left', isConnected: false },
+                { id: `${cardId}-top`, direction: 'top', isConnected: false },
+                { id: `${cardId}-bottom`, direction: 'bottom', isConnected: false }
+              ];
+              val = 100;
               color = 'amethyst';
               defaultWidth = 60;
               defaultHeight = 60;

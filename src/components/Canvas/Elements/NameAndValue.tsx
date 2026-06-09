@@ -33,9 +33,9 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
       <input
         type="text"
         className="passive-title-input"
-        value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND'}${card.instanceNumber || 1}`}
+        value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND'}${card.instanceNumber || 1}`}
         onChange={(e) => {
-          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND';
           const num = parseInstanceNumber(e.target.value, prefix);
           updateElement(card.id, { instanceNumber: num }, false);
         }}
@@ -63,9 +63,9 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
           <input
             type="text"
             className="passive-value-input"
-            value={formatEngineering(card.value)}
+            value={card.componentType === 'bjt' ? String(card.value ?? 100) : formatEngineering(card.value)}
             onChange={(e) => {
-              const num = parseEngineering(e.target.value);
+              const num = card.componentType === 'bjt' ? (parseFloat(e.target.value) || 100) : parseEngineering(e.target.value);
               updateElement(card.id, { value: num }, false);
             }}
             onBlur={finalizeDrag}

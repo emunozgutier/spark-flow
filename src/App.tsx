@@ -102,7 +102,8 @@ function App() {
       cards.forEach((card) => {
         const isGround = card.componentType === 'ground';
         const isJoin = card.id.startsWith('join') || card.title === 'join';
-        const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : ['left', 'right']);
+        const isBjt = card.componentType === 'bjt';
+        const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
         
         portsList.forEach((socket) => {
           const pin = `${card.id}-${socket}`;
@@ -252,6 +253,79 @@ function App() {
           }
         });
 
+        // 2.1 BJT Transistors (Non-linear elements)
+        cards.forEach((card) => {
+          if (card.componentType === 'bjt') {
+            const nCStr = getPinNode(card.id, 'top');
+            const nBStr = getPinNode(card.id, 'left');
+            const nEStr = getPinNode(card.id, 'bottom');
+            const nc = parseInt(nCStr, 10);
+            const nb = parseInt(nBStr, 10);
+            const ne = parseInt(nEStr, 10);
+
+            const vC = voltages[nCStr] || 0;
+            const vB = voltages[nBStr] || 0;
+            const vE = voltages[nEStr] || 0;
+            const vbe = vB - vE;
+            const vbc = vB - vC;
+
+            const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+            const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+
+            const Is = 1e-14;
+            const Vt = 0.026;
+            const betaF = card.value !== undefined ? card.value : 100;
+            const betaR = 1;
+
+            const expTermF = Math.exp(vbeClamped / Vt);
+            const expTermR = Math.exp(vbcClamped / Vt);
+
+            const gf = (Is / Vt) * expTermF;
+            const gr = (Is / Vt) * expTermR;
+
+            const If = Is * (expTermF - 1);
+            const Ir = Is * (expTermR - 1);
+
+            const IeqF = If - gf * vbeClamped;
+            const IeqR = Ir - gr * vbcClamped;
+
+            const Gcc = (1 + 1 / betaR) * gr;
+            const Gcb = gf - (1 + 1 / betaR) * gr;
+            const Gce = -gf;
+
+            const Gbc = -gr / betaR;
+            const Gbb = gf / betaF + gr / betaR;
+            const Gbe = -gf / betaF;
+
+            const Gec = -gr;
+            const Geb = -(1 + 1 / betaF) * gf + gr;
+            const Gee = (1 + 1 / betaF) * gf;
+
+            const Bc = -IeqF + (1 + 1 / betaR) * IeqR;
+            const Bb = -IeqF / betaF - IeqR / betaR;
+            const Be = (1 + 1 / betaF) * IeqF - IeqR;
+
+            if (nc > 0) {
+              A[nc - 1][nc - 1] += Gcc;
+              if (nb > 0) A[nc - 1][nb - 1] += Gcb;
+              if (ne > 0) A[nc - 1][ne - 1] += Gce;
+              B[nc - 1] += Bc;
+            }
+            if (nb > 0) {
+              if (nc > 0) A[nb - 1][nc - 1] += Gbc;
+              A[nb - 1][nb - 1] += Gbb;
+              if (ne > 0) A[nb - 1][ne - 1] += Gbe;
+              B[nb - 1] += Bb;
+            }
+            if (ne > 0) {
+              if (nc > 0) A[ne - 1][nc - 1] += Gec;
+              if (nb > 0) A[ne - 1][nb - 1] += Geb;
+              A[ne - 1][ne - 1] += Gee;
+              B[ne - 1] += Be;
+            }
+          }
+        });
+
         // 3. Voltage sources
         voltageSources.forEach((vSrc) => {
           const n1Str = getPinNode(vSrc.id, 'left');
@@ -316,6 +390,42 @@ function App() {
         if (!card.componentType) return;
         if (card.componentType === 'ground') {
           solvedDCOperatingPoint[card.id] = { voltageDrop: 0, branchCurrent: 0 };
+          return;
+        }
+        if (card.componentType === 'bjt') {
+          const nCStr = getPinNode(card.id, 'top');
+          const nBStr = getPinNode(card.id, 'left');
+          const nEStr = getPinNode(card.id, 'bottom');
+          const vC = voltages[nCStr] || 0;
+          const vB = voltages[nBStr] || 0;
+          const vE = voltages[nEStr] || 0;
+          const vbe = vB - vE;
+          const vbc = vB - vC;
+          const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+          const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+          const Is = 1e-14;
+          const Vt = 0.026;
+          const If = Is * (Math.exp(vbeClamped / Vt) - 1);
+          const Ir = Is * (Math.exp(vbcClamped / Vt) - 1);
+          const betaF = card.value !== undefined ? card.value : 100;
+          const betaR = 1;
+          const Ic = If - Ir - Ir / betaR;
+          const Ib = If / betaF + Ir / betaR;
+          const Ie = -(If + If / betaF - Ir);
+
+          solvedDCOperatingPoint[card.id] = {
+            voltageDrop: vC - vE,
+            branchCurrent: Math.abs(Ic),
+            vLeft: vB,
+            vRight: vC,
+            vBase: vB,
+            vCollector: vC,
+            vEmitter: vE,
+            iCollector: Ic,
+            iBase: Ib,
+            iEmitter: Ie,
+            signedCurrent: Ic
+          };
           return;
         }
 
@@ -383,6 +493,21 @@ function App() {
         if (!card || !card.componentType) return { role: 'none', current: 0 };
         if (card.componentType === 'ground') {
           return { role: 'sink', current: 0 };
+        }
+        if (card.componentType === 'bjt') {
+          const solved = solvedDCOperatingPoint[card.id];
+          const Ic = solved?.iCollector || 0;
+          const Ib = solved?.iBase || 0;
+          const Ie = solved?.iEmitter || 0;
+
+          if (socket === 'left') {
+            return { role: Ib >= 0 ? 'sink' : 'source', current: Math.abs(Ib) };
+          } else if (socket === 'top') {
+            return { role: Ic >= 0 ? 'sink' : 'source', current: Math.abs(Ic) };
+          } else if (socket === 'bottom') {
+            return { role: Ie <= 0 ? 'source' : 'sink', current: Math.abs(Ie) };
+          }
+          return { role: 'none', current: 0 };
         }
 
         const solved = solvedDCOperatingPoint[card.id];
@@ -542,6 +667,9 @@ function App() {
           break;
         case 'd':
           setActiveTool('diode');
+          break;
+        case 'q':
+          setActiveTool('bjt');
           break;
       }
     };
@@ -759,7 +887,7 @@ function App() {
         const theme = hexColors[card.color] || hexColors.slate;
         
         if (card.componentType) {
-          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : 'GND';
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND';
           const compName = `${prefix}${card.instanceNumber || 1}`;
           const compVal = formatEngineering(card.value);
 
@@ -796,10 +924,16 @@ function App() {
             symbolPathMarkup = `<path d="M 0 15 L 38 15 M 55 15 L 100 15" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M 38 5 L 38 25 L 55 15 Z" fill="${theme.main}" stroke="${theme.main}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M 55 5 L 55 25" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+          } else if (card.componentType === 'bjt') {
+            symbolPathMarkup = `<path d="M 0 30 L 22 30" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 22 16 L 22 44" fill="none" stroke="${theme.main}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 30 0 L 30 16 L 22 23" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 22 37 L 30 44 L 30 60" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polygon points="25,43 30,44 28,38" fill="${theme.main}" stroke="none"/>`;
           }
 
           const rot = card.rotation || 0;
-          const isGnd = card.componentType === 'ground';
+          const isGnd = card.componentType === 'ground' || card.componentType === 'bjt';
           
           cardMarkup += `
             <g transform="translate(${card.x}, ${card.y}) rotate(${rot}, ${card.width / 2}, ${card.height / 2})">

@@ -6,9 +6,10 @@ export interface ElementStamp {
 
 export interface BaseElement {
   name: string;
-  type: 'resistor' | 'capacitor' | 'inductor' | 'voltage' | 'current' | 'diode';
+  type: 'resistor' | 'capacitor' | 'inductor' | 'voltage' | 'current' | 'diode' | 'bjt';
   node1: string;
   node2: string;
+  node3?: string;
   value: number;
   isGroup2: boolean;
 

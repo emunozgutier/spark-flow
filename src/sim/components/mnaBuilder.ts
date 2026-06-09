@@ -130,7 +130,7 @@ export function solveNonLinearCircuit(
     branchCurrents[el.name] = solution[activeNodes.length + idx] || 0;
   });
 
-  // Calculate Diode currents (Group 1 elements) if any
+  // Calculate Diode and BJT currents (Group 1 elements) if any
   elementsList.forEach((el) => {
     if (el.type === 'diode') {
       const v1 = nodeVoltages[el.node1] || 0;
@@ -140,6 +140,21 @@ export function solveNonLinearCircuit(
       const Is = 1e-14;
       const Vt = 0.026;
       branchCurrents[el.name] = Is * (Math.exp(vdClamped / Vt) - 1);
+    } else if (el.type === 'bjt') {
+      const vC = nodeVoltages[el.node1] || 0;
+      const vB = nodeVoltages[el.node2] || 0;
+      const vE = nodeVoltages[el.node3 || ''] || 0;
+      const vbe = vB - vE;
+      const vbc = vB - vC;
+      const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+      const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+      const Is = 1e-14;
+      const Vt = 0.026;
+      const If = Is * (Math.exp(vbeClamped / Vt) - 1);
+      const Ir = Is * (Math.exp(vbcClamped / Vt) - 1);
+      const betaR = 1;
+      const Ic = If - Ir - Ir / betaR;
+      branchCurrents[el.name] = Ic;
     }
   });
 

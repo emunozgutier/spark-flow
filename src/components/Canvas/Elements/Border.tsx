@@ -35,6 +35,57 @@ export const Border: React.FC<BorderProps> = ({
               data-socket-dir="top"
               onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
             />
+          ) : card.componentType === 'bjt' ? (
+            <>
+              {/* Left Lead Port (Base) */}
+              <div
+                className={`card-socket left ${
+                  !arrows.some(
+                    (arrow) =>
+                      (arrow.fromId === card.id && arrow.fromSocket === 'left') ||
+                      (arrow.toId === card.id && arrow.toSocket === 'left')
+                  )
+                    ? 'open-port'
+                    : ''
+                }`}
+                data-card-id={card.id}
+                data-socket-dir="left"
+                onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
+                style={{ top: '23px' }}
+              />
+
+              {/* Top Lead Port (Collector) */}
+              <div
+                className={`card-socket top ${
+                  !arrows.some(
+                    (arrow) =>
+                      (arrow.fromId === card.id && arrow.fromSocket === 'top') ||
+                      (arrow.toId === card.id && arrow.toSocket === 'top')
+                  )
+                    ? 'open-port'
+                    : ''
+                }`}
+                data-card-id={card.id}
+                data-socket-dir="top"
+                onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
+              />
+
+              {/* Bottom Lead Port (Emitter) */}
+              <div
+                className={`card-socket bottom ${
+                  !arrows.some(
+                    (arrow) =>
+                      (arrow.fromId === card.id && arrow.fromSocket === 'bottom') ||
+                      (arrow.toId === card.id && arrow.toSocket === 'bottom')
+                  )
+                    ? 'open-port'
+                    : ''
+                }`}
+                data-card-id={card.id}
+                data-socket-dir="bottom"
+                onMouseDown={(e) => initiateArrowDraw(card, 'bottom', e)}
+              />
+            </>
           ) : (
             <>
               {/* Left Lead Port */}

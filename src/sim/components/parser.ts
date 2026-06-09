@@ -10,6 +10,7 @@ import { CapacitorElement } from './stamps/capacitor';
 import { VoltageSourceElement } from './stamps/voltage';
 import { CurrentSourceElement } from './stamps/current';
 import { DiodeElement } from './stamps/diode';
+import { BjtElement } from './stamps/bjt';
 import { parseEngineeringValue } from '../../utils/math';
 
 export interface ParsedNetlist {
@@ -80,6 +81,15 @@ export const parseSpiceNetlistToElements = (spiceDeck: string): ParsedNetlist =>
                 element = new DiodeElement(name, node1, node2, value);
                 n1 = node1;
                 n2 = node2;
+              } else {
+                const qMatch = line.match(BjtElement.pattern);
+                if (qMatch) {
+                  const [, name, node1, node2, node3, valToken] = qMatch;
+                  const value = valToken ? parseEngineeringValue(valToken) : 100;
+                  element = new BjtElement(name, node1, node2, node3, value);
+                  n1 = node1;
+                  n2 = node2;
+                }
               }
             }
           }
@@ -91,6 +101,9 @@ export const parseSpiceNetlistToElements = (spiceDeck: string): ParsedNetlist =>
       elementsList.push(element);
       uniqueNodes.add(n1);
       uniqueNodes.add(n2);
+      if (element.node3) {
+        uniqueNodes.add(element.node3);
+      }
     }
   }
 
