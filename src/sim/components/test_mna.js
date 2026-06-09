@@ -200,7 +200,7 @@ const solveLinearSystem = (A, B) => {
       b[i] = b[maxRow];
       b[maxRow] = tempVal;
     }
-    if (Math.abs(a[i][i]) < 1e-12) {
+    if (Math.abs(a[i][i]) < 1e-20) {
       throw new Error(`Zero pivot found at row/col ${i}. Pivot value: ${a[i][i]}`);
     }
     for (let k = i + 1; k < n; k++) {

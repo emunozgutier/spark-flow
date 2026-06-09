@@ -512,12 +512,23 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         desc += `Residuals exceed tolerances. Continuing to next iteration.`;
       }
 
+      // Build highlights for this iteration step:
+      // Only highlight Residual f(x) elements that are acceptable (within tolerance)
+      const stepHighlights: string[] = [];
+      record.residual.forEach((resVal, idx) => {
+        const isKcl = idx < nodeCount;
+        const tol = isKcl ? tolI : tolV;
+        if (Math.abs(resVal) < tol) {
+          stepHighlights.push(`fx-${idx}`);
+        }
+      });
+
       nmaSteps.push({
         title: `Iteration ${record.iterIndex}`,
         desc,
         matrix: record.A,
         rhs: record.B,
-        highlights: record.diodeStamps.flatMap(ds => ds.highlights),
+        highlights: stepHighlights,
         variableValues: variableLabels.map((label, idx) => {
           const val = record.nextX[idx] || 0;
           const isCurrent = label.startsWith('i');
@@ -593,7 +604,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   const cellHeight = 56;
   const cellFontSize = 14;
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
-  const isIterationOrSolve = hasDiodes && currentStep > substeps.length;
 
 
   const { G, H, x: xVector, gx: gxVector, s: sVector, fx: fxVector, diodeLabels } = (() => {
@@ -740,17 +750,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
     const fx = Gx.map((val, r) => val + Hg[r] - s[r]);
 
-    const J_g = diodeCards.map((card) => {
-      const n1Str = getPinNode(card.id, 'left');
-      const n2Str = getPinNode(card.id, 'right');
-      const vd = (v[n1Str] || 0) - (v[n2Str] || 0);
-      const vdClamped = Math.max(-1.0, Math.min(0.8, vd));
-      const Is = 1e-14;
-      const Vt = 0.026;
-      return (Is / Vt) * Math.exp(vdClamped / Vt);
-    });
-
-    return { G, H, x, gx, s, fx, diodeLabels, J_g };
+    return { G, H, x, gx, s, fx, diodeLabels };
   })();
 
   const LeftBracket = () => (
@@ -1101,6 +1101,17 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
             const baseHighlights = nmaSteps[currentStep]?.highlights || [];
 
+            const gHighlights = baseHighlights.filter(h => !h.startsWith('H-') && !h.startsWith('rhs-') && !h.startsWith('fx-'));
+            const hHighlights = baseHighlights
+              .filter(h => h.startsWith('H-'))
+              .map(h => h.substring(2));
+            const sHighlights = baseHighlights
+              .filter(h => h.startsWith('rhs-'))
+              .map(h => h.substring(4) + '-0');
+            const fxHighlights = baseHighlights
+              .filter(h => h.startsWith('fx-'))
+              .map(h => h.substring(3) + '-0');
+
             return (
               <div style={{
                 flex: 1,
@@ -1118,21 +1129,21 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                     System Equation (G&middot;x{D > 0 && <> + H&middot;g(x)</>} - s = f(x))
                   </div>
                   <div style={equationRowStyle}>
-                    {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, baseHighlights)}
+                    {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
                     <Operator char="&bull;" />
                     {renderMatrixInEquation(x_data, 'State x', 'var(--theme-emerald)', xFormat, xTooltip)}
                     {D > 0 && (
                       <>
                         <Operator char="+" />
-                        {renderMatrixInEquation(H_data, 'Matrix H', 'var(--theme-amber)', hFormat, hTooltip, baseHighlights)}
+                        {renderMatrixInEquation(H_data, 'Matrix H', 'var(--theme-amber)', hFormat, hTooltip, hHighlights)}
                         <Operator char="&bull;" />
                         {renderMatrixInEquation(gx_data, 'Diode g(x)', 'var(--theme-coral)', gxFormat, gxTooltip)}
                       </>
                     )}
                     <Operator char="-" />
-                    {renderMatrixInEquation(s_data, 'Source s', 'var(--theme-sapphire)', sFormat, sTooltip, baseHighlights)}
+                    {renderMatrixInEquation(s_data, 'Source s', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
                     <Operator char="=" />
-                    {renderMatrixInEquation(fx_data, 'Residual f(x)', 'var(--theme-coral)', fxFormat, fxTooltip)}
+                    {renderMatrixInEquation(fx_data, 'Residual f(x)', 'var(--theme-coral)', fxFormat, fxTooltip, fxHighlights)}
                   </div>
                 </div>
               </div>

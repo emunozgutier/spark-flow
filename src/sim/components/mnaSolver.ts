@@ -37,7 +37,7 @@ export const solveLinearSystem = (A: number[][], B: number[]): number[] => {
     }
     
     // Check if the matrix is singular
-    if (Math.abs(a[i][i]) < 1e-12) {
+    if (Math.abs(a[i][i]) < 1e-20) {
       throw new Error(`MNA system matrix is singular or highly ill-conditioned. Zero pivot found at row/col ${i}.`);
     }
     
