@@ -156,7 +156,7 @@ function App() {
 
       if (mnaSize === 0) return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
 
-      const hasDiodes = cards.some(c => c.componentType === 'diode');
+      const hasNonLinear = cards.some(c => c.componentType === 'diode' || c.componentType === 'bjt');
 
       const g2ElementMap: Record<string, number> = {};
       let g2Index = nodeCount;
@@ -173,7 +173,7 @@ function App() {
         voltages[String(i)] = 0.0;
       }
 
-      const maxIterations = hasDiodes ? 50 : 1;
+      const maxIterations = hasNonLinear ? 50 : 1;
       const tolerance = 1e-5;
       let X = new Array(mnaSize).fill(0);
 
@@ -380,7 +380,7 @@ function App() {
         voltages = nextVoltages;
         X = nextX;
 
-        if (!hasDiodes || maxDiff < tolerance) {
+        if (!hasNonLinear || maxDiff < tolerance) {
           break;
         }
       }

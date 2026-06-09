@@ -55,6 +55,8 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   compCards.forEach((c) => {
     if (c.componentType === 'ground') {
       socketKeys.push(`${c.id}-top`);
+    } else if (c.componentType === 'bjt') {
+      socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
     } else {
       socketKeys.push(`${c.id}-left`, `${c.id}-right`);
     }
@@ -82,7 +84,8 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   cards.forEach((card) => {
     const isGround = card.componentType === 'ground';
     const isJoin = card.id.startsWith('join') || card.title === 'join';
-    const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : ['left', 'right']);
+    const isBjt = card.componentType === 'bjt';
+    const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
     
     portsList.forEach((socket) => {
       const pin = `${card.id}-${socket}`;
@@ -311,7 +314,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -589,10 +592,11 @@ export const Canvas: React.FC<CanvasProps> = ({
       activeTool === 'voltage' ||
       activeTool === 'acvoltage' ||
       activeTool === 'current' ||
-      activeTool === 'diode'
+      activeTool === 'diode' ||
+      activeTool === 'bjt'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      if (activeTool === 'ground') {
+      if (activeTool === 'ground' || activeTool === 'bjt') {
         addCard(clickCoords.x - 30, clickCoords.y - 30, 60, 60, activeTool);
       } else {
         addCard(clickCoords.x - 30, clickCoords.y - 20, 60, 60, activeTool);

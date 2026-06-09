@@ -16,6 +16,12 @@ interface AnimationManagerProps {
       vLeft?: number;
       vRight?: number;
       signedCurrent?: number;
+      vBase?: number;
+      vCollector?: number;
+      vEmitter?: number;
+      iCollector?: number;
+      iBase?: number;
+      iEmitter?: number;
     }
   >;
   pan: Point;
@@ -121,6 +127,8 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     compCards.forEach((c) => {
       if (c.componentType === 'ground') {
         socketKeys.push(`${c.id}-top`);
+      } else if (c.componentType === 'bjt') {
+        socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
       } else {
         socketKeys.push(`${c.id}-left`, `${c.id}-right`);
       }
@@ -206,6 +214,22 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       if (!card || !card.componentType) return { role: 'none', current: 0 };
       if (card.componentType === 'ground') {
         return { role: 'sink', current: 0 };
+      }
+
+      if (card.componentType === 'bjt') {
+        const solved = solvedResults[card.id];
+        const Ic = solved?.iCollector || 0;
+        const Ib = solved?.iBase || 0;
+        const Ie = solved?.iEmitter || 0;
+
+        if (socket === 'left') {
+          return { role: Ib >= 0 ? 'sink' : 'source', current: Math.abs(Ib) };
+        } else if (socket === 'top') {
+          return { role: Ic >= 0 ? 'sink' : 'source', current: Math.abs(Ic) };
+        } else if (socket === 'bottom') {
+          return { role: Ie <= 0 ? 'source' : 'sink', current: Math.abs(Ie) };
+        }
+        return { role: 'none', current: 0 };
       }
 
       const solved = solvedResults[card.id];
@@ -297,6 +321,9 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     cards.forEach((c) => {
       if (c.componentType === 'ground' || c.id.startsWith('join') || c.title === 'join') {
         const sockets: ('top' | 'right' | 'bottom' | 'left')[] = c.componentType === 'ground' ? ['top'] : ['top', 'right', 'bottom', 'left'];
+        sockets.forEach((s) => junctionPins.add(`${c.id}-${s}`));
+      } else if (c.componentType === 'bjt') {
+        const sockets: ('top' | 'right' | 'bottom' | 'left')[] = ['left', 'top', 'bottom'];
         sockets.forEach((s) => junctionPins.add(`${c.id}-${s}`));
       }
     });
@@ -512,7 +539,8 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       if (
         card.componentType === 'ground' ||
         card.componentType === 'voltage' ||
-        card.componentType === 'current'
+        card.componentType === 'current' ||
+        card.componentType === 'bjt'
       ) {
         return;
       }

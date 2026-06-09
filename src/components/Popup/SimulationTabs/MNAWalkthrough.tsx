@@ -47,7 +47,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   cards.forEach((card) => {
     const isGround = card.componentType === 'ground';
     const isJoin = card.id.startsWith('join') || card.title === 'join';
-    const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : ['left', 'right']);
+    const isBjt = card.componentType === 'bjt';
+    const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
     
     portsList.forEach((socket) => {
       const pin = `${card.id}-${socket}`;
@@ -147,7 +148,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   // 2. Solve operating point system
   let solvedVoltages: Record<string, number> = { '0': 0 };
   let solvedX = new Array(mnaSize).fill(0);
-  const hasDiodes = cards.some((c) => c.componentType === 'diode');
+  const hasNonLinear = cards.some((c) => c.componentType === 'diode' || c.componentType === 'bjt');
 
   const compileSystemWalkthrough = (voltages: Record<string, number>) => {
     const A_sys = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
@@ -248,21 +249,99 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       }
     });
 
+    // BJTs
+    cards.forEach((card) => {
+      if (card.componentType === 'bjt') {
+        const nCStr = getPinNode(card.id, 'top');
+        const nBStr = getPinNode(card.id, 'left');
+        const nEStr = getPinNode(card.id, 'bottom');
+        const nc = parseInt(nCStr, 10);
+        const nb = parseInt(nBStr, 10);
+        const ne = parseInt(nEStr, 10);
+
+        const vC = voltages[nCStr] || 0;
+        const vB = voltages[nBStr] || 0;
+        const vE = voltages[nEStr] || 0;
+        const vbe = vB - vE;
+        const vbc = vB - vC;
+
+        const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+        const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+
+        const Is = 1e-14;
+        const Vt = 0.026;
+        const betaF = card.value !== undefined ? card.value : 100;
+        const betaR = 1;
+
+        const expTermF = Math.exp(vbeClamped / Vt);
+        const expTermR = Math.exp(vbcClamped / Vt);
+
+        const gf = (Is / Vt) * expTermF;
+        const gr = (Is / Vt) * expTermR;
+
+        const If = Is * (expTermF - 1);
+        const Ir = Is * (expTermR - 1);
+
+        const IeqF = If - gf * vbeClamped;
+        const IeqR = Ir - gr * vbcClamped;
+
+        const Gcc = (1 + 1 / betaR) * gr;
+        const Gcb = gf - (1 + 1 / betaR) * gr;
+        const Gce = -gf;
+
+        const Gbc = -gr / betaR;
+        const Gbb = gf / betaF + gr / betaR;
+        const Gbe = -gf / betaF;
+
+        const Gec = -gr;
+        const Geb = -(1 + 1 / betaF) * gf + gr;
+        const Gee = (1 + 1 / betaF) * gf;
+
+        const Bc = -IeqF + (1 + 1 / betaR) * IeqR;
+        const Bb = -IeqF / betaF - IeqR / betaR;
+        const Be = (1 + 1 / betaF) * IeqF - IeqR;
+
+        if (nc > 0) {
+          A_sys[nc - 1][nc - 1] += Gcc;
+          if (nb > 0) A_sys[nc - 1][nb - 1] += Gcb;
+          if (ne > 0) A_sys[nc - 1][ne - 1] += Gce;
+          B_sys[nc - 1] += Bc;
+        }
+        if (nb > 0) {
+          if (nc > 0) A_sys[nb - 1][nc - 1] += Gbc;
+          A_sys[nb - 1][nb - 1] += Gbb;
+          if (ne > 0) A_sys[nb - 1][ne - 1] += Gbe;
+          B_sys[nb - 1] += Bb;
+        }
+        if (ne > 0) {
+          if (nc > 0) A_sys[ne - 1][nc - 1] += Gec;
+          if (nb > 0) A_sys[ne - 1][nb - 1] += Geb;
+          A_sys[ne - 1][ne - 1] += Gee;
+          B_sys[ne - 1] += Be;
+        }
+      }
+    });
+
     return { A: A_sys, B: B_sys };
   };
 
-  interface DiodeStampRecord {
+  interface NonLinearStampRecord {
     designator: string;
-    vd: number;
-    gd: number;
-    Ieq: number;
+    type: 'diode' | 'bjt';
+    vd?: number;
+    gd?: number;
+    Ieq?: number;
+    vbe?: number;
+    vbc?: number;
+    iCollector?: number;
+    iBase?: number;
     highlights: string[];
   }
 
   interface IterationRecord {
     iterIndex: number;
     voltagesGuess: Record<string, number>;
-    diodeStamps: DiodeStampRecord[];
+    nonLinearStamps: NonLinearStampRecord[];
     A: number[][];
     B: number[];
     nextX: number[];
@@ -284,8 +363,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     // Compile at current voltagesGuess
     const { A: A_iter, B: B_iter } = compileSystemWalkthrough(voltagesGuess);
 
-    // Dynamic diode info for walkthrough explanations
-    const diodeStamps: DiodeStampRecord[] = [];
+    // Dynamic non-linear element info for walkthrough explanations
+    const nonLinearStamps: NonLinearStampRecord[] = [];
     cards.forEach((card) => {
       if (card.componentType === 'diode') {
         const n1Str = getPinNode(card.id, 'left');
@@ -309,11 +388,57 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           highlights.push(`${n1 - 1}-${n2 - 1}`, `${n2 - 1}-${n1 - 1}`);
         }
 
-        diodeStamps.push({
+        nonLinearStamps.push({
           designator: getDesignator(card),
+          type: 'diode',
           vd,
           gd,
           Ieq,
+          highlights
+        });
+      } else if (card.componentType === 'bjt') {
+        const nCStr = getPinNode(card.id, 'top');
+        const nBStr = getPinNode(card.id, 'left');
+        const nEStr = getPinNode(card.id, 'bottom');
+        const nc = parseInt(nCStr, 10);
+        const nb = parseInt(nBStr, 10);
+        const ne = parseInt(nEStr, 10);
+
+        const vC = voltagesGuess[nCStr] || 0;
+        const vB = voltagesGuess[nBStr] || 0;
+        const vE = voltagesGuess[nEStr] || 0;
+        const vbe = vB - vE;
+        const vbc = vB - vC;
+
+        const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+        const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+
+        const Is = 1e-14;
+        const Vt = 0.026;
+        const betaF = card.value !== undefined ? card.value : 100;
+        const betaR = 1;
+
+        const expTermF = Math.exp(vbeClamped / Vt);
+        const expTermR = Math.exp(vbcClamped / Vt);
+
+        const If = Is * (expTermF - 1);
+        const Ir = Is * (expTermR - 1);
+
+        const Ic = If - Ir - Ir / betaR;
+        const Ib = If / betaF + Ir / betaR;
+
+        const highlights: string[] = [];
+        if (nc > 0) highlights.push(`${nc - 1}-${nc - 1}`, `rhs-${nc - 1}`);
+        if (nb > 0) highlights.push(`${nb - 1}-${nb - 1}`, `rhs-${nb - 1}`);
+        if (ne > 0) highlights.push(`${ne - 1}-${ne - 1}`, `rhs-${ne - 1}`);
+
+        nonLinearStamps.push({
+          designator: getDesignator(card),
+          type: 'bjt',
+          vbe,
+          vbc,
+          iCollector: Ic,
+          iBase: Ib,
           highlights
         });
       }
@@ -355,7 +480,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     iterationsList.push({
       iterIndex: iter + 1,
       voltagesGuess: { ...voltagesGuess },
-      diodeStamps,
+      nonLinearStamps,
       A: A_iter.map(row => [...row]),
       B: [...B_iter],
       nextX: [...nextX],
@@ -418,6 +543,16 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
         if (n1 > 0) modifiedCells.push(`H-${n1 - 1}-${dIdx}`);
         if (n2 > 0) modifiedCells.push(`H-${n2 - 1}-${dIdx}`);
       }
+    } else if (card.componentType === 'bjt') {
+      const nCStr = getPinNode(card.id, 'top');
+      const nBStr = getPinNode(card.id, 'left');
+      const nEStr = getPinNode(card.id, 'bottom');
+      const nc = parseInt(nCStr, 10);
+      const nb = parseInt(nBStr, 10);
+      const ne = parseInt(nEStr, 10);
+      if (nc > 0) modifiedCells.push(`${nc - 1}-${nc - 1}`);
+      if (nb > 0) modifiedCells.push(`${nb - 1}-${nb - 1}`);
+      if (ne > 0) modifiedCells.push(`${ne - 1}-${ne - 1}`);
     }
 
     return modifiedCells;
@@ -475,6 +610,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       desc += `Capacitor connects Node ${n1Str} and Node ${n2Str}, stamped as an open circuit in DC analysis.`;
     } else if (card.componentType === 'diode') {
       desc += `Diode connects Node ${n1Str} (Anode) and Node ${n2Str} (Cathode). In the MNA formulation, it introduces a column in selector matrix H. We stamp +1 at Node ${n1Str}'s KCL (leaving anode) and -1 at Node ${n2Str}'s KCL (entering cathode).`;
+    } else if (card.componentType === 'bjt') {
+      const nC = getPinNode(card.id, 'top');
+      const nB = getPinNode(card.id, 'left');
+      const nE = getPinNode(card.id, 'bottom');
+      desc += `BJT connects Node ${nC} (Collector), Node ${nB} (Base), and Node ${nE} (Emitter). In the linear system setup, its entries are placeholder conductances and companion sources to be refined in Newton-Raphson iterations.`;
     }
 
     nmaSteps.push({
@@ -494,12 +634,16 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
   const nrSubsteps: Array<{ title: string; stepIndex: number }> = [];
 
-  if (hasDiodes) {
+  if (hasNonLinear) {
     // Newton-Raphson iterations steps
     iterationsList.forEach((record) => {
       let desc = `Newton-Raphson Iteration ${record.iterIndex}. `;
-      record.diodeStamps.forEach(ds => {
-        desc += `Diode ${ds.designator} has guessed Vd = ${ds.vd.toFixed(4)} V. Stamped companion conductance gd = ${ds.gd.toFixed(4)} S and companion current Ieq = ${(ds.Ieq * 1000).toFixed(4)} mA. `;
+      record.nonLinearStamps.forEach(ds => {
+        if (ds.type === 'diode') {
+          desc += `Diode ${ds.designator} has guessed Vd = ${ds.vd!.toFixed(4)} V. Stamped companion conductance gd = ${ds.gd!.toFixed(4)} S and companion current Ieq = ${(ds.Ieq! * 1000).toFixed(4)} mA. `;
+        } else {
+          desc += `BJT ${ds.designator} has guessed Vbe = ${ds.vbe!.toFixed(4)} V, Vbc = ${ds.vbc!.toFixed(4)} V. Companion currents: Ic = ${(ds.iCollector! * 1000).toFixed(4)} mA, Ib = ${(ds.iBase! * 1000).toFixed(4)} mA. `;
+        }
       });
 
       const maxKcl = Math.max(...record.residual.slice(0, nodeCount).map(Math.abs));
@@ -546,8 +690,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   // Final summary step
   const finalSystem = compileSystemWalkthrough(solvedVoltages);
   nmaSteps.push({
-    title: hasDiodes ? 'Step 4: Final Solution' : 'Step 3: Final Solution',
-    desc: hasDiodes 
+    title: hasNonLinear ? 'Step 4: Final Solution' : 'Step 3: Final Solution',
+    desc: hasNonLinear 
       ? `Newton-Raphson iterations converged successfully. The final matrix and solved values are displayed below.`
       : `Solving the linear MNA equations yields the exact node voltages and branch currents shown below.`,
     matrix: finalSystem.A,
@@ -585,7 +729,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     });
   }
 
-  if (hasDiodes && nrSubsteps.length > 0) {
+  if (hasNonLinear && nrSubsteps.length > 0) {
     menuSections.push({
       id: 'step3_nr',
       title: 'Step 3: Newton-Raphson',
@@ -594,8 +738,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   }
 
   menuSections.push({
-    id: hasDiodes ? 'step4_solve' : 'step3_solve',
-    title: hasDiodes ? 'Step 4: Final Solution' : 'Step 3: Solve System',
+    id: hasNonLinear ? 'step4_solve' : 'step3_solve',
+    title: hasNonLinear ? 'Step 4: Final Solution' : 'Step 3: Solve System',
     stepIndex: solveStepIndex
   });
 
