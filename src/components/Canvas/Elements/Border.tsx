@@ -51,7 +51,7 @@ export const Border: React.FC<BorderProps> = ({
                 data-card-id={card.id}
                 data-socket-dir="left"
                 onMouseDown={(e) => initiateArrowDraw(card, 'left', e)}
-                style={{ top: '23px' }}
+                style={{ top: '30px' }}
               />
 
               {/* Top Lead Port (Collector) */}

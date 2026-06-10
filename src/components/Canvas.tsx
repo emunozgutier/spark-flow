@@ -493,6 +493,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const getSocketPosition = useCallback((card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
     let basePt = { x: 0, y: 0 };
     const isPassive = !!card.componentType;
+    const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt';
     switch (socket) {
       case 'top':
         basePt = { x: card.x + card.width / 2, y: card.y };
@@ -500,7 +501,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       case 'right':
         basePt = {
           x: card.x + card.width,
-          y: isPassive && card.componentType !== 'ground' ? card.y + 20 : card.y + card.height / 2
+          y: isTwoPort ? card.y + 20 : card.y + card.height / 2
         };
         break;
       case 'bottom':
@@ -509,7 +510,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       case 'left':
         basePt = {
           x: card.x,
-          y: isPassive && card.componentType !== 'ground' ? card.y + 20 : card.y + card.height / 2
+          y: isTwoPort ? card.y + 20 : card.y + card.height / 2
         };
         break;
     }
