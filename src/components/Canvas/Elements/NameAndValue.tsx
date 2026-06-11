@@ -13,9 +13,23 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
   updateElement,
   finalizeDrag
 }) => {
+  const isBJT = card.componentType === 'bjt';
+
   return (
     <div
-      style={{
+      style={isBJT ? {
+        position: 'absolute',
+        top: '50%',
+        left: '52px',
+        width: '50px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '1px',
+        pointerEvents: 'none',
+        transform: `translateY(-50%) rotate(-${card.rotation || 0}deg)`,
+        transformOrigin: '0% 50%'
+      } : {
         position: 'absolute',
         bottom: '4px',
         left: 0,
@@ -47,7 +61,7 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
           fontFamily: 'var(--font-sans)',
           fontWeight: 700,
           fontSize: '11px',
-          textAlign: 'center',
+          textAlign: isBJT ? 'left' : 'center',
           outline: 'none',
           width: '100%',
           pointerEvents: 'auto',
@@ -59,7 +73,7 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
 
       {/* Technical Value */}
       {card.componentType !== 'ground' && card.componentType !== 'diode' && (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: isBJT ? 'flex-start' : 'center' }}>
           <input
             type="text"
             className="passive-value-input"
@@ -76,7 +90,7 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
               fontFamily: 'var(--font-mono)',
               fontWeight: 600,
               fontSize: '10px',
-              textAlign: 'center',
+              textAlign: isBJT ? 'left' : 'center',
               outline: 'none',
               width: '100%',
               pointerEvents: 'auto',
