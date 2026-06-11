@@ -71,40 +71,23 @@ export class BjtElement implements BaseElement {
     const If = Is * (expTermF - 1);
     const Ir = Is * (expTermR - 1);
 
-    // Companion model equivalent currents
-    const IeqF = If - gf * vbeClamped;
-    const IeqR = Ir - gr * vbcClamped;
-
-    // Conductance matrix coefficients (Jacobian)
-    const Gcc = (1 + 1 / betaR) * gr;
-    const Gcb = gf - (1 + 1 / betaR) * gr;
-    const Gce = -gf;
-
-    const Gbc = -gr / betaR;
-    const Gbb = gf / betaF + gr / betaR;
-    const Gbe = -gf / betaF;
-
-    const Gec = -gr;
-    const Geb = -(1 + 1 / betaF) * gf + gr;
-    const Gee = (1 + 1 / betaF) * gf;
-
-    // RHS equivalent currents (LHS is +I_leaving, so RHS gets -I_eq)
-    const Bc = -IeqF + (1 + 1 / betaR) * IeqR;
-    const Bb = -IeqF / betaF - IeqR / betaR;
-    const Be = (1 + 1 / betaF) * IeqF - IeqR;
-
-    const A = [
-      [Gcc, Gcb, Gce],
-      [Gbc, Gbb, Gbe],
-      [Gec, Geb, Gee]
+    // Decoupled matrices/vectors:
+    const g_local = [If, Ir]; // nonlinear current functions
+    const Jg_local = [
+      [0, gf, -gf], // derivatives of If w.r.t [vC, vB, vE]
+      [-gr, gr, 0]  // derivatives of Ir w.r.t [vC, vB, vE]
     ];
-    const B = [Bc, Bb, Be];
+    const H_local = [
+      [1, -(1 + 1 / betaR)], // maps to Collector equation
+      [1 / betaF, 1 / betaR], // maps to Base equation
+      [-(1 + 1 / betaF), 1]  // maps to Emitter equation
+    ];
     const globalIndices = [gC, gB, gE];
 
-    return { A, B, globalIndices };
+    return { g_local, Jg_local, H_local, globalIndices };
   }
 
   getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number, _voltages?: Record<string, number>): ElementStamp {
-    return { A: [], B: [], globalIndices: [] };
+    return { globalIndices: [] };
   }
 }

@@ -39,16 +39,15 @@ export class CapacitorElement implements BaseElement {
     const g2 = i2 > 0 ? i2 - 1 : -1;
 
     // CAPACITOR DC OP OPEN-CIRCUIT STAMP
-    const A = [
+    const G_local = [
       [0, 0],
       [0, 0]
     ];
-    const B = [0, 0];
     const globalIndices = [g1, g2];
-    return { A, B, globalIndices };
+    return { G_local, globalIndices };
   }
 
   getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
-    return { A: [], B: [], globalIndices: [] };
+    return { globalIndices: [] };
   }
 }

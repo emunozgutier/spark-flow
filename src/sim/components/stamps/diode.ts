@@ -56,28 +56,24 @@ export class DiodeElement implements BaseElement {
 
     // Dynamic conductance gd = d(id)/d(vd)
     const gd = (Is / Vt) * expTerm;
-    // Current id
+    // Current id = g(x)
     const id = Is * (expTerm - 1);
-    // Equivalent current source for parallel companion model
-    const Ieq = id - gd * vd;
 
-    // A stamp:
-    // [ gd, -gd]
-    // [-gd,  gd]
-    const A = [
-      [gd, -gd],
-      [-gd, gd]
+    // Decoupled matrices/vectors:
+    const g_local = [id]; // nonlinear current function
+    const Jg_local = [
+      [gd, -gd] // derivatives w.r.t [v1, v2]
     ];
-    // B stamp:
-    // [-Ieq]
-    // [ Ieq]
-    const B = [-Ieq, Ieq];
+    const H_local = [
+      [1],  // maps diode current entering/leaving node 1 equation
+      [-1]  // maps diode current entering/leaving node 2 equation
+    ];
     const globalIndices = [g1, g2];
 
-    return { A, B, globalIndices };
+    return { g_local, Jg_local, H_local, globalIndices };
   }
 
   getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number, _voltages?: Record<string, number>): ElementStamp {
-    return { A: [], B: [], globalIndices: [] };
+    return { globalIndices: [] };
   }
 }

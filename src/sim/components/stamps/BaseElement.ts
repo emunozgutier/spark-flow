@@ -1,7 +1,14 @@
 export interface ElementStamp {
-  A: number[][];
-  B: number[];
   globalIndices: number[];
+  
+  // Linear contributions:
+  G_local?: number[][]; // Local linear conductance matrix (size x size)
+  s_local?: number[];   // Local independent source vector (size)
+
+  // Nonlinear contributions:
+  g_local?: number[];    // Local nonlinear function values (P_local)
+  Jg_local?: number[][]; // Local nonlinear Jacobian matrix (P_local x size)
+  H_local?: number[][];  // Local nonlinear map matrix (size x P_local)
 }
 
 export interface BaseElement {

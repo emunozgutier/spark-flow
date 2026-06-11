@@ -40,13 +40,12 @@ export class ResistorElement implements BaseElement {
     const g2 = i2 > 0 ? i2 - 1 : -1;
 
     const g = 1 / this.value;
-    const A = [
+    const G_local = [
       [g, -g],
       [-g, g]
     ];
-    const B = [0, 0];
     const globalIndices = [g1, g2];
-    return { A, B, globalIndices };
+    return { G_local, globalIndices };
   }
 
   getStampGroup2(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
@@ -61,13 +60,12 @@ export class ResistorElement implements BaseElement {
     const g1 = i1 > 0 ? i1 - 1 : -1;
     const g2 = i2 > 0 ? i2 - 1 : -1;
 
-    const A = [
+    const G_local = [
       [0, 0, 1],
       [0, 0, -1],
       [1, -1, -this.value]
     ];
-    const B = [0, 0, 0];
     const globalIndices = [g1, g2, group2Idx];
-    return { A, B, globalIndices };
+    return { G_local, globalIndices };
   }
 }

@@ -27,7 +27,7 @@ export class VoltageSourceElement implements BaseElement {
   }
 
   getStampGroup1(_nodeMap: Map<string, number>): ElementStamp {
-    return { A: [], B: [], globalIndices: [] };
+    return { globalIndices: [] };
   }
 
   getStampGroup2(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
@@ -43,13 +43,13 @@ export class VoltageSourceElement implements BaseElement {
     const g2 = i2 > 0 ? i2 - 1 : -1;
 
     // VOLTAGE SOURCE MNA STAMP (Group 2)
-    const A = [
+    const G_local = [
       [0, 0, 1],
       [0, 0, -1],
       [1, -1, 0]
     ];
-    const B = [0, 0, this.value];
+    const s_local = [0, 0, this.value];
     const globalIndices = [g1, g2, group2Idx];
-    return { A, B, globalIndices };
+    return { G_local, s_local, globalIndices };
   }
 }

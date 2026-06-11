@@ -39,16 +39,12 @@ export class CurrentSourceElement implements BaseElement {
     const g2 = i2 > 0 ? i2 - 1 : -1;
 
     // CURRENT SOURCE MNA STAMP (Group 1 - stamp RHS only)
-    const A = [
-      [0, 0],
-      [0, 0]
-    ];
-    const B = [-this.value, this.value];
+    const s_local = [-this.value, this.value];
     const globalIndices = [g1, g2];
-    return { A, B, globalIndices };
+    return { s_local, globalIndices };
   }
 
   getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
-    return { A: [], B: [], globalIndices: [] };
+    return { globalIndices: [] };
   }
 }
