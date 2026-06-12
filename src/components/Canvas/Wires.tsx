@@ -11,6 +11,7 @@ interface WiresProps {
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
   activeSnap?: { wire: ArrowElement; point: Point } | null;
   wireVoltages?: Record<string, number>;
+  wireCurrents?: Record<string, number>;
 }
 
 const COLOR_THEMES = [
@@ -201,6 +202,7 @@ export const Wires: React.FC<WiresProps> = ({
   getSocketPosition,
   activeSnap,
   wireVoltages = {},
+  wireCurrents = {},
 }) => {
   const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
 
@@ -264,6 +266,7 @@ export const Wires: React.FC<WiresProps> = ({
           setSelectedId={setSelectedId}
           getSocketPosition={getSocketPosition}
           voltage={wireVoltages[arrow.id]}
+          current={wireCurrents[arrow.id]}
           maxVoltage={maxVoltage}
         />
       ))}

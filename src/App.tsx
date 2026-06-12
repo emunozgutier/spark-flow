@@ -1235,6 +1235,7 @@ function App() {
         setToast={setToast}
         solvedDCOperatingPoint={solvedDCOperatingPoint}
         wireVoltages={wireVoltages}
+        wireCurrents={wireCurrents}
       />
 
       {/* 2. Overlaid Floating TopBar (top-center) */}

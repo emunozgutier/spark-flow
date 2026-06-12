@@ -167,7 +167,7 @@ export const Wire: React.FC<WireProps> = ({
       <Vertices corners={corners} isSelected={isSelected} strokeColorVal={strokeColorVal} />
       
       {/* Custom Text Label */}
-      {hasLabel && (
+      {arrow.label && (
         <g>
           <rect
             x={midPt.x - (arrow.label.length * 3.8) - 6}
@@ -280,6 +280,7 @@ export const Wire: React.FC<WireProps> = ({
               </>
             );
           })()}
+        </g>
       )}
     </g>
   );

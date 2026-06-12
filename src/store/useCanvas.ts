@@ -279,12 +279,16 @@ interface CanvasState {
   selectedIds: string[];
   activeTool: ToolType;
   liveDCOn: boolean;
+  showVoltageProbes: boolean;
+  showCurrentProbes: boolean;
   
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
   setLiveDCOn: (on: boolean) => void;
+  setShowVoltageProbes: (show: boolean) => void;
+  setShowCurrentProbes: (show: boolean) => void;
   addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
@@ -315,9 +319,13 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         selectedIds: [] as string[],
         activeTool: 'select' as ToolType,
         liveDCOn: true,
+        showVoltageProbes: true,
+        showCurrentProbes: false,
 
         setActiveTool: (tool: ToolType) => set({ activeTool: tool }),
         setLiveDCOn: (on: boolean) => set({ liveDCOn: on }),
+        setShowVoltageProbes: (show: boolean) => set({ showVoltageProbes: show }),
+        setShowCurrentProbes: (show: boolean) => set({ showCurrentProbes: show }),
         
         setSelectedId: (id: string | null) => set(() => {
           if (id === null) {
