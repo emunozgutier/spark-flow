@@ -127,7 +127,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     compCards.forEach((c) => {
       if (c.componentType === 'ground') {
         socketKeys.push(`${c.id}-top`);
-      } else if (c.componentType === 'bjt') {
+      } else if (c.componentType === 'bjt' || c.componentType === 'mosfet') {
         socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
       } else {
         socketKeys.push(`${c.id}-left`, `${c.id}-right`);
@@ -232,6 +232,21 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
         return { role: 'none', current: 0 };
       }
 
+      if (card.componentType === 'mosfet') {
+        const solved = solvedResults[card.id];
+        const Id = solved?.iDrain || 0;
+        const Is = -Id;
+
+        if (socket === 'left') {
+          return { role: 'none', current: 0 };
+        } else if (socket === 'top') {
+          return { role: Id >= 0 ? 'sink' : 'source', current: Math.abs(Id) };
+        } else if (socket === 'bottom') {
+          return { role: Is >= 0 ? 'sink' : 'source', current: Math.abs(Is) };
+        }
+        return { role: 'none', current: 0 };
+      }
+
       const solved = solvedResults[card.id];
       const signedI = solved?.signedCurrent || 0;
       const branchI = Math.abs(solved?.branchCurrent || 0);
@@ -322,7 +337,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
       if (c.componentType === 'ground' || c.id.startsWith('join') || c.title === 'join') {
         const sockets: ('top' | 'right' | 'bottom' | 'left')[] = c.componentType === 'ground' ? ['top'] : ['top', 'right', 'bottom', 'left'];
         sockets.forEach((s) => junctionPins.add(`${c.id}-${s}`));
-      } else if (c.componentType === 'bjt') {
+      } else if (c.componentType === 'bjt' || c.componentType === 'mosfet') {
         const sockets: ('top' | 'right' | 'bottom' | 'left')[] = ['left', 'top', 'bottom'];
         sockets.forEach((s) => junctionPins.add(`${c.id}-${s}`));
       }
@@ -540,7 +555,8 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
         card.componentType === 'ground' ||
         card.componentType === 'voltage' ||
         card.componentType === 'current' ||
-        card.componentType === 'bjt'
+        card.componentType === 'bjt' ||
+        card.componentType === 'mosfet'
       ) {
         return;
       }

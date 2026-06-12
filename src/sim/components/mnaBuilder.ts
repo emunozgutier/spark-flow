@@ -418,6 +418,35 @@ export function solveNonLinearCircuit(
       const betaR = 1;
       const Ic = If - Ir - Ir / betaR;
       branchCurrents[el.name] = Ic;
+    } else if (el.type === 'mosfet') {
+      const vD = nodeVoltages[el.node1] || 0;
+      const vG = nodeVoltages[el.node2] || 0;
+      const vS = nodeVoltages[el.node3 || ''] || 0;
+      const Vth = el.value;
+      const beta = 1e-3;
+      let Id = 0;
+      if (vD >= vS) {
+        const vgs = Math.max(-10, Math.min(10, vG - vS));
+        const vds = Math.max(0, Math.min(10, vD - vS));
+        if (vgs >= Vth) {
+          if (vds < vgs - Vth) {
+            Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+          } else {
+            Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+          }
+        }
+      } else {
+        const vgd = Math.max(-10, Math.min(10, vG - vD));
+        const vsd = Math.max(0, Math.min(10, vS - vD));
+        if (vgd >= Vth) {
+          if (vsd < vgd - Vth) {
+            Id = -beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+          } else {
+            Id = -0.5 * beta * (vgd - Vth) * (vgd - Vth);
+          }
+        }
+      }
+      branchCurrents[el.name] = Id;
     }
   });
 

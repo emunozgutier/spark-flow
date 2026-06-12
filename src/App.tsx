@@ -102,7 +102,7 @@ function App() {
       cards.forEach((card) => {
         const isGround = card.componentType === 'ground';
         const isJoin = card.id.startsWith('join') || card.title === 'join';
-        const isBjt = card.componentType === 'bjt';
+        const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
         const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
         
         portsList.forEach((socket) => {
@@ -156,7 +156,7 @@ function App() {
 
       if (mnaSize === 0) return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
 
-      const hasNonLinear = cards.some(c => c.componentType === 'diode' || c.componentType === 'bjt');
+      const hasNonLinear = cards.some(c => c.componentType === 'diode' || c.componentType === 'bjt' || c.componentType === 'mosfet');
 
       const g2ElementMap: Record<string, number> = {};
       let g2Index = nodeCount;
@@ -326,6 +326,86 @@ function App() {
           }
         });
 
+        // 2.2 MOSFET Transistors (Non-linear elements)
+        cards.forEach((card) => {
+          if (card.componentType === 'mosfet') {
+            const nDStr = getPinNode(card.id, 'top');
+            const nGStr = getPinNode(card.id, 'left');
+            const nSStr = getPinNode(card.id, 'bottom');
+            const nd = parseInt(nDStr, 10);
+            const ng = parseInt(nGStr, 10);
+            const ns = parseInt(nSStr, 10);
+
+            const vD = voltages[nDStr] || 0;
+            const vG = voltages[nGStr] || 0;
+            const vS = voltages[nSStr] || 0;
+
+            const Vth = card.value !== undefined ? card.value : 2.0;
+            const beta = 1e-3;
+
+            let Id = 0;
+            let gds = 0;
+            let ggs = 0;
+
+            if (vD >= vS) {
+              const vgs = Math.max(-10, Math.min(10, vG - vS));
+              const vds = Math.max(0, Math.min(10, vD - vS));
+
+              if (vgs < Vth) {
+                Id = 0;
+                gds = 0;
+                ggs = 0;
+              } else if (vds < vgs - Vth) {
+                Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+                ggs = beta * vds;
+                gds = beta * (vgs - Vth - vds);
+              } else {
+                Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+                ggs = beta * (vgs - Vth);
+                gds = 0;
+              }
+            } else {
+              const vgd = Math.max(-10, Math.min(10, vG - vD));
+              const vsd = Math.max(0, Math.min(10, vS - vD));
+
+              if (vgd < Vth) {
+                Id = 0;
+                gds = 0;
+                ggs = 0;
+              } else if (vsd < vgd - Vth) {
+                const Is = beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+                const dIs_vg = beta * vsd;
+                const dIs_vs = beta * (vgd - Vth - vsd);
+                Id = -Is;
+                ggs = -dIs_vg;
+                gds = dIs_vg + dIs_vs;
+              } else {
+                const Is = 0.5 * beta * (vgd - Vth) * (vgd - Vth);
+                const dIs_vg = beta * (vgd - Vth);
+                Id = -Is;
+                ggs = -dIs_vg;
+                gds = dIs_vg;
+              }
+            }
+
+            const Ieq = Id - gds * (vD - vS) - ggs * (vG - vS);
+
+            if (nd > 0) {
+              A[nd - 1][nd - 1] += gds;
+              if (ng > 0) A[nd - 1][ng - 1] += ggs;
+              if (ns > 0) A[nd - 1][ns - 1] -= (gds + ggs);
+              B[nd - 1] -= Ieq;
+            }
+
+            if (ns > 0) {
+              A[ns - 1][nd - 1] -= gds;
+              if (ng > 0) A[ns - 1][ng - 1] -= ggs;
+              if (ns > 0) A[ns - 1][ns - 1] += (gds + ggs);
+              B[ns - 1] += Ieq;
+            }
+          }
+        });
+
         // 3. Voltage sources
         voltageSources.forEach((vSrc) => {
           const n1Str = getPinNode(vSrc.id, 'left');
@@ -428,6 +508,53 @@ function App() {
           };
           return;
         }
+        if (card.componentType === 'mosfet') {
+          const nDStr = getPinNode(card.id, 'top');
+          const nGStr = getPinNode(card.id, 'left');
+          const nSStr = getPinNode(card.id, 'bottom');
+          const vD = voltages[nDStr] || 0;
+          const vG = voltages[nGStr] || 0;
+          const vS = voltages[nSStr] || 0;
+
+          const Vth = card.value !== undefined ? card.value : 2.0;
+          const beta = 1e-3;
+          let Id = 0;
+
+          if (vD >= vS) {
+            const vgs = Math.max(-10, Math.min(10, vG - vS));
+            const vds = Math.max(0, Math.min(10, vD - vS));
+            if (vgs >= Vth) {
+              if (vds < vgs - Vth) {
+                Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+              } else {
+                Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+              }
+            }
+          } else {
+            const vgd = Math.max(-10, Math.min(10, vG - vD));
+            const vsd = Math.max(0, Math.min(10, vS - vD));
+            if (vgd >= Vth) {
+              if (vsd < vgd - Vth) {
+                Id = -beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+              } else {
+                Id = -0.5 * beta * (vgd - Vth) * (vgd - Vth);
+              }
+            }
+          }
+
+          solvedDCOperatingPoint[card.id] = {
+            voltageDrop: vD - vS,
+            branchCurrent: Math.abs(Id),
+            vLeft: vG,
+            vRight: vD,
+            vGate: vG,
+            vDrain: vD,
+            vSource: vS,
+            iDrain: Id,
+            signedCurrent: Id
+          };
+          return;
+        }
 
         const n1Str = getPinNode(card.id, 'left');
         const n2Str = getPinNode(card.id, 'right');
@@ -479,6 +606,8 @@ function App() {
       compCards.forEach((c) => {
         if (c.componentType === 'ground') {
           socketKeys.push(`${c.id}-top`);
+        } else if (c.componentType === 'bjt' || c.componentType === 'mosfet') {
+          socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
         } else {
           socketKeys.push(`${c.id}-left`, `${c.id}-right`);
         }
@@ -506,6 +635,20 @@ function App() {
             return { role: Ic >= 0 ? 'sink' : 'source', current: Math.abs(Ic) };
           } else if (socket === 'bottom') {
             return { role: Ie <= 0 ? 'source' : 'sink', current: Math.abs(Ie) };
+          }
+          return { role: 'none', current: 0 };
+        }
+        if (card.componentType === 'mosfet') {
+          const solved = solvedDCOperatingPoint[card.id];
+          const Id = solved?.iDrain || 0;
+          const Is = -Id;
+
+          if (socket === 'left') {
+            return { role: 'none', current: 0 };
+          } else if (socket === 'top') {
+            return { role: Id >= 0 ? 'sink' : 'source', current: Math.abs(Id) };
+          } else if (socket === 'bottom') {
+            return { role: Is >= 0 ? 'sink' : 'source', current: Math.abs(Is) };
           }
           return { role: 'none', current: 0 };
         }
@@ -887,7 +1030,7 @@ function App() {
         const theme = hexColors[card.color] || hexColors.slate;
         
         if (card.componentType) {
-          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND';
+          const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND';
           const compName = `${prefix}${card.instanceNumber || 1}`;
           const compVal = formatEngineering(card.value);
 
@@ -930,10 +1073,17 @@ function App() {
                                 <path d="M 30 0 L 30 16 L 22 23" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M 22 37 L 30 44 L 30 60" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 <polygon points="25,43 30,44 28,38" fill="${theme.main}" stroke="none"/>`;
+          } else if (card.componentType === 'mosfet') {
+            symbolPathMarkup = `<path d="M 0 30 L 20 30" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 20 18 L 20 42" fill="none" stroke="${theme.main}" stroke-width="5.5" stroke-linecap="round"/>
+                                <path d="M 25 18 L 25 42" fill="none" stroke="${theme.main}" stroke-width="4" stroke-linecap="round"/>
+                                <path d="M 30 0 L 30 18 L 25 18" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 25 42 L 30 42 L 30 60" fill="none" stroke="${theme.main}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polygon points="21,33 25,30 21,27" fill="${theme.main}" stroke="none"/>`;
           }
 
           const rot = card.rotation || 0;
-          const isGnd = card.componentType === 'ground' || card.componentType === 'bjt';
+          const isGnd = card.componentType === 'ground' || card.componentType === 'bjt' || card.componentType === 'mosfet';
           
           cardMarkup += `
             <g transform="translate(${card.x}, ${card.y}) rotate(${rot}, ${card.width / 2}, ${card.height / 2})">

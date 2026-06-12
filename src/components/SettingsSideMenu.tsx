@@ -79,9 +79,9 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
                   id="comp-designator"
                   type="text"
                   className="inspector-input"
-                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND'}${card.instanceNumber || 1}`}
+                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND'}${card.instanceNumber || 1}`}
                   onChange={(e) => {
-                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND';
+                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND';
                     const num = parseInstanceNumber(e.target.value, prefix);
                     onUpdateElement(card.id, { instanceNumber: num });
                   }}
@@ -93,18 +93,18 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
               {card.componentType !== 'ground' && card.componentType !== 'diode' && (
                 <div className="sidebar-section">
                   <label className="sidebar-section-title" htmlFor="comp-value">
-                    {card.componentType === 'bjt' ? 'Current Gain (Beta)' : 'Component Value'}
+                    {card.componentType === 'bjt' ? 'Current Gain (Beta)' : card.componentType === 'mosfet' ? 'Threshold Voltage Vth (V)' : 'Component Value'}
                   </label>
                   <input
                     id="comp-value"
                     type="text"
                     className="inspector-input"
-                    value={card.componentType === 'bjt' ? String(card.value ?? 100) : formatEngineering(card.value)}
+                    value={card.componentType === 'bjt' ? String(card.value ?? 100) : card.componentType === 'mosfet' ? String(card.value ?? 2.0) : formatEngineering(card.value)}
                     onChange={(e) => {
-                      const val = card.componentType === 'bjt' ? (parseFloat(e.target.value) || 100) : parseEngineering(e.target.value);
+                      const val = card.componentType === 'bjt' ? (parseFloat(e.target.value) || 100) : card.componentType === 'mosfet' ? (parseFloat(e.target.value) || 2.0) : parseEngineering(e.target.value);
                       onUpdateElement(card.id, { value: val });
                     }}
-                    placeholder={card.componentType === 'bjt' ? 'e.g. 100' : 'e.g. 10u'}
+                    placeholder={card.componentType === 'bjt' ? 'e.g. 100' : card.componentType === 'mosfet' ? 'e.g. 2.0' : 'e.g. 10u'}
                   />
                 </div>
               )}

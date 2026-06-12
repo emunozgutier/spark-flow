@@ -55,7 +55,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       setActiveMenu('passives');
     } else if (activeTool === 'voltage' || activeTool === 'acvoltage' || activeTool === 'current' || activeTool === 'ground') {
       setActiveMenu('sources');
-    } else if (activeTool === 'diode' || activeTool === 'bjt') {
+    } else if (activeTool === 'diode' || activeTool === 'bjt' || activeTool === 'mosfet') {
       setActiveMenu('actives');
     }
   }, [activeTool, liveDCOn, setLiveDCOn, setActiveMenu]);

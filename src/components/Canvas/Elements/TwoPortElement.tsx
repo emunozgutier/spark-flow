@@ -243,5 +243,42 @@ export const TwoPortElement: React.FC<TwoPortElementProps> = ({ card }) => {
       </svg>
     );
   }
+  if (card.componentType === 'mosfet') {
+    return (
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 60 60"
+        fill="none"
+        stroke="var(--theme-color)"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          filter: 'drop-shadow(0 0 4px var(--theme-color-glow))'
+        }}
+      >
+        {/* Gate terminal lead */}
+        <path d="M 0 30 L 20 30" />
+        {/* Gate plate */}
+        <path d="M 20 16 L 20 44" strokeWidth="5.5" />
+        {/* Channel plate */}
+        <path d="M 25 16 L 25 44" strokeWidth="4.5" />
+        {/* Drain */}
+        <path d="M 30 0 L 30 18 L 25 18" />
+        {/* Source */}
+        <path d="M 25 42 L 30 42 L 30 60" />
+        {/* Bulk Arrowhead (NMOS points inward) */}
+        <polygon
+          points="21,33 25,30 21,27"
+          fill="var(--theme-color)"
+          stroke="none"
+        />
+      </svg>
+    );
+  }
   return null;
 };

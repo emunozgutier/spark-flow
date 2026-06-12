@@ -55,7 +55,7 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   compCards.forEach((c) => {
     if (c.componentType === 'ground') {
       socketKeys.push(`${c.id}-top`);
-    } else if (c.componentType === 'bjt') {
+    } else if (c.componentType === 'bjt' || c.componentType === 'mosfet') {
       socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
     } else {
       socketKeys.push(`${c.id}-left`, `${c.id}-right`);
@@ -84,7 +84,7 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   cards.forEach((card) => {
     const isGround = card.componentType === 'ground';
     const isJoin = card.id.startsWith('join') || card.title === 'join';
-    const isBjt = card.componentType === 'bjt';
+    const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
     const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
     
     portsList.forEach((socket) => {
@@ -314,7 +314,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -493,7 +493,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const getSocketPosition = useCallback((card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
     let basePt = { x: 0, y: 0 };
     const isPassive = !!card.componentType;
-    const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt';
+    const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt' && card.componentType !== 'mosfet';
     switch (socket) {
       case 'top':
         basePt = { x: card.x + card.width / 2, y: card.y };
@@ -594,10 +594,11 @@ export const Canvas: React.FC<CanvasProps> = ({
       activeTool === 'acvoltage' ||
       activeTool === 'current' ||
       activeTool === 'diode' ||
-      activeTool === 'bjt'
+      activeTool === 'bjt' ||
+      activeTool === 'mosfet'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      if (activeTool === 'ground' || activeTool === 'bjt') {
+      if (activeTool === 'ground' || activeTool === 'bjt' || activeTool === 'mosfet') {
         addCard(clickCoords.x - 30, clickCoords.y - 30, 60, 60, activeTool);
       } else {
         addCard(clickCoords.x - 30, clickCoords.y - 20, 60, 60, activeTool);
