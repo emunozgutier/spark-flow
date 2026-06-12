@@ -22,6 +22,7 @@ interface AnimationManagerProps {
       iCollector?: number;
       iBase?: number;
       iEmitter?: number;
+      iDrain?: number;
     }
   >;
   pan: Point;

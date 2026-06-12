@@ -42,7 +42,7 @@ export const Popup: React.FC<PopupProps> = ({
   onClose,
   setToast
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'dc' | 'netlist' | 'nma'>('dc');
+  const [activeSubTab, setActiveSubTab] = useState<'dc' | 'sweep' | 'netlist' | 'nma'>('dc');
   const [dcVoltages, setDcVoltages] = useState<Record<string, number>>({});
   const [spiceNetlist, setSpiceNetlist] = useState<string>('');
 
@@ -74,6 +74,8 @@ export const Popup: React.FC<PopupProps> = ({
     const groups: Record<string, string[]> = {};
     cards.forEach((card) => {
       const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
+      const isGround = card.componentType === 'ground';
+      const isJoin = card.id.startsWith('join') || card.title === 'join';
       const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
       
       portsList.forEach((socket) => {
@@ -146,7 +148,7 @@ export const Popup: React.FC<PopupProps> = ({
         } else if (card.componentType === 'bjt') {
           netlist += `Q${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} NPN\n`;
         } else if (card.componentType === 'mosfet') {
-          netlist += `M${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} NMOS\n`;
+          netlist += `M${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} ${getPinNode(card.id, 'bottom')} NMOS\n`;
         }
       });
       netlist += `.op\n.backanno\n.end\n`;

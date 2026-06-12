@@ -35,7 +35,7 @@ export const Border: React.FC<BorderProps> = ({
               data-socket-dir="top"
               onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
             />
-          ) : card.componentType === 'bjt' ? (
+          ) : (card.componentType === 'bjt' || card.componentType === 'mosfet') ? (
             <>
               {/* Left Lead Port (Base) */}
               <div
