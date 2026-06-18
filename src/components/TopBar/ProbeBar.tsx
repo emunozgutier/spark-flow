@@ -3,9 +3,7 @@ import { useCanvas } from '../../store/useCanvas';
 
 export const ProbeBar: React.FC = () => {
   const {
-    showVoltageProbes,
     showCurrentProbes,
-    setShowVoltageProbes,
     setShowCurrentProbes,
     liveDCOn,
     setLiveDCOn,
@@ -44,25 +42,6 @@ export const ProbeBar: React.FC = () => {
       </div>
 
       <div className="toolbar-divider" />
-
-      {/* Voltage Probes Toggle */}
-      <button
-        className={`tool-btn text-btn ${showVoltageProbes ? 'active' : ''}`}
-        onClick={() => setShowVoltageProbes(!showVoltageProbes)}
-        aria-label="Toggle Voltage Probes"
-        style={{
-          color: showVoltageProbes ? 'var(--theme-emerald)' : 'var(--text-secondary)',
-          borderColor: showVoltageProbes ? 'var(--theme-emerald)' : 'rgba(255,255,255,0.08)',
-          boxShadow: showVoltageProbes ? '0 0 10px var(--theme-emerald-glow)' : 'none',
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="m16 12-4-4-4 8 4-4" />
-        </svg>
-        <span>Voltage Probes</span>
-        <span className="tooltip">Toggle node voltage labels on wires</span>
-      </button>
 
       {/* Current Probes Toggle */}
       <button

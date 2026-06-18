@@ -57,7 +57,7 @@ export const Wire: React.FC<WireProps> = ({
   current,
   maxVoltage,
 }) => {
-  const { liveDCOn, showVoltageProbes, showCurrentProbes } = useCanvas();
+  const { liveDCOn, showCurrentProbes } = useCanvas();
   let startPt = arrow.fromPoint || { x: 0, y: 0 };
   let endPt = arrow.toPoint || { x: 0, y: 0 };
 
@@ -119,26 +119,22 @@ export const Wire: React.FC<WireProps> = ({
   const isDashed = arrow.style === 'dashed';
 
   const midPt = getPathMidpoint(pathPoints);
-  const showV = liveDCOn && showVoltageProbes && voltage !== undefined;
   const showI = liveDCOn && showCurrentProbes && current !== undefined;
   const hasLabel = !!arrow.label;
 
-  const activeItems: ('label' | 'volt' | 'curr')[] = [];
+  const activeItems: ('label' | 'curr')[] = [];
   if (hasLabel) activeItems.push('label');
-  if (showV) activeItems.push('volt');
   if (showI) activeItems.push('curr');
 
-  const getOffset = (type: 'label' | 'volt' | 'curr'): number => {
+  const getOffset = (type: 'label' | 'curr'): number => {
     const idx = activeItems.indexOf(type);
     if (idx === -1) return 0;
     if (activeItems.length === 1) return 0;
-    if (activeItems.length === 2) return idx === 0 ? -10 : 10;
-    // activeItems.length === 3
-    return (idx - 1) * 18;
+    // activeItems.length === 2
+    return idx === 0 ? -10 : 10;
   };
 
   const labelY = midPt.y + getOffset('label');
-  const voltY = midPt.y + getOffset('volt');
   const currY = midPt.y + getOffset('curr');
 
   return (
@@ -190,56 +186,6 @@ export const Wire: React.FC<WireProps> = ({
           >
             {arrow.label}
           </text>
-        </g>
-      )}
-
-      {/* Voltage Probe Badge */}
-      {showV && (
-        <g>
-          {(() => {
-            const voltText = formatEngineering(voltage) + 'V';
-            const pW = (voltText.length * 6.0) + 14;
-            
-            let probeBorder = 'var(--theme-slate)';
-            let probeGlow = 'var(--theme-slate-glow)';
-            if (voltage! > 1e-5) {
-              probeBorder = 'var(--theme-emerald)';
-              probeGlow = 'var(--theme-emerald-glow)';
-            } else if (voltage! < -1e-5) {
-              probeBorder = 'var(--theme-coral)';
-              probeGlow = 'var(--theme-coral-glow)';
-            }
-
-            return (
-              <>
-                <rect
-                  x={midPt.x - pW / 2}
-                  y={voltY - 8}
-                  width={pW}
-                  height="16"
-                  rx="8"
-                  fill="#090a0f"
-                  stroke={probeBorder}
-                  strokeWidth="1.5"
-                  style={{
-                    filter: `drop-shadow(0 0 3px ${probeGlow})`,
-                    transition: 'stroke 0.2s'
-                  }}
-                />
-                <text
-                  x={midPt.x}
-                  y={voltY + 4}
-                  fill="#ffffff"
-                  fontSize="9"
-                  fontWeight="bold"
-                  fontFamily="var(--font-mono)"
-                  textAnchor="middle"
-                >
-                  {voltText}
-                </text>
-              </>
-            );
-          })()}
         </g>
       )}
 
