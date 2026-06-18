@@ -1,10 +1,40 @@
 import React, { useEffect, useRef } from 'react';
 import { useEditMode } from '../../store/useEditMode';
+import type { EditSubmodeType } from '../../store/useEditMode';
 
 interface KeyListnerProps {
   undo: () => void;
   redo: () => void;
 }
+
+const getNextSubmode = (key: string, currentSubmode: EditSubmodeType): EditSubmodeType => {
+  switch (key) {
+    case 'r':
+      return 'resistor';
+    case 'w':
+      return 'wire';
+    case 'c':
+      return 'capacitor';
+    case 'l':
+      return 'inductor';
+    case 'g':
+      return 'ground';
+    case 'v':
+      return currentSubmode === 'voltage' ? 'acvoltage' : 'voltage';
+    case 'o':
+      return currentSubmode === 'acvoltage' ? 'voltage' : 'acvoltage';
+    case 'i':
+      return 'current';
+    case 'd':
+      return 'diode';
+    case 'q':
+      return currentSubmode === 'bjt' ? 'mosfet' : 'bjt';
+    case 't':
+      return 'text';
+    default:
+      return null;
+  }
+};
 
 export const KeyListner: React.FC<KeyListnerProps> = ({ undo, redo }) => {
   const pendingAddRef = useRef(false);
@@ -54,50 +84,15 @@ export const KeyListner: React.FC<KeyListnerProps> = ({ undo, redo }) => {
 
       if (pendingAddRef.current) {
         pendingAddRef.current = false;
-        e.preventDefault();
-        switch (key) {
-          case 'r':
-            editModeState.setEditSubmode('resistor');
-            break;
-          case 'w':
-            editModeState.setEditSubmode('wire');
-            break;
-          case 'c':
-            editModeState.setEditSubmode('capacitor');
-            break;
-          case 'l':
-            editModeState.setEditSubmode('inductor');
-            break;
-          case 'g':
-            editModeState.setEditSubmode('ground');
-            break;
-          case 'v':
-            editModeState.setEditSubmode('voltage');
-            break;
-          case 'o':
-            editModeState.setEditSubmode('acvoltage');
-            break;
-          case 'i':
-            editModeState.setEditSubmode('current');
-            break;
-          case 'd':
-            editModeState.setEditSubmode('diode');
-            break;
-          case 'q':
-            editModeState.setEditSubmode('bjt');
-            break;
-          case 'm':
-            editModeState.setEditSubmode('mosfet');
-            break;
-          case 't':
-            editModeState.setEditSubmode('text');
-            break;
-          case 's':
-            editModeState.setEditMode('select');
-            break;
-          default:
-            // Cancel pending add if any other key is pressed
-            break;
+        if (key === 's') {
+          e.preventDefault();
+          editModeState.setEditMode('select');
+          return;
+        }
+        const submode = getNextSubmode(key, editModeState.editSubmode);
+        if (submode) {
+          e.preventDefault();
+          editModeState.setEditSubmode(submode);
         }
         return;
       }
@@ -113,53 +108,19 @@ export const KeyListner: React.FC<KeyListnerProps> = ({ undo, redo }) => {
         case 'm':
           editModeState.setEditMode('move');
           break;
-        case 'w':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('wire');
-          break;
-        case 't':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('text');
-          break;
-        case 'g':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('ground');
-          break;
-        case 'r':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('resistor');
-          break;
-        case 'c':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('capacitor');
-          break;
-        case 'l':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('inductor');
-          break;
-        case 'v':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('voltage');
-          break;
-        case 'o':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('acvoltage');
-          break;
-        case 'i':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('current');
-          break;
-        case 'q':
-          editModeState.setEditMode('add');
-          editModeState.setEditSubmode('bjt');
-          break;
         case 'a':
           pendingAddRef.current = true;
           // Set editMode to 'add' so the user sees the submode dropdown immediately!
           editModeState.setEditMode('add');
           break;
-        default:
+        default: {
+          const submode = getNextSubmode(key, editModeState.editSubmode);
+          if (submode) {
+            editModeState.setEditMode('add');
+            editModeState.setEditSubmode(submode);
+          }
           break;
+        }
       }
     };
 
