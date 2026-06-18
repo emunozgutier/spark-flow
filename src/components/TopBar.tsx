@@ -3,7 +3,7 @@ import type { ToolType, CanvasElement } from '../dataTypes/AnotateType';
 import { FileBar } from './TopBar/FileBar';
 import { Animation } from './TopBar/Animation';
 import { DebugPopup } from './TopBar/DebugPopup';
-import { ProbeBar } from './TopBar/ProbeBar';
+
 import { Popup } from './Popup';
 import { useCanvas } from '../store/useCanvas';
 import { useTopBar } from '../store/useTopBar';
@@ -104,18 +104,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="tooltip">Simulate Circuit</span>
           </button>
 
-          {/* Probes Tab */}
-          <button
-            className={`tool-btn tab-btn ${activeMenu === 'probes' ? 'active' : ''}`}
-            onClick={() => setActiveMenu('probes')}
-            aria-label="Manage Probes"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="m16 12-4-4-4 8 4-4" />
-            </svg>
-            <span className="tooltip">Probe Settings</span>
-          </button>
+
 
           {/* Live DC Toggle Button */}
           <button
@@ -192,9 +181,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <Animation />
         )}
 
-        {activeMenu === 'probes' && (
-          <ProbeBar />
-        )}
+
       </div>
 
       {/* Top-Level centered screen modal popup instead of a subbar */}

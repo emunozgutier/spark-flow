@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useCanvas } from './useCanvas';
 
-export type EditModeType = 'select' | 'delete' | 'move' | 'add' | 'annotate';
+export type EditModeType = 'select' | 'delete' | 'move' | 'add' | 'annotate' | 'edit';
 export type EditSubmodeType =
   | 'resistor'
   | 'wire'
@@ -30,6 +30,9 @@ export const useEditMode = create<EditModeState>((set, get) => ({
   editMode: 'select',
   editSubmode: null,
   setEditMode: (mode) => {
+    if (get().editMode === 'edit' && mode !== 'edit') {
+      (useCanvas.getState() as any).setSelectedId(null);
+    }
     const submode =
       mode === 'add'
         ? (get().editSubmode && ['box', 'arrow', 'text'].indexOf(get().editSubmode as string) === -1 ? get().editSubmode : 'resistor')
@@ -61,6 +64,7 @@ export const useEditMode = create<EditModeState>((set, get) => ({
 // Helper mappings
 const editModeToTool = (mode: EditModeType, submode: EditSubmodeType): string => {
   if (mode === 'select') return 'select';
+  if (mode === 'edit') return 'select';
   if (mode === 'move') return 'hand';
   if (mode === 'delete') return 'select';
   if (mode === 'add') {
@@ -102,4 +106,35 @@ useCanvas.subscribe((state) => {
       editSubmode: parsed.submode,
     });
   }
+});
+
+// Subscribe to selectedId changes to switch into/out of 'edit' mode automatically
+let prevSelectedId: string | null = null;
+useCanvas.subscribe((state) => {
+  const selectedId = (state as any).selectedId;
+  if (selectedId !== prevSelectedId) {
+    const { editMode } = useEditMode.getState();
+    if (selectedId !== null) {
+      if (editMode !== 'edit') {
+        useEditMode.setState({ editMode: 'edit', editSubmode: null });
+      }
+    } else {
+      if (editMode === 'edit') {
+        useEditMode.setState({ editMode: 'select', editSubmode: null });
+      }
+    }
+    prevSelectedId = selectedId;
+  }
+});
+
+// Subscribe to editMode changes to deselect the canvas element when changing mode away from 'edit'
+let prevEditMode = useEditMode.getState().editMode;
+useEditMode.subscribe((state) => {
+  if (prevEditMode === 'edit' && state.editMode !== 'edit') {
+    const { selectedId, setSelectedId } = useCanvas.getState() as any;
+    if (selectedId !== null) {
+      setSelectedId(null);
+    }
+  }
+  prevEditMode = state.editMode;
 });

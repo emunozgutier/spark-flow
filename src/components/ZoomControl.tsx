@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ToolType } from '../dataTypes/AnotateType';
 import { EditModeDropdowns } from './ZoomControl/EditMode';
+import { useCanvas } from '../store/useCanvas';
 
 interface ZoomControlProps {
   zoom: number;
@@ -20,6 +21,7 @@ export const ZoomControl: React.FC<ZoomControlProps> = ({
   fitView,
 }) => {
   const percent = Math.round((zoom / 1.75) * 100);
+  const { showCurrentProbes, setShowCurrentProbes } = useCanvas();
 
   return (
     <>
@@ -28,6 +30,28 @@ export const ZoomControl: React.FC<ZoomControlProps> = ({
         <div className="interactive-panel glass-panel zoom-controls animate-fade-in">
           {/* Edit Mode Dropdowns */}
           <EditModeDropdowns />
+
+          <div className="toolbar-divider" style={{ height: '18px' }} />
+
+          {/* Current Probes Toggle */}
+          <button
+            className={`tool-btn ${showCurrentProbes ? 'active' : ''}`}
+            onClick={() => setShowCurrentProbes(!showCurrentProbes)}
+            style={{
+              width: '32px',
+              height: '32px',
+              color: showCurrentProbes ? 'var(--theme-amber)' : 'var(--text-secondary)',
+              borderColor: showCurrentProbes ? 'var(--theme-amber)' : 'rgba(255,255,255,0.08)',
+              boxShadow: showCurrentProbes ? '0 0 10px var(--theme-amber-glow)' : 'none',
+            }}
+            aria-label="Toggle Current Probes"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="m16 12-4-4-4 8 4-4" />
+            </svg>
+            <span className="tooltip">Toggle Current Probes</span>
+          </button>
 
           <div className="toolbar-divider" style={{ height: '18px' }} />
 
