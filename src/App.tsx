@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useCanvas } from './store/useCanvas';
 import { useZoom } from './store/useZoom';
+import { KeyListner } from './components/ZoomControl/KeyListner';
 import { Canvas } from './components/Canvas';
 import { TopBar } from './components/TopBar';
 import { ZoomControl } from './components/ZoomControl';
@@ -750,76 +751,7 @@ function App() {
 
 
 
-  // Handle keyboard hotkeys globally
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape key cancels active tools, blurs inputs, and resets to select mode
-      if (e.key === 'Escape') {
-        (document.activeElement as HTMLElement)?.blur();
-        setActiveTool('select');
-        return;
-      }
-
-      // Ignore key binds if typing in input textareas
-      if (
-        document.activeElement?.tagName === 'INPUT' ||
-        document.activeElement?.tagName === 'TEXTAREA'
-      ) {
-        return;
-      }
-
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const cmdKey = isMac ? e.metaKey : e.ctrlKey;
-
-      // Undo / Redo
-      if (cmdKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-        return;
-      }
-      if (cmdKey && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo();
-        return;
-      }
-
-      // Tool selection shortcuts
-      switch (e.key.toLowerCase()) {
-        case 'v':
-          setActiveTool('select');
-          break;
-        case 't':
-          setActiveTool('text');
-          break;
-        case 'a':
-        case 'w':
-          setActiveTool('arrow'); // A or W for connector wire
-          break;
-        case 'h':
-          setActiveTool('hand');
-          break;
-        case 'r':
-          setActiveTool('resistor');
-          break;
-        case 'g':
-          setActiveTool('ground');
-          break;
-        case 'd':
-          setActiveTool('diode');
-          break;
-        case 'q':
-          setActiveTool('bjt');
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, setActiveTool]);
+  // Keyboard listener is now managed in ZoomControl/KeyListner
 
   // Export board data as a JSON document
   const handleExportJSON = () => {
@@ -1303,6 +1235,7 @@ function App() {
           <span>{toast.message}</span>
         </div>
       )}
+      <KeyListner undo={undo} redo={redo} />
     </>
   );
 }
