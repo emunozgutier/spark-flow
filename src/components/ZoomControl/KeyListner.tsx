@@ -125,6 +125,34 @@ export const KeyListner: React.FC<KeyListnerProps> = ({ undo, redo }) => {
           editModeState.setEditMode('add');
           editModeState.setEditSubmode('ground');
           break;
+        case 'r':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('resistor');
+          break;
+        case 'c':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('capacitor');
+          break;
+        case 'l':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('inductor');
+          break;
+        case 'v':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('voltage');
+          break;
+        case 'o':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('acvoltage');
+          break;
+        case 'i':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('current');
+          break;
+        case 'q':
+          editModeState.setEditMode('add');
+          editModeState.setEditSubmode('bjt');
+          break;
         case 'a':
           pendingAddRef.current = true;
           // Set editMode to 'add' so the user sees the submode dropdown immediately!
