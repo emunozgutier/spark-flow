@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../dataTypes/AnotateType';
-import { formatEngineering, parseEngineering, parseInstanceNumber } from '../utils/math';
+import { formatEngineering, parseEngineering } from '../utils/math';
 import { useCanvas } from '../store/useCanvas';
 
 interface SettingsSideMenuProps {
@@ -74,19 +74,36 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
             <>
               {/* Passive Component Designator */}
               <div className="sidebar-section">
-                <label className="sidebar-section-title" htmlFor="comp-designator">Instance Designator</label>
-                <input
-                  id="comp-designator"
-                  type="text"
-                  className="inspector-input"
-                  value={`${card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND'}${card.instanceNumber || 1}`}
-                  onChange={(e) => {
-                    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND';
-                    const num = parseInstanceNumber(e.target.value, prefix);
-                    onUpdateElement(card.id, { instanceNumber: num });
-                  }}
-                  placeholder="e.g. GND1"
-                />
+                <label className="sidebar-section-title" htmlFor="comp-designator">Instance Number</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    minWidth: '36px',
+                    textAlign: 'center',
+                    fontFamily: 'var(--font-mono)'
+                  }}>
+                    {card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND'}
+                  </span>
+                  <input
+                    id="comp-designator"
+                    type="number"
+                    min="1"
+                    className="inspector-input"
+                    value={card.instanceNumber || 1}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      const num = isNaN(val) ? 1 : Math.max(1, val);
+                      onUpdateElement(card.id, { instanceNumber: num });
+                    }}
+                    style={{ flex: 1, margin: 0 }}
+                  />
+                </div>
               </div>
 
               {/* Passive Component Value */}
