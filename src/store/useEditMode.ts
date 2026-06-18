@@ -14,6 +14,7 @@ export type EditSubmodeType =
   | 'diode'
   | 'bjt'
   | 'mosfet'
+  | 'text'
   | null;
 
 interface EditModeState {
