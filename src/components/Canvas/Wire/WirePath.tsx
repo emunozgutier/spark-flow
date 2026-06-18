@@ -3,6 +3,7 @@ import type { ArrowElement, Point, CardElement } from '../../../dataTypes/Anotat
 import { calculatePath, getOrthogonalPathPoints, getAbsoluteDirection } from '../Wires';
 import { Vertices } from './Vertices';
 import { useCanvas } from '../../../store/useCanvas';
+import { useEditMode } from '../../../store/useEditMode';
 import { formatEngineering } from '../../../utils/math';
 
 interface WireProps {
@@ -57,7 +58,7 @@ export const Wire: React.FC<WireProps> = ({
   current,
   maxVoltage,
 }) => {
-  const { liveDCOn, showCurrentProbes } = useCanvas();
+  const { liveDCOn, showCurrentProbes, deleteElement } = useCanvas();
   let startPt = arrow.fromPoint || { x: 0, y: 0 };
   let endPt = arrow.toPoint || { x: 0, y: 0 };
 
@@ -137,12 +138,18 @@ export const Wire: React.FC<WireProps> = ({
   const labelY = midPt.y + getOffset('label');
   const currY = midPt.y + getOffset('curr');
 
+  const { editMode } = useEditMode();
+
   return (
     <g
       style={{ pointerEvents: 'auto', cursor: 'pointer' }}
       onClick={(e) => {
         e.stopPropagation();
-        setSelectedId(arrow.id);
+        if (editMode === 'delete') {
+          deleteElement(arrow.id);
+        } else {
+          setSelectedId(arrow.id);
+        }
       }}
     >
       <path

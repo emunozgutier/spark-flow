@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useStyle } from '../store/useStyle';
 import { useCanvas } from '../store/useCanvas';
+import { useEditMode } from '../store/useEditMode';
 import { CircuitElements } from './Canvas/CircuitElements';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
@@ -953,6 +954,12 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Node drag parameters setup
   const initiateCardDrag = (card: CardElement, e: React.MouseEvent) => {
+    const { editMode } = useEditMode.getState();
+    if (editMode === 'delete') {
+      deleteElement(card.id);
+      e.stopPropagation();
+      return;
+    }
     if (activeTool !== 'select') return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) {
       return;

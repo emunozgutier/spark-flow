@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ToolType } from '../dataTypes/AnotateType';
+import { EditModeDropdowns } from './ZoomControl/EditMode';
 
 interface ZoomControlProps {
   zoom: number;
@@ -17,8 +18,6 @@ export const ZoomControl: React.FC<ZoomControlProps> = ({
   zoomOut,
   resetView,
   fitView,
-  activeTool,
-  setActiveTool,
 }) => {
   const percent = Math.round((zoom / 1.75) * 100);
 
@@ -27,38 +26,8 @@ export const ZoomControl: React.FC<ZoomControlProps> = ({
       {/* Zoom and View Controllers */}
       <div className="floating-overlay bottom-left user-select-none">
         <div className="interactive-panel glass-panel zoom-controls animate-fade-in">
-          {/* Navigation Tools */}
-          {/* Click (Select tool) */}
-          <button
-            className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`}
-            onClick={() => setActiveTool('select')}
-            style={{ width: '32px', height: '32px' }}
-            aria-label="Select Pointer (V)"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-              <path d="M13 13l6 6" />
-            </svg>
-            <span className="tooltip">Select (V)</span>
-          </button>
-
-          {/* Pan (Hand tool) */}
-          <button
-            className={`tool-btn ${activeTool === 'hand' ? 'active' : ''}`}
-            onClick={() => setActiveTool('hand')}
-            style={{ width: '32px', height: '32px' }}
-            aria-label="Hand Pan Tool (H)"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5" />
-              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
-              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8.5" />
-              <path d="M8 15.5V11a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v4.5" />
-              <path d="M10 14.5a8.2 8.2 0 0 1-6-6" />
-              <path d="M2 14c0 3 2.5 5 5 7h7c3-2 5-4.5 5-7V11" />
-            </svg>
-            <span className="tooltip">Hand Pan (H / Space)</span>
-          </button>
+          {/* Edit Mode Dropdowns */}
+          <EditModeDropdowns />
 
           <div className="toolbar-divider" style={{ height: '18px' }} />
 
