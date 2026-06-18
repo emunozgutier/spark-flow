@@ -315,7 +315,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet' | 'text') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -731,12 +731,15 @@ export const Canvas: React.FC<CanvasProps> = ({
       const width = Math.abs(drawingBox.currentPoint.x - drawingBox.startPoint.x);
       const height = Math.abs(drawingBox.currentPoint.y - drawingBox.startPoint.y);
 
+      const submode = useEditMode.getState().editSubmode;
+      const compType = submode === 'text' ? 'text' : undefined;
+
       // If the drag shape size is extremely small (e.g. less than 15px), we treat it as a click-to-spawn centered box!
       if (width < 15 || height < 15) {
-        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, undefined);
+        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, compType);
       } else {
         // Spawn standard box with custom dimensions drawn!
-        addCard(x1, y1, width, height, undefined);
+        addCard(x1, y1, width, height, compType);
       }
 
       setDrawingBox(null);

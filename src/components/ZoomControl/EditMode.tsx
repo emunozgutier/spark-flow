@@ -76,6 +76,18 @@ export const EditModeDropdowns: React.FC = () => {
       ),
       tooltip: 'Add Mode (A)',
       shortcut: '[A]'
+    },
+    {
+      type: 'annotate',
+      label: 'Annotate',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      ),
+      tooltip: 'Annotation Mode (N)',
+      shortcut: '[N]'
     }
   ];
 
@@ -225,8 +237,8 @@ export const EditModeDropdowns: React.FC = () => {
       shortcut: '[Q*]'
     },
     {
-      type: 'text',
-      label: 'Text Box',
+      type: 'box',
+      label: 'Box',
       icon: (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -235,13 +247,41 @@ export const EditModeDropdowns: React.FC = () => {
           <line x1="9" y1="15" x2="15" y2="15" />
         </svg>
       ),
-      tooltip: 'Text Annotation Box (T)',
-      shortcut: '[T]'
+      tooltip: 'Container Box (N*)',
+      shortcut: '[N*]'
+    },
+    {
+      type: 'arrow',
+      label: 'Arrow',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+      ),
+      tooltip: 'Arrow Connector (N*)',
+      shortcut: '[N*]'
+    },
+    {
+      type: 'text',
+      label: 'Text',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="4 7 4 4 20 4 20 7" />
+          <line x1="9" y1="20" x2="15" y2="20" />
+          <line x1="12" y1="4" x2="12" y2="20" />
+        </svg>
+      ),
+      tooltip: 'Free Text Note (N*)',
+      shortcut: '[N*]'
     }
   ];
 
   const activeModeItem = modesList.find((m) => m.type === editMode) || modesList[0];
   const activeSubmodeItem = submodesList.find((s) => s.type === editSubmode) || submodesList[0];
+  const visibleSubmodes = editMode === 'annotate' 
+    ? submodesList.filter(s => s.type === 'box' || s.type === 'arrow' || s.type === 'text')
+    : submodesList.filter(s => s.type !== 'box' && s.type !== 'arrow' && s.type !== 'text');
 
   const styles = `
     .edit-drop-up-container {
@@ -389,8 +429,8 @@ export const EditModeDropdowns: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Submode Dropdown (Visible only in ADD mode) */}
-      {editMode === 'add' && (
+      {/* 2. Submode Dropdown (Visible only in ADD or ANNOTATE modes) */}
+      {(editMode === 'add' || editMode === 'annotate') && (
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => {
@@ -409,7 +449,7 @@ export const EditModeDropdowns: React.FC = () => {
 
           {submodeOpen && (
             <div className="edit-drop-up" style={{ maxHeight: '280px', overflowY: 'auto', minWidth: '165px' }}>
-              {submodesList.map((sm) => (
+              {visibleSubmodes.map((sm) => (
                 <button
                   key={sm.type}
                   className={`edit-drop-up-item ${editSubmode === sm.type ? 'active' : ''}`}

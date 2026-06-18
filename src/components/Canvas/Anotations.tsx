@@ -22,41 +22,53 @@ export const Anotations: React.FC<AnotationsProps> = ({
   updateElement,
   finalizeDrag
 }) => {
+  const isTextOnly = card.componentType === 'text';
 
   return (
     <div
-      className={`canvas-card ${isSelected ? 'selected' : ''}`}
+      className={`canvas-card ${isSelected ? 'selected' : ''} ${isTextOnly ? 'text-only-annotation' : ''}`}
       style={{
         left: `${card.x}px`,
         top: `${card.y}px`,
         width: `${card.width}px`,
         height: `${card.height}px`,
         zIndex: isSelected ? 99 : 5,
-        '--theme-color': `var(--theme-${card.color})`,
-        '--theme-color-glow': `var(--theme-${card.color}-glow)`
+        '--theme-color': isTextOnly ? 'rgba(255, 255, 255, 0.15)' : `var(--theme-${card.color})`,
+        '--theme-color-glow': isTextOnly ? 'transparent' : `var(--theme-${card.color}-glow)`
       } as React.CSSProperties}
       onMouseDown={(e) => initiateCardDrag(card, e)}
     >
-      <div className="card-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-          <input
-            type="text"
-            className="card-title-input"
-            value={card.title}
-            onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
-            onBlur={finalizeDrag}
-            placeholder="Component Title"
-          />
+      {!isTextOnly && (
+        <div className="card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+            <input
+              type="text"
+              className="card-title-input"
+              value={card.title || ''}
+              onChange={(e) => updateElement(card.id, { title: e.target.value }, false)}
+              onBlur={finalizeDrag}
+              placeholder="Component Title"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="card-body">
+      <div className="card-body" style={isTextOnly ? { height: '100%', padding: '0px' } : undefined}>
         <textarea
           className="card-textarea"
-          value={card.content}
+          value={card.content || ''}
           onChange={(e) => updateElement(card.id, { content: e.target.value }, false)}
           onBlur={finalizeDrag}
-          placeholder="Describe your thoughts..."
+          placeholder={isTextOnly ? "Type text..." : "Describe your thoughts..."}
+          style={isTextOnly ? {
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            boxShadow: 'none',
+            fontSize: '13px',
+            color: 'var(--text-primary)',
+            resize: 'none'
+          } : undefined}
         />
       </div>
 

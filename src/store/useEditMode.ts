@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useCanvas } from './useCanvas';
 
-export type EditModeType = 'select' | 'delete' | 'move' | 'add';
+export type EditModeType = 'select' | 'delete' | 'move' | 'add' | 'annotate';
 export type EditSubmodeType =
   | 'resistor'
   | 'wire'
@@ -15,6 +15,8 @@ export type EditSubmodeType =
   | 'bjt'
   | 'mosfet'
   | 'text'
+  | 'box'
+  | 'arrow'
   | null;
 
 interface EditModeState {
@@ -28,7 +30,12 @@ export const useEditMode = create<EditModeState>((set, get) => ({
   editMode: 'select',
   editSubmode: null,
   setEditMode: (mode) => {
-    const submode = mode === 'add' ? (get().editSubmode || 'resistor') : null;
+    const submode =
+      mode === 'add'
+        ? (get().editSubmode && ['box', 'arrow', 'text'].indexOf(get().editSubmode as string) === -1 ? get().editSubmode : 'resistor')
+        : mode === 'annotate'
+        ? (get().editSubmode && ['box', 'arrow', 'text'].indexOf(get().editSubmode as string) !== -1 ? get().editSubmode : 'box')
+        : null;
     set({ editMode: mode, editSubmode: submode });
     const tool = editModeToTool(mode, submode);
     if ((useCanvas.getState() as any).activeTool !== tool) {
@@ -37,8 +44,12 @@ export const useEditMode = create<EditModeState>((set, get) => ({
   },
   setEditSubmode: (submode) => {
     set({ editSubmode: submode });
-    if (submode !== null && get().editMode !== 'add') {
-      set({ editMode: 'add' });
+    if (submode !== null) {
+      const isAnnotate = submode === 'box' || submode === 'arrow' || submode === 'text';
+      const expectedMode = isAnnotate ? 'annotate' : 'add';
+      if (get().editMode !== expectedMode) {
+        set({ editMode: expectedMode });
+      }
     }
     const tool = editModeToTool(get().editMode, submode);
     if ((useCanvas.getState() as any).activeTool !== tool) {
@@ -56,13 +67,21 @@ const editModeToTool = (mode: EditModeType, submode: EditSubmodeType): string =>
     if (submode === null) return 'resistor';
     return submode === 'wire' ? 'arrow' : submode;
   }
+  if (mode === 'annotate') {
+    if (submode === 'box') return 'text';
+    if (submode === 'arrow') return 'arrow';
+    if (submode === 'text') return 'text';
+    return 'text';
+  }
   return 'select';
 };
 
 const toolToEditMode = (tool: string): { mode: EditModeType; submode: EditSubmodeType } => {
   if (tool === 'select') return { mode: 'select', submode: null };
   if (tool === 'hand') return { mode: 'move', submode: null };
-  const submode = tool === 'arrow' ? 'wire' : (tool as EditSubmodeType);
+  if (tool === 'arrow') return { mode: 'annotate', submode: 'arrow' };
+  if (tool === 'text') return { mode: 'annotate', submode: 'box' };
+  const submode = tool as EditSubmodeType;
   return { mode: 'add', submode };
 };
 

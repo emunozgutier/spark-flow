@@ -31,6 +31,11 @@ const getNextSubmode = (key: string, currentSubmode: EditSubmodeType): EditSubmo
       return currentSubmode === 'bjt' ? 'mosfet' : 'bjt';
     case 't':
       return 'text';
+    case 'n':
+      if (currentSubmode === 'box') return 'arrow';
+      if (currentSubmode === 'arrow') return 'text';
+      if (currentSubmode === 'text') return 'box';
+      return 'box';
     default:
       return null;
   }
@@ -113,10 +118,17 @@ export const KeyListner: React.FC<KeyListnerProps> = ({ undo, redo }) => {
           // Set editMode to 'add' so the user sees the submode dropdown immediately!
           editModeState.setEditMode('add');
           break;
+        case 'n': {
+          const submode = getNextSubmode('n', editModeState.editSubmode);
+          editModeState.setEditMode('annotate');
+          editModeState.setEditSubmode(submode);
+          break;
+        }
         default: {
           const submode = getNextSubmode(key, editModeState.editSubmode);
           if (submode) {
-            editModeState.setEditMode('add');
+            const isAnnotate = submode === 'box' || submode === 'arrow' || submode === 'text';
+            editModeState.setEditMode(isAnnotate ? 'annotate' : 'add');
             editModeState.setEditSubmode(submode);
           }
           break;

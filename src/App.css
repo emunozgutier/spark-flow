@@ -693,3 +693,27 @@ svg marker {
   opacity: 0;
   pointer-events: auto;
 }
+
+/* Text-only annotation overrides */
+.canvas-card.text-only-annotation {
+  background: transparent;
+  border: 1.5px dashed transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  min-height: 0 !important;
+  min-width: 0 !important;
+}
+
+.canvas-card.text-only-annotation:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.canvas-card.text-only-annotation.selected {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px dashed var(--theme-color) !important;
+  box-shadow: 0 0 12px var(--theme-color-glow) !important;
+  border-radius: 8px;
+}

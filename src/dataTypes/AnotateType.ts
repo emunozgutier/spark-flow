@@ -28,7 +28,7 @@ export interface BoxAnnotation extends BaseType {
   title?: string;
   content?: string;
   color: ThemeColor;
-  componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet';
+  componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet' | 'text';
   instanceNumber?: number;
   value?: number;
   frequency?: number;

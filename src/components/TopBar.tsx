@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ToolType, CanvasElement } from '../dataTypes/AnotateType';
 import { FileBar } from './TopBar/FileBar';
-import { AnotateBar } from './TopBar/AnotateBar';
-import { PassivesBar } from './TopBar/PassivesBar';
-import { SourcesBar } from './TopBar/SourcesBar';
-import { ActiveBar } from './TopBar/ActiveBar';
 import { Animation } from './TopBar/Animation';
 import { DebugPopup } from './TopBar/DebugPopup';
 import { ProbeBar } from './TopBar/ProbeBar';
@@ -45,21 +41,14 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [isDebug, setIsDebug] = useState(false);
   const { liveDCOn, setLiveDCOn } = useCanvas();
 
-  // Sync activeMenu when the activeTool changes via global keyboard hotkeys
+  // Disable liveDCOn when selecting annotations
   useEffect(() => {
     if (activeTool === 'text' || activeTool === 'arrow') {
-      setActiveMenu('anotate');
       if (liveDCOn) {
         setLiveDCOn(false);
       }
-    } else if (activeTool === 'resistor' || activeTool === 'capacitor' || activeTool === 'inductor') {
-      setActiveMenu('passives');
-    } else if (activeTool === 'voltage' || activeTool === 'acvoltage' || activeTool === 'current' || activeTool === 'ground') {
-      setActiveMenu('sources');
-    } else if (activeTool === 'diode' || activeTool === 'bjt' || activeTool === 'mosfet') {
-      setActiveMenu('actives');
     }
-  }, [activeTool, liveDCOn, setLiveDCOn, setActiveMenu]);
+  }, [activeTool, liveDCOn, setLiveDCOn]);
 
   // Detect /debug URL segment or parameters on mount
   useEffect(() => {
@@ -101,71 +90,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="tooltip">File Options</span>
           </button>
 
-          {/* Anotate Tab */}
-          <button
-            className={`tool-btn tab-btn ${activeMenu === 'anotate' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveMenu('anotate');
-              if (liveDCOn) {
-                setLiveDCOn(false);
-                if (setToast) {
-                  setToast({
-                    message: '🔌 Live DC Operating Point Solver disabled.',
-                    type: 'info'
-                  });
-                }
-              }
-            }}
-            aria-label="Annotations"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            <span className="tooltip">Annotation Tools</span>
-          </button>
 
-          {/* Passives Tab */}
-          <button
-            className={`tool-btn tab-btn ${activeMenu === 'passives' ? 'active' : ''}`}
-            onClick={() => setActiveMenu('passives')}
-            aria-label="Passive Elements"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="3"/>
-              <path d="M9 12h6"/>
-              <path d="M12 9v6"/>
-              <circle cx="7" cy="7" r="1" fill="currentColor"/>
-              <circle cx="17" cy="17" r="1" fill="currentColor"/>
-            </svg>
-            <span className="tooltip">Passive Elements</span>
-          </button>
-
-          {/* Active Elements Tab */}
-          <button
-            className={`tool-btn tab-btn ${activeMenu === 'actives' ? 'active' : ''}`}
-            onClick={() => setActiveMenu('actives')}
-            aria-label="Active Elements"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="6 4 18 12 6 20 6 4" />
-              <line x1="18" y1="4" x2="18" y2="20" />
-            </svg>
-            <span className="tooltip">Active Elements</span>
-          </button>
- 
-          {/* Sources Tab */}
-          <button
-            className={`tool-btn tab-btn ${activeMenu === 'sources' ? 'active' : ''}`}
-            onClick={() => setActiveMenu('sources')}
-            aria-label="Sources"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M 9 12 Q 10.5 8, 12 12 T 15 12" />
-            </svg>
-            <span className="tooltip">Sources & Ground</span>
-          </button>
  
           {/* Simulate Tab */}
           <button
@@ -204,7 +129,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   setActiveTool('select');
                 }
               } else {
-                setActiveMenu('anotate');
+                setActiveMenu('file');
               }
               if (setToast) {
                 setToast({
@@ -261,33 +186,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           />
         )}
  
-        {activeMenu === 'anotate' && (
-          <AnotateBar
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-          />
-        )}
- 
-        {activeMenu === 'passives' && (
-          <PassivesBar
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-          />
-        )}
-  
-        {activeMenu === 'sources' && (
-          <SourcesBar
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-          />
-        )}
 
-        {activeMenu === 'actives' && (
-          <ActiveBar
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-          />
-        )}
  
         {activeMenu === 'animation' && liveDCOn && (
           <Animation />
@@ -302,7 +201,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       {activeMenu === 'debug' && isDebug && (
         <DebugPopup
           isOpen={true}
-          onClose={() => setActiveMenu('anotate')}
+          onClose={() => setActiveMenu('file')}
           elements={elements}
           loadElements={loadElements}
           setToast={setToast}
@@ -313,7 +212,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       {activeMenu === 'simulate' && (
         <Popup
           isOpen={true}
-          onClose={() => setActiveMenu('anotate')}
+          onClose={() => setActiveMenu('file')}
           elements={elements}
           setToast={setToast}
         />

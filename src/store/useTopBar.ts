@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type TopBarMenu = 'file' | 'anotate' | 'passives' | 'sources' | 'actives' | 'animation' | 'probes' | 'simulate' | 'debug';
+export type TopBarMenu = 'file' | 'animation' | 'probes' | 'simulate' | 'debug';
 
 interface TopBarState {
   activeMenu: TopBarMenu;
@@ -8,6 +8,6 @@ interface TopBarState {
 }
 
 export const useTopBar = create<TopBarState>((set) => ({
-  activeMenu: 'anotate',
+  activeMenu: 'file',
   setActiveMenu: (menu) => set({ activeMenu: menu }),
 }));
