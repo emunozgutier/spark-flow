@@ -273,6 +273,60 @@ const loadInitialElements = (): CanvasElement[] => {
   return DEFAULT_ELEMENTS;
 };
 
+export const checkOverlap = (
+  rectA: { x: number; y: number; width: number; height: number },
+  rectB: { x: number; y: number; width: number; height: number }
+): boolean => {
+  return (
+    rectA.x < rectB.x + rectB.width &&
+    rectA.x + rectA.width > rectB.x &&
+    rectA.y < rectB.y + rectB.height &&
+    rectA.y + rectA.height > rectB.y
+  );
+};
+
+export const findNearestFreePosition = (
+  elements: CanvasElement[],
+  newCard: { x: number; y: number; width: number; height: number },
+  excludeId?: string
+): { x: number; y: number } => {
+  let { x, y, width, height } = newCard;
+  x = Math.round(x / 10) * 10;
+  y = Math.round(y / 10) * 10;
+
+  const cards = elements.filter(
+    (el) => el.type === 'box' && el.id !== excludeId
+  ) as CardElement[];
+
+  const isOverlappingAny = (cx: number, cy: number) => {
+    const rect = { x: cx, y: cy, width, height };
+    return cards.some((c) => checkOverlap(rect, c));
+  };
+
+  if (!isOverlappingAny(x, y)) {
+    return { x, y };
+  }
+
+  // Spiral search out in grid steps of 10px
+  let step = 1;
+  while (step < 100) {
+    for (let dx = -step; dx <= step; dx++) {
+      for (let dy = -step; dy <= step; dy++) {
+        if (Math.abs(dx) === step || Math.abs(dy) === step) {
+          const testX = x + dx * 10;
+          const testY = y + dy * 10;
+          if (!isOverlappingAny(testX, testY)) {
+            return { x: testX, y: testY };
+          }
+        }
+      }
+    }
+    step++;
+  }
+
+  return { x, y };
+};
+
 interface CanvasState {
   elements: CanvasElement[];
   selectedId: string | null;
@@ -460,13 +514,23 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             color = colors[Math.floor(Math.random() * colors.length)];
           }
 
+          const cardWidth = componentType ? defaultWidth : (width !== undefined ? Math.round(width / 10) * 10 : defaultWidth);
+          const cardHeight = componentType ? defaultHeight : (height !== undefined ? Math.round(height / 10) * 10 : defaultHeight);
+
+          const resolvedPos = findNearestFreePosition(get().elements, {
+            x,
+            y,
+            width: cardWidth,
+            height: cardHeight
+          });
+
           const newCard: CardElement = {
             id: cardId,
             type: 'box', // BoxAnnotation datatype
-            x: Math.round(x / 10) * 10,
-            y: Math.round(y / 10) * 10,
-            width: componentType ? defaultWidth : (width !== undefined ? Math.round(width / 10) * 10 : defaultWidth),
-            height: componentType ? defaultHeight : (height !== undefined ? Math.round(height / 10) * 10 : defaultHeight),
+            x: resolvedPos.x,
+            y: resolvedPos.y,
+            width: cardWidth,
+            height: cardHeight,
             title: componentType ? undefined : title,
             content: componentType ? undefined : content,
             color,
@@ -537,9 +601,45 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         updateCardPosition: (id: string, x: number, y: number) => {
           (useCanvas as any).temporal?.getState().pause();
 
-          const nextElements = get().elements.map((el) => {
+          const elements = get().elements;
+          const card = elements.find((el) => el.id === id && el.type === 'box') as CardElement | undefined;
+          if (!card) return;
+
+          const targetX = Math.round(x / 10) * 10;
+          const targetY = Math.round(y / 10) * 10;
+
+          if (card.x === targetX && card.y === targetY) return;
+
+          const width = card.width;
+          const height = card.height;
+
+          const cards = elements.filter((el) => el.type === 'box' && el.id !== id) as CardElement[];
+
+          const isOverlappingAny = (cx: number, cy: number) => {
+            const rect = { x: cx, y: cy, width, height };
+            return cards.some((c) => checkOverlap(rect, c));
+          };
+
+          let finalX = card.x;
+          let finalY = card.y;
+
+          if (!isOverlappingAny(targetX, targetY)) {
+            finalX = targetX;
+            finalY = targetY;
+          } else {
+            const horizontalFree = !isOverlappingAny(targetX, card.y);
+            const verticalFree = !isOverlappingAny(card.x, targetY);
+
+            if (horizontalFree) {
+              finalX = targetX;
+            } else if (verticalFree) {
+              finalY = targetY;
+            }
+          }
+
+          const nextElements = elements.map((el) => {
             if (el.id !== id || el.type !== 'box') return el;
-            return { ...el, x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10 };
+            return { ...el, x: finalX, y: finalY };
           });
           set({ elements: nextElements });
         },
