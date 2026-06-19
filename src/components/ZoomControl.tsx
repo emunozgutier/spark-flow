@@ -2,6 +2,7 @@ import React from 'react';
 import type { ToolType } from '../dataTypes/AnotateType';
 import { EditModeDropdowns } from './ZoomControl/EditMode';
 import { useCanvas } from '../store/useCanvas';
+import './ZoomControl/ZoomControl.css';
 
 interface ZoomControlProps {
   zoom: number;

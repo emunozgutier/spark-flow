@@ -10,6 +10,7 @@ import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/W
 import { AnimationManager } from './Canvas/AnimationManager';
 import { Grid } from './Canvas/Grid';
 import { getNextVoltageValue, getNextDecadeValue } from '../utils/math';
+import './Canvas/Canvas.css';
 
 
 // DSU helper to group connected pins into electrical nodes

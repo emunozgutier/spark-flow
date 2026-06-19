@@ -3,6 +3,7 @@ import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../da
 import { formatEngineering, parseEngineering } from '../utils/math';
 import { useCanvas } from '../store/useCanvas';
 import { useProjectSettings } from '../store/useProjectSettings';
+import './SettingsSideMenu.css';
 
 interface SettingsSideMenuProps {
   selectedElement: CanvasElement | null;

@@ -7,6 +7,7 @@ import { DebugPopup } from './TopBar/DebugPopup';
 import { Popup } from './Popup';
 import { useCanvas } from '../store/useCanvas';
 import { useTopBar } from '../store/useTopBar';
+import './TopBar/TopBar.css';
 
 interface TopBarProps {
   activeTool: ToolType;
