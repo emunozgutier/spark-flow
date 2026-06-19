@@ -6,6 +6,7 @@ import { Canvas } from './components/Canvas';
 import { TopBar } from './components/TopBar';
 import { ZoomControl } from './components/ZoomControl';
 import { SettingsSideMenu } from './components/SettingsSideMenu';
+import { Cursor } from './components/Cursor';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import { formatEngineering } from './utils/math';
 import { solveLinearSystem } from './sim/components/mnaSolver';
@@ -1235,6 +1236,7 @@ function App() {
           <span>{toast.message}</span>
         </div>
       )}
+      <Cursor />
       <KeyListner undo={undo} redo={redo} />
     </>
   );

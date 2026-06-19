@@ -142,6 +142,7 @@ export const Wire: React.FC<WireProps> = ({
 
   return (
     <g
+      className="deletable-wire"
       style={{ pointerEvents: 'auto', cursor: 'pointer' }}
       onClick={(e) => {
         e.stopPropagation();

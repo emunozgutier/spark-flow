@@ -736,3 +736,9 @@ svg marker {
   box-shadow: 0 0 12px var(--theme-color-glow) !important;
   border-radius: 8px;
 }
+
+/* Custom Cursor Canvas Override */
+.canvas-container.custom-cursor-active,
+.canvas-container.custom-cursor-active * {
+  cursor: none !important;
+}
