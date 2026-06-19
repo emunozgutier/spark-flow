@@ -285,12 +285,44 @@ export const checkOverlap = (
   );
 };
 
+export const getCollisionBox = (card: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  componentType?: string;
+  rotation?: number;
+}): { x: number; y: number; width: number; height: number } => {
+  const isTwoPort = card.componentType && 
+                    card.componentType !== 'ground' && 
+                    card.componentType !== 'bjt' && 
+                    card.componentType !== 'mosfet';
+  
+  const isHorizontal = Math.abs(card.rotation || 0) % 180 === 0;
+
+  if (isTwoPort && isHorizontal) {
+    return {
+      x: card.x - 10,
+      y: card.y,
+      width: card.width + 20,
+      height: card.height
+    };
+  }
+
+  return {
+    x: card.x,
+    y: card.y,
+    width: card.width,
+    height: card.height
+  };
+};
+
 export const findNearestFreePosition = (
   elements: CanvasElement[],
-  newCard: { x: number; y: number; width: number; height: number },
+  newCard: { x: number; y: number; width: number; height: number; componentType?: string; rotation?: number },
   excludeId?: string
 ): { x: number; y: number } => {
-  let { x, y, width, height } = newCard;
+  let { x, y } = newCard;
   x = Math.round(x / 10) * 10;
   y = Math.round(y / 10) * 10;
 
@@ -299,8 +331,13 @@ export const findNearestFreePosition = (
   ) as CardElement[];
 
   const isOverlappingAny = (cx: number, cy: number) => {
-    const rect = { x: cx, y: cy, width, height };
-    return cards.some((c) => checkOverlap(rect, c));
+    const tempCard = { ...newCard, x: cx, y: cy };
+    const testBox = getCollisionBox(tempCard);
+    
+    return cards.some((c) => {
+      const obstacleBox = getCollisionBox(c);
+      return checkOverlap(testBox, obstacleBox);
+    });
   };
 
   if (!isOverlappingAny(x, y)) {
@@ -521,7 +558,9 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             x,
             y,
             width: cardWidth,
-            height: cardHeight
+            height: cardHeight,
+            componentType,
+            rotation: 0
           });
 
           const newCard: CardElement = {
@@ -610,14 +649,12 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
 
           if (card.x === targetX && card.y === targetY) return;
 
-          const width = card.width;
-          const height = card.height;
-
           const cards = elements.filter((el) => el.type === 'box' && el.id !== id) as CardElement[];
 
           const isOverlappingAny = (cx: number, cy: number) => {
-            const rect = { x: cx, y: cy, width, height };
-            return cards.some((c) => checkOverlap(rect, c));
+            const tempCard = { ...card, x: cx, y: cy };
+            const testBox = getCollisionBox(tempCard);
+            return cards.some((c) => checkOverlap(testBox, getCollisionBox(c)));
           };
 
           let finalX = card.x;
