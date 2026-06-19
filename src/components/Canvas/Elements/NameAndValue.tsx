@@ -13,6 +13,22 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
 }) => {
   const isBJT = card.componentType === 'bjt';
 
+  const getFormattedValue = () => {
+    if (card.value === undefined) return '';
+    const formatted = formatEngineering(card.value);
+    switch (card.componentType) {
+      case 'resistor': return `${formatted}Ω`;
+      case 'capacitor': return `${formatted}F`;
+      case 'inductor': return `${formatted}H`;
+      case 'voltage':
+      case 'acvoltage': return `${formatted}V`;
+      case 'current': return `${formatted}A`;
+      case 'bjt': return String(card.value ?? 100);
+      case 'mosfet': return `${card.value ?? 2.0}V`;
+      default: return formatted;
+    }
+  };
+
   return (
     <div
       style={isBJT ? {
@@ -78,7 +94,7 @@ export const NameAndValue: React.FC<NameAndValueProps> = ({
               pointerEvents: 'none'
             }}
           >
-            {card.componentType === 'bjt' ? String(card.value ?? 100) : card.componentType === 'mosfet' ? String(card.value ?? 2.0) : formatEngineering(card.value)}
+            {getFormattedValue()}
           </div>
           {card.componentType === 'acvoltage' && (
             <div

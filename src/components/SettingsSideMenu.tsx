@@ -2,6 +2,7 @@ import React from 'react';
 import type { CanvasElement, CardElement, ArrowElement, ThemeColor } from '../dataTypes/AnotateType';
 import { formatEngineering, parseEngineering } from '../utils/math';
 import { useCanvas } from '../store/useCanvas';
+import { useProjectSettings } from '../store/useProjectSettings';
 
 interface SettingsSideMenuProps {
   selectedElement: CanvasElement | null;
@@ -28,6 +29,7 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
   arrowCurrent,
 }) => {
   const { liveDCOn } = useCanvas();
+  const { eSeries, setESeries } = useProjectSettings();
   const isOpen = selectedElement !== null;
 
   if (!isOpen || !selectedElement) {
@@ -108,22 +110,43 @@ export const SettingsSideMenu: React.FC<SettingsSideMenuProps> = ({
 
               {/* Passive Component Value */}
               {card.componentType !== 'ground' && card.componentType !== 'diode' && (
-                <div className="sidebar-section">
-                  <label className="sidebar-section-title" htmlFor="comp-value">
-                    {card.componentType === 'bjt' ? 'Current Gain (Beta)' : card.componentType === 'mosfet' ? 'Threshold Voltage Vth (V)' : 'Component Value'}
-                  </label>
-                  <input
-                    id="comp-value"
-                    type="text"
-                    className="inspector-input"
-                    value={card.componentType === 'bjt' ? String(card.value ?? 100) : card.componentType === 'mosfet' ? String(card.value ?? 2.0) : formatEngineering(card.value)}
-                    onChange={(e) => {
-                      const val = card.componentType === 'bjt' ? (parseFloat(e.target.value) || 100) : card.componentType === 'mosfet' ? (parseFloat(e.target.value) || 2.0) : parseEngineering(e.target.value);
-                      onUpdateElement(card.id, { value: val });
-                    }}
-                    placeholder={card.componentType === 'bjt' ? 'e.g. 100' : card.componentType === 'mosfet' ? 'e.g. 2.0' : 'e.g. 10u'}
-                  />
-                </div>
+                <>
+                  <div className="sidebar-section">
+                    <label className="sidebar-section-title" htmlFor="comp-value">
+                      {card.componentType === 'bjt' ? 'Current Gain (Beta)' : card.componentType === 'mosfet' ? 'Threshold Voltage Vth (V)' : 'Component Value'}
+                    </label>
+                    <input
+                      id="comp-value"
+                      type="text"
+                      className="inspector-input"
+                      value={card.componentType === 'bjt' ? String(card.value ?? 100) : card.componentType === 'mosfet' ? String(card.value ?? 2.0) : formatEngineering(card.value)}
+                      onChange={(e) => {
+                        const val = card.componentType === 'bjt' ? (parseFloat(e.target.value) || 100) : card.componentType === 'mosfet' ? (parseFloat(e.target.value) || 2.0) : parseEngineering(e.target.value);
+                        onUpdateElement(card.id, { value: val });
+                      }}
+                      placeholder={card.componentType === 'bjt' ? 'e.g. 100' : card.componentType === 'mosfet' ? 'e.g. 2.0' : 'e.g. 10u'}
+                    />
+                  </div>
+
+                  {/* E-Series Preferred Selector (Only for Resistors, Capacitors, Inductors) */}
+                  {(card.componentType === 'resistor' || card.componentType === 'capacitor' || card.componentType === 'inductor') && (
+                    <div className="sidebar-section">
+                      <label className="sidebar-section-title">Scroll Grid (E-Series)</label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {(['E3', 'E6', 'E12', 'E24'] as const).map((series) => (
+                          <button
+                            key={series}
+                            className={`style-option-btn ${eSeries === series ? 'active' : ''}`}
+                            onClick={() => setESeries(series)}
+                            style={{ flex: 1, padding: '6px 0', fontSize: '10px' }}
+                          >
+                            {series}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* AC Frequency (For AC Voltage Source) */}

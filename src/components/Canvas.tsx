@@ -2,11 +2,13 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useStyle } from '../store/useStyle';
 import { useCanvas } from '../store/useCanvas';
 import { useEditMode } from '../store/useEditMode';
+import { useProjectSettings } from '../store/useProjectSettings';
 import { CircuitElements } from './Canvas/CircuitElements';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Wires';
 import { AnimationManager } from './Canvas/AnimationManager';
+import { getNextVoltageValue, getNextDecadeValue } from '../utils/math';
 
 
 // DSU helper to group connected pins into electrical nodes
@@ -362,6 +364,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { liveDCOn } = useCanvas();
+  const { eSeries } = useProjectSettings();
   const loopCounterRef = useRef(0);
   const loopResetTimeRef = useRef(Date.now());
 
@@ -534,10 +537,52 @@ export const Canvas: React.FC<CanvasProps> = ({
     return basePt;
   }, []);
 
-  // Zoom-to-Mouse Wheel Handler
+  // Zoom-to-Mouse Wheel Handler / Component Value Scroll Handler
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (!containerRef.current) return;
+
+    // Scroll value if a component is selected and has a value
+    if (selectedId) {
+      const selectedEl = elements.find((el) => el.id === selectedId);
+      if (selectedEl && selectedEl.type === 'box') {
+        const card = selectedEl as CardElement;
+        if (
+          card.componentType &&
+          card.componentType !== 'ground' &&
+          card.componentType !== 'diode'
+        ) {
+          const currentVal = card.value ?? 0;
+          const direction = e.deltaY < 0 ? 'up' : 'down'; // wheel scroll up means e.deltaY is negative
+
+          let nextVal = currentVal;
+          if (
+            card.componentType === 'voltage' ||
+            card.componentType === 'acvoltage'
+          ) {
+            nextVal = getNextVoltageValue(currentVal, direction);
+          } else if (
+            card.componentType === 'resistor' ||
+            card.componentType === 'capacitor' ||
+            card.componentType === 'inductor' ||
+            card.componentType === 'current'
+          ) {
+            nextVal = getNextDecadeValue(currentVal, direction, eSeries);
+          } else if (card.componentType === 'bjt') {
+            // BJT gain (beta) increment/decrement by 10
+            nextVal = direction === 'up' ? currentVal + 10 : Math.max(10, currentVal - 10);
+          } else if (card.componentType === 'mosfet') {
+            // MOSFET Vth increment/decrement by 0.1V
+            nextVal = direction === 'up' 
+              ? parseFloat((currentVal + 0.1).toFixed(1)) 
+              : Math.max(0.1, parseFloat((currentVal - 0.1).toFixed(1)));
+          }
+
+          updateElement(card.id, { value: nextVal });
+          return;
+        }
+      }
+    }
 
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
