@@ -8,6 +8,7 @@ import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Wires';
 import { AnimationManager } from './Canvas/AnimationManager';
+import { Grid } from './Canvas/Grid';
 import { getNextVoltageValue, getNextDecadeValue } from '../utils/math';
 
 
@@ -1081,22 +1082,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       style={{ touchAction: 'none' }}
     >
       {/* 1. Vector Grid Background layer */}
-      <div
-        className="canvas-grid"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          backgroundImage: zoom > 0.35 
-            ? 'radial-gradient(var(--border-strong) 1.2px, transparent 1.2px), radial-gradient(var(--border-subtle) 1px, transparent 1px)' 
-            : 'none',
-          backgroundSize: '40px 40px, 20px 20px',
-          backgroundPosition: '0 0, 10px 10px',
-          width: '50000px',
-          height: '50000px',
-          top: '-25000px',
-          left: '-25000px',
-          opacity: Math.min(1.0, zoom * 1.5)
-        }}
-      />
+      <Grid pan={pan} zoom={zoom} />
 
       {/* Viewport content layer */}
       <div
