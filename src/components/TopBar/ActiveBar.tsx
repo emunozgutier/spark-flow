@@ -46,6 +46,28 @@ export const ActiveBar: React.FC<ActiveBarProps> = ({ activeTool, setActiveTool 
         <span className="tooltip">Add NPN BJT Card (Q)</span>
       </button>
 
+      {/* MOSFET Transistor */}
+      <button
+        className={`tool-btn text-btn ${activeTool === 'mosfet' ? 'active' : ''}`}
+        onClick={() => setActiveTool('mosfet')}
+        aria-label="Add MOSFET Transistor"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          {/* Gate */}
+          <path d="M 3 12 L 8 12" />
+          <path d="M 8 7 L 8 17" strokeWidth="2.8" />
+          {/* Channel */}
+          <path d="M 11 7 L 11 17" strokeWidth="2" />
+          {/* Drain, Bulk, Source leads */}
+          <path d="M 11 9 L 16 9 L 16 4" />
+          <path d="M 11 15 L 16 15 L 16 20" />
+          {/* Bulk arrow NMOS */}
+          <polygon points="11,12 14,10 14,14" fill="currentColor" stroke="none" />
+        </svg>
+        <span>mosfet</span>
+        <span className="tooltip">Add NMOS MOSFET Card (M)</span>
+      </button>
+
       <div className="toolbar-divider" />
 
       {/* Wire (Uses Arrow Connection Tool) */}

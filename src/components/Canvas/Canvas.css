@@ -1,0 +1,317 @@
+/* Canvas Layout */
+.canvas-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+  cursor: grab;
+}
+
+.canvas-container:active {
+  cursor: grabbing;
+}
+
+.canvas-container.tool-text {
+  cursor: cell;
+}
+
+.canvas-container.tool-arrow {
+  cursor: crosshair;
+}
+
+.canvas-container.tool-hand {
+  cursor: grab;
+}
+
+.canvas-container.tool-hand:active {
+  cursor: grabbing;
+}
+
+/* Vector Grid Pattern */
+.canvas-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+/* Canvas Viewport */
+.canvas-viewport {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+/* Custom Card Nodes */
+.canvas-card {
+  position: absolute;
+  min-width: 180px;
+  min-height: 120px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 2px solid var(--theme-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), 0 0 10px var(--theme-color-glow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: move;
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), transform 0.1s ease-out;
+  transform-origin: center center;
+}
+
+.canvas-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 18px var(--theme-color-glow);
+}
+
+.canvas-card.selected {
+  border-color: #ffffff !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 25px var(--theme-color), 0 0 0 1px #ffffff !important;
+  z-index: 100 !important;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 6px;
+  user-select: none;
+}
+
+.card-title-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+}
+
+.card-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-textarea {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  resize: none;
+  width: 100%;
+  height: 100%;
+  min-height: 60px;
+  outline: none;
+  scrollbar-width: thin;
+}
+
+/* Connection points / sockets */
+.card-socket {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--theme-color);
+  z-index: 10;
+  cursor: crosshair;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.card-socket:hover {
+  transform: scale(1.4);
+  background: var(--theme-color);
+}
+
+.card-socket.left {
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.card-socket.left:hover {
+  transform: translateY(-50%) scale(1.4);
+}
+
+.card-socket.right {
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.card-socket.right:hover {
+  transform: translateY(-50%) scale(1.4);
+}
+
+.card-socket.top {
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.card-socket.top:hover {
+  transform: translateX(-50%) scale(1.4);
+}
+
+.card-socket.bottom {
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.card-socket.bottom:hover {
+  transform: translateX(-50%) scale(1.4);
+}
+
+/* Card Resize handle */
+.card-resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--text-muted);
+  border-radius: 2px;
+  bottom: 2px;
+  right: 2px;
+  cursor: se-resize;
+  transition: background var(--transition-fast);
+}
+
+.card-resize-handle:hover {
+  background: #ffffff;
+}
+
+/* Passive Schematic Components */
+.canvas-card.passive-component {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  cursor: grab;
+}
+
+.canvas-card.passive-component:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.canvas-card.passive-component.selected {
+  background: transparent;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.component-border-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  border: 1.5px dashed transparent;
+  pointer-events: none;
+  transition: all var(--transition-fast);
+}
+
+.canvas-card.passive-component:hover .component-border-overlay {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.canvas-card.passive-component.selected .component-border-overlay {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px dashed var(--theme-color) !important;
+  box-shadow: 0 0 15px var(--theme-color-glow) !important;
+}
+
+/* Hollow circular terminal style for open/unconnected ports */
+.card-socket.open-port {
+  background: var(--bg-canvas) !important;
+  border: 2.2px solid var(--theme-color) !important;
+  width: 10px !important;
+  height: 10px !important;
+  z-index: 15;
+}
+
+.card-socket.open-port:hover {
+  background: var(--theme-color) !important;
+  border-color: var(--theme-color) !important;
+}
+
+/* Sockets on passive components should perfectly overlay on the lead ends */
+.canvas-card.passive-component .card-socket.left {
+  left: 0px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-card.passive-component .card-socket.left:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
+.canvas-card.passive-component .card-socket.right {
+  left: 100%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-card.passive-component .card-socket.right:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
+.canvas-card.passive-component .card-socket.top {
+  left: 50%;
+  top: 0px;
+  transform: translate(-50%, -50%);
+}
+
+.canvas-card.passive-component .card-socket.top:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
+/* Sockets on passive components that are connected should be hidden */
+.canvas-card.passive-component .card-socket:not(.open-port) {
+  opacity: 0;
+  pointer-events: auto;
+}
+
+/* Text-only annotation overrides */
+.canvas-card.text-only-annotation {
+  background: transparent;
+  border: 1.5px dashed transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  min-height: 0 !important;
+  min-width: 0 !important;
+}
+
+.canvas-card.text-only-annotation:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.canvas-card.text-only-annotation.selected {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px dashed var(--theme-color) !important;
+  box-shadow: 0 0 12px var(--theme-color-glow) !important;
+  border-radius: 8px;
+}
+
+/* Custom Cursor Canvas Override */
+.canvas-container.custom-cursor-active,
+.canvas-container.custom-cursor-active * {
+  cursor: none !important;
+}

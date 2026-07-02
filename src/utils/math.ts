@@ -2,6 +2,7 @@
  * Engineering notation formatting and parsing helpers.
  * Handles power notation with common SI prefixes (f, p, n, u, m, k, M, G).
  */
+import type { ESeries } from '../store/useProjectSettings';
 
 export const formatEngineering = (val: number | undefined): string => {
   if (val === undefined || isNaN(val)) return '';
@@ -83,5 +84,65 @@ export const parseEngineeringValue = (str: string): number => {
   }
   
   return parseEngineering(normalized);
+};
+
+
+const VOLTAGE_STEPS = [-12, -10, -8, -5, -3.3, -1.8, -1.2, -0.8, 0, 0.8, 1.2, 1.8, 3.3, 5, 8, 10, 12];
+
+export const getNextVoltageValue = (currentVal: number, direction: 'up' | 'down'): number => {
+  let closestIndex = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < VOLTAGE_STEPS.length; i++) {
+    const diff = Math.abs(VOLTAGE_STEPS[i] - currentVal);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIndex = i;
+    }
+  }
+
+  if (direction === 'up') {
+    return VOLTAGE_STEPS[Math.min(VOLTAGE_STEPS.length - 1, closestIndex + 1)];
+  } else {
+    return VOLTAGE_STEPS[Math.max(0, closestIndex - 1)];
+  }
+};
+
+export const E_SERIES_VALUES: Record<ESeries, number[]> = {
+  E3: [1.0, 2.2, 4.7],
+  E6: [1.0, 1.5, 2.2, 3.3, 4.7, 6.8],
+  E12: [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2],
+  E24: [1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1]
+};
+
+export const getNextDecadeValue = (
+  currentVal: number,
+  direction: 'up' | 'down',
+  series: ESeries
+): number => {
+  let val = currentVal;
+  if (val <= 0 || isNaN(val)) {
+    val = 1.0;
+  }
+
+  const decade = Math.floor(Math.log10(val));
+  const multiplier = Math.pow(10, decade);
+  const normalized = val / multiplier;
+  const seriesValues = E_SERIES_VALUES[series];
+
+  let closestIndex = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < seriesValues.length; i++) {
+    const diff = Math.abs(seriesValues[i] - normalized);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIndex = i;
+    }
+  }
+
+  const rawRes = direction === 'up'
+    ? (closestIndex < seriesValues.length - 1 ? seriesValues[closestIndex + 1] * multiplier : seriesValues[0] * multiplier * 10)
+    : (closestIndex > 0 ? seriesValues[closestIndex - 1] * multiplier : seriesValues[seriesValues.length - 1] * multiplier / 10);
+
+  return parseFloat(rawRes.toPrecision(12));
 };
 

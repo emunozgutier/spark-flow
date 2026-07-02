@@ -14,8 +14,20 @@ export const Border: React.FC<BorderProps> = ({
   arrows,
   initiateArrowDraw
 }) => {
+  const isTwoPort = card.componentType && 
+                    card.componentType !== 'ground' && 
+                    card.componentType !== 'bjt' && 
+                    card.componentType !== 'mosfet';
+  
+  const isHorizontal = Math.abs(card.rotation || 0) % 180 === 0;
+
+  const borderStyle: React.CSSProperties = (isTwoPort && isHorizontal)
+    ? { left: '-10px', right: '-10px', top: 0, bottom: 0 }
+    : { left: 0, right: 0, top: 0, bottom: 0 };
+
   return (
     <>
+      <div className="component-border-overlay" style={borderStyle} />
       {/* Sockets for Wire connections */}
       {(activeTool === 'select' || activeTool === 'arrow' || activeTool === 'hand') && (
         <>
@@ -35,7 +47,7 @@ export const Border: React.FC<BorderProps> = ({
               data-socket-dir="top"
               onMouseDown={(e) => initiateArrowDraw(card, 'top', e)}
             />
-          ) : card.componentType === 'bjt' ? (
+          ) : (card.componentType === 'bjt' || card.componentType === 'mosfet') ? (
             <>
               {/* Left Lead Port (Base) */}
               <div

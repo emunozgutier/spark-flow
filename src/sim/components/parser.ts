@@ -11,6 +11,7 @@ import { VoltageSourceElement } from './stamps/voltage';
 import { CurrentSourceElement } from './stamps/current';
 import { DiodeElement } from './stamps/diode';
 import { BjtElement } from './stamps/bjt';
+import { MosfetElement } from './stamps/mosfet';
 import { parseEngineeringValue } from '../../utils/math';
 
 export interface ParsedNetlist {
@@ -89,6 +90,15 @@ export const parseSpiceNetlistToElements = (spiceDeck: string): ParsedNetlist =>
                   element = new BjtElement(name, node1, node2, node3, value);
                   n1 = node1;
                   n2 = node2;
+                } else {
+                  const mMatch = line.match(MosfetElement.pattern);
+                  if (mMatch) {
+                    const [, name, node1, node2, node3, valToken] = mMatch;
+                    const value = valToken ? parseEngineeringValue(valToken) : 2.0;
+                    element = new MosfetElement(name, node1, node2, node3, value);
+                    n1 = node1;
+                    n2 = node2;
+                  }
                 }
               }
             }

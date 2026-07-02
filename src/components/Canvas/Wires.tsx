@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ArrowElement, CardElement, DrawingArrowState, Point } from '../../dataTypes/AnotateType';
 import { Wire } from './Wire/WirePath';
+import { useCanvas } from '../../store/useCanvas';
 
 interface WiresProps {
   arrows: ArrowElement[];
@@ -11,6 +12,7 @@ interface WiresProps {
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
   activeSnap?: { wire: ArrowElement; point: Point } | null;
   wireVoltages?: Record<string, number>;
+  wireCurrents?: Record<string, number>;
 }
 
 const COLOR_THEMES = [
@@ -70,6 +72,93 @@ const simplifyPathPoints = (points: Point[]): Point[] => {
   return simplified;
 };
 
+const getSocketPos = (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
+  let basePt = { x: 0, y: 0 };
+  const isPassive = !!card.componentType;
+  const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt' && card.componentType !== 'mosfet';
+  switch (socket) {
+    case 'top':
+      basePt = { x: card.x + card.width / 2, y: card.y };
+      break;
+    case 'right':
+      basePt = {
+        x: card.x + card.width,
+        y: isTwoPort ? card.y + 20 : card.y + card.height / 2
+      };
+      break;
+    case 'bottom':
+      basePt = { x: card.x + card.width / 2, y: card.y + card.height };
+      break;
+    case 'left':
+      basePt = {
+        x: card.x,
+        y: isTwoPort ? card.y + 20 : card.y + card.height / 2
+      };
+      break;
+  }
+
+  if (card.rotation && card.rotation !== 0) {
+    const cx = card.x + card.width / 2;
+    const cy = card.y + card.height / 2;
+    const rad = (card.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const dx = basePt.x - cx;
+    const dy = basePt.y - cy;
+    return {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    };
+  }
+  return basePt;
+};
+
+const isVerticalTwoPortSocket = (
+  pt: Point,
+  cards: CardElement[]
+): { card: CardElement; socket: 'left' | 'right' } | null => {
+  for (const card of cards) {
+    if (!card.componentType) continue;
+    const isTwoPort = card.componentType !== 'ground' && 
+                      card.componentType !== 'bjt' && 
+                      card.componentType !== 'mosfet' &&
+                      card.componentType !== 'text';
+    if (!isTwoPort) continue;
+    
+    // Check if it's vertical (90 or 270 degrees rotation)
+    const isVertical = Math.abs(card.rotation || 0) % 180 === 90;
+    if (!isVertical) continue;
+
+    // Calculate absolute socket positions for 'left' and 'right' ports
+    const leftPt = getSocketPos(card, 'left');
+    const rightPt = getSocketPos(card, 'right');
+
+    const distLeft = Math.hypot(pt.x - leftPt.x, pt.y - leftPt.y);
+    const distRight = Math.hypot(pt.x - rightPt.x, pt.y - rightPt.y);
+
+    if (distLeft < 1.0) {
+      return { card, socket: 'left' };
+    }
+    if (distRight < 1.0) {
+      return { card, socket: 'right' };
+    }
+  }
+  return null;
+};
+
+const findCardForSocket = (pt: Point, cards: CardElement[]): CardElement | null => {
+  const dirs: ('top' | 'right' | 'bottom' | 'left')[] = ['top', 'right', 'bottom', 'left'];
+  for (const card of cards) {
+    for (const dir of dirs) {
+      const socketPt = getSocketPos(card, dir);
+      if (Math.hypot(pt.x - socketPt.x, pt.y - socketPt.y) < 1.0) {
+        return card;
+      }
+    }
+  }
+  return null;
+};
+
 export const getOrthogonalPathPoints = (
   from: Point,
   to: Point,
@@ -81,41 +170,136 @@ export const getOrthogonalPathPoints = (
 
   // Keep wires perfectly snapped to grid lines with sharp clean 90-degree corners
   const offset = 0;
+
+  // Retrieve current cards from useCanvas
+  let cards: CardElement[] = [];
+  try {
+    const elements = useCanvas.getState().elements;
+    cards = elements.filter((el) => el.type === 'box') as CardElement[];
+  } catch (e) {
+    // Fallback if useCanvas is not initialized yet
+  }
+
+  let finalAbsFromDir = absFromDir;
+  let finalAbsToDir = absToDir;
+
+  let forceFromUturn = false;
+  let forceToUturn = false;
+
+  let customP1: Point | null = null;
+  let customP2: Point | null = null;
+
+  // Check if "from" is a socket on a vertical two-port component
+  const fromInfo = isVerticalTwoPortSocket(from, cards);
+  if (fromInfo) {
+    const { card: fromCard } = fromInfo;
+    const goLeft = to.x < fromCard.x + fromCard.width / 2;
+    if (goLeft) {
+      finalAbsFromDir = 'left';
+      customP1 = { x: fromCard.x - minSegment, y: from.y };
+    } else {
+      finalAbsFromDir = 'right';
+      customP1 = { x: fromCard.x + fromCard.width + minSegment, y: from.y };
+    }
+    forceFromUturn = true;
+  }
+
+  // Check if "to" is a socket on a vertical two-port component
+  const toInfo = isVerticalTwoPortSocket(to, cards);
+  if (toInfo) {
+    const { card: toCard } = toInfo;
+    const goLeft = from.x < toCard.x + toCard.width / 2;
+    if (goLeft) {
+      finalAbsToDir = 'left';
+      customP2 = { x: toCard.x - minSegment, y: to.y };
+    } else {
+      finalAbsToDir = 'right';
+      customP2 = { x: toCard.x + toCard.width + minSegment, y: to.y };
+    }
+    forceToUturn = true;
+  }
   
   // 1. Determine the actual lead-out point
-  let p1 = { ...from };
-  if (absFromDir === 'left') p1.x -= minSegment;
-  else if (absFromDir === 'right') p1.x += minSegment;
-  else if (absFromDir === 'top') p1.y -= minSegment;
-  else if (absFromDir === 'bottom') p1.y += minSegment;
-  else {
-    p1.x += (to.x > from.x ? minSegment : -minSegment);
+  let p1 = customP1 ? { ...customP1 } : { ...from };
+  if (!customP1) {
+    if (finalAbsFromDir === 'left') p1.x -= minSegment;
+    else if (finalAbsFromDir === 'right') p1.x += minSegment;
+    else if (finalAbsFromDir === 'top') p1.y -= minSegment;
+    else if (finalAbsFromDir === 'bottom') p1.y += minSegment;
+    else {
+      p1.x += (to.x > from.x ? minSegment : -minSegment);
+    }
   }
 
   // 2. Determine the actual lead-in point
-  let p2 = { ...to };
-  if (absToDir === 'left') p2.x -= minSegment;
-  else if (absToDir === 'right') p2.x += minSegment;
-  else if (absToDir === 'top') p2.y -= minSegment;
-  else if (absToDir === 'bottom') p2.y += minSegment;
-  else {
-    p2.x += (to.x > from.x ? -minSegment : minSegment);
+  let p2 = customP2 ? { ...customP2 } : { ...to };
+  if (!customP2) {
+    if (finalAbsToDir === 'left') p2.x -= minSegment;
+    else if (finalAbsToDir === 'right') p2.x += minSegment;
+    else if (finalAbsToDir === 'top') p2.y -= minSegment;
+    else if (finalAbsToDir === 'bottom') p2.y += minSegment;
+    else {
+      p2.x += (to.x > from.x ? -minSegment : minSegment);
+    }
+  }
+
+  if (forceFromUturn) {
+    const path = [from, p1, { x: p1.x, y: p2.y }, p2, to];
+    return simplifyPathPoints(path);
+  }
+  if (forceToUturn) {
+    const path = [from, p1, { x: p2.x, y: p1.y }, p2, to];
+    return simplifyPathPoints(path);
+  }
+
+  // Check if we need to route around horizontal overlapping components
+  const isP1ExitHorizontal = finalAbsFromDir === 'left' || finalAbsFromDir === 'right';
+  const isP2EntryHorizontal = finalAbsToDir === 'left' || finalAbsToDir === 'right';
+
+  if (isP1ExitHorizontal && isP2EntryHorizontal) {
+    const fromCard = findCardForSocket(from, cards);
+    const toCard = findCardForSocket(to, cards);
+    if (fromCard && toCard && fromCard.id !== toCard.id) {
+      const isCrossing = (finalAbsFromDir === 'right' && to.x < from.x) || (finalAbsFromDir === 'left' && to.x > from.x);
+      if (isCrossing) {
+        const minY = Math.min(fromCard.y, toCard.y);
+        const maxY = Math.max(fromCard.y + fromCard.height, toCard.y + toCard.height);
+        const bypassY = (Math.abs(from.y - minY) < Math.abs(from.y - maxY))
+          ? (minY - minSegment)
+          : (maxY + minSegment);
+
+        const p1x = finalAbsFromDir === 'left'
+          ? fromCard.x - minSegment
+          : fromCard.x + fromCard.width + minSegment;
+
+        const p2x = finalAbsToDir === 'left'
+          ? toCard.x - minSegment
+          : toCard.x + toCard.width + minSegment;
+
+        const path = [
+          from,
+          { x: p1x, y: from.y },
+          { x: p1x, y: bypassY },
+          { x: p2x, y: bypassY },
+          { x: p2x, y: to.y },
+          to
+        ];
+        return simplifyPathPoints(path);
+      }
+    }
   }
 
   // 3. Connect p1 and p2 using orthogonal steps
   const path: Point[] = [from, p1];
 
-  const isP1ExitHorizontal = absFromDir === 'left' || absFromDir === 'right';
-  const isP2EntryHorizontal = absToDir === 'left' || absToDir === 'right';
-
   if (isP1ExitHorizontal) {
     if (isP2EntryHorizontal) {
       // Both horizontal (left/right)
       let trunkX = (p1.x + p2.x) / 2 + offset;
-      if (absFromDir === absToDir) {
-        if (absFromDir === 'right') {
+      if (finalAbsFromDir === finalAbsToDir) {
+        if (finalAbsFromDir === 'right') {
           trunkX = p1.x > p2.x ? p1.x : p2.x;
-        } else if (absFromDir === 'left') {
+        } else if (finalAbsFromDir === 'left') {
           trunkX = p1.x < p2.x ? p1.x : p2.x;
         }
       }
@@ -123,7 +307,7 @@ export const getOrthogonalPathPoints = (
       path.push({ x: trunkX, y: p2.y });
     } else {
       // Exit is horizontal, Entry is vertical
-      const needsUturn = (absFromDir === 'right' && p2.x < from.x) || (absFromDir === 'left' && p2.x > from.x);
+      const needsUturn = (finalAbsFromDir === 'right' && p2.x < from.x) || (finalAbsFromDir === 'left' && p2.x > from.x);
       if (needsUturn) {
         path.push({ x: p1.x, y: p2.y });
       } else {
@@ -135,10 +319,10 @@ export const getOrthogonalPathPoints = (
     if (!isP2EntryHorizontal) {
       // Both vertical (top/bottom)
       let trunkY = (p1.y + p2.y) / 2 + offset;
-      if (absFromDir === absToDir) {
-        if (absFromDir === 'bottom') {
+      if (finalAbsFromDir === finalAbsToDir) {
+        if (finalAbsFromDir === 'bottom') {
           trunkY = p1.y > p2.y ? p1.y : p2.y;
-        } else if (absFromDir === 'top') {
+        } else if (finalAbsFromDir === 'top') {
           trunkY = p1.y < p2.y ? p1.y : p2.y;
         }
       }
@@ -146,7 +330,7 @@ export const getOrthogonalPathPoints = (
       path.push({ x: p2.x, y: trunkY });
     } else {
       // Exit is vertical, Entry is horizontal
-      const needsUturn = (absFromDir === 'bottom' && p2.y < from.y) || (absFromDir === 'top' && p2.y > from.y);
+      const needsUturn = (finalAbsFromDir === 'bottom' && p2.y < from.y) || (finalAbsFromDir === 'top' && p2.y > from.y);
       if (needsUturn) {
         path.push({ x: p2.x, y: p1.y });
       } else {
@@ -201,6 +385,7 @@ export const Wires: React.FC<WiresProps> = ({
   getSocketPosition,
   activeSnap,
   wireVoltages = {},
+  wireCurrents = {},
 }) => {
   const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
 
@@ -264,6 +449,7 @@ export const Wires: React.FC<WiresProps> = ({
           setSelectedId={setSelectedId}
           getSocketPosition={getSocketPosition}
           voltage={wireVoltages[arrow.id]}
+          current={wireCurrents[arrow.id]}
           maxVoltage={maxVoltage}
         />
       ))}

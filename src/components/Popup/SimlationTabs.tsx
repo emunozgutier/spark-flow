@@ -1,12 +1,13 @@
 import React from 'react';
 import { DCOperatingPt } from './SimulationTabs/DCOperatingPt';
+import { DCSweep } from './SimulationTabs/DCSweep';
 import { SPICENet } from './SimulationTabs/SPICENet';
 import { MNAWalkthrough } from './SimulationTabs/MNAWalkthrough';
 import type { CanvasElement } from '../../dataTypes/AnotateType';
 
 interface SimlationTabsProps {
-  activeSubTab: 'dc' | 'netlist' | 'nma';
-  setActiveSubTab: (tab: 'dc' | 'netlist' | 'nma') => void;
+  activeSubTab: 'dc' | 'sweep' | 'netlist' | 'nma';
+  setActiveSubTab: (tab: 'dc' | 'sweep' | 'netlist' | 'nma') => void;
   dcVoltages: Record<string, number>;
   spiceNetlist: string;
   elements: CanvasElement[];
@@ -39,6 +40,21 @@ export const SimlationTabs: React.FC<SimlationTabsProps> = ({
           }}
         >
           DC Operating Pt
+        </button>
+        <button
+          onClick={() => setActiveSubTab('sweep')}
+          style={{
+            padding: '8px 12px',
+            background: 'none',
+            border: 'none',
+            color: activeSubTab === 'sweep' ? 'var(--theme-sapphire)' : 'rgba(255,255,255,0.5)',
+            fontWeight: activeSubTab === 'sweep' ? 'bold' : 'normal',
+            fontSize: '11px',
+            cursor: 'pointer',
+            borderBottom: activeSubTab === 'sweep' ? '2px solid var(--theme-sapphire)' : 'none'
+          }}
+        >
+          DC Sweep
         </button>
         <button
           onClick={() => setActiveSubTab('netlist')}
@@ -75,6 +91,7 @@ export const SimlationTabs: React.FC<SimlationTabsProps> = ({
       {/* Sub tabs content wrapper */}
       <div style={{ flex: 1, padding: '16px', overflowY: 'auto', minHeight: 0 }}>
         {activeSubTab === 'dc' && <DCOperatingPt dcVoltages={dcVoltages} />}
+        {activeSubTab === 'sweep' && <DCSweep spiceNetlist={spiceNetlist} />}
         {activeSubTab === 'netlist' && <SPICENet spiceNetlist={spiceNetlist} setToast={setToast} />}
         {activeSubTab === 'nma' && <MNAWalkthrough elements={elements} />}
       </div>

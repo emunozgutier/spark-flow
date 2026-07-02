@@ -42,7 +42,7 @@ export const Popup: React.FC<PopupProps> = ({
   onClose,
   setToast
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'dc' | 'netlist' | 'nma'>('dc');
+  const [activeSubTab, setActiveSubTab] = useState<'dc' | 'sweep' | 'netlist' | 'nma'>('dc');
   const [dcVoltages, setDcVoltages] = useState<Record<string, number>>({});
   const [spiceNetlist, setSpiceNetlist] = useState<string>('');
 
@@ -73,9 +73,9 @@ export const Popup: React.FC<PopupProps> = ({
     // 3. Map sets to node keys
     const groups: Record<string, string[]> = {};
     cards.forEach((card) => {
+      const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
       const isGround = card.componentType === 'ground';
       const isJoin = card.id.startsWith('join') || card.title === 'join';
-      const isBjt = card.componentType === 'bjt';
       const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
       
       portsList.forEach((socket) => {
@@ -147,6 +147,8 @@ export const Popup: React.FC<PopupProps> = ({
           netlist += `D${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} 1N4148\n`;
         } else if (card.componentType === 'bjt') {
           netlist += `Q${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} NPN\n`;
+        } else if (card.componentType === 'mosfet') {
+          netlist += `M${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} ${getPinNode(card.id, 'bottom')} NMOS\n`;
         }
       });
       netlist += `.op\n.backanno\n.end\n`;
@@ -167,7 +169,7 @@ export const Popup: React.FC<PopupProps> = ({
         return;
       }
 
-      const hasNonLinear = cards.some(c => c.componentType === 'diode' || c.componentType === 'bjt');
+      const hasNonLinear = cards.some(c => c.componentType === 'diode' || c.componentType === 'bjt' || c.componentType === 'mosfet');
 
       const g2ElementMap: Record<string, number> = {};
       let g2Index = nodeCount;
@@ -331,6 +333,86 @@ export const Popup: React.FC<PopupProps> = ({
               if (nb > 0) A[ne - 1][nb - 1] += Geb;
               A[ne - 1][ne - 1] += Gee;
               B[ne - 1] += Be;
+            }
+          }
+        });
+
+        // 2.2 MOSFET Transistors (Non-linear elements)
+        cards.forEach((card) => {
+          if (card.componentType === 'mosfet') {
+            const nDStr = getPinNode(card.id, 'top');
+            const nGStr = getPinNode(card.id, 'left');
+            const nSStr = getPinNode(card.id, 'bottom');
+            const nd = parseInt(nDStr, 10);
+            const ng = parseInt(nGStr, 10);
+            const ns = parseInt(nSStr, 10);
+
+            const vD = voltages[nDStr] || 0;
+            const vG = voltages[nGStr] || 0;
+            const vS = voltages[nSStr] || 0;
+
+            const Vth = card.value !== undefined ? card.value : 2.0;
+            const beta = 1e-3;
+
+            let Id = 0;
+            let gds = 0;
+            let ggs = 0;
+
+            if (vD >= vS) {
+              const vgs = Math.max(-10, Math.min(10, vG - vS));
+              const vds = Math.max(0, Math.min(10, vD - vS));
+
+              if (vgs < Vth) {
+                Id = 0;
+                gds = 0;
+                ggs = 0;
+              } else if (vds < vgs - Vth) {
+                Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+                ggs = beta * vds;
+                gds = beta * (vgs - Vth - vds);
+              } else {
+                Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+                ggs = beta * (vgs - Vth);
+                gds = 0;
+              }
+            } else {
+              const vgd = Math.max(-10, Math.min(10, vG - vD));
+              const vsd = Math.max(0, Math.min(10, vS - vD));
+
+              if (vgd < Vth) {
+                Id = 0;
+                gds = 0;
+                ggs = 0;
+              } else if (vsd < vgd - Vth) {
+                const Is = beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+                const dIs_vg = beta * vsd;
+                const dIs_vs = beta * (vgd - Vth - vsd);
+                Id = -Is;
+                ggs = -dIs_vg;
+                gds = dIs_vg + dIs_vs;
+              } else {
+                const Is = 0.5 * beta * (vgd - Vth) * (vgd - Vth);
+                const dIs_vg = beta * (vgd - Vth);
+                Id = -Is;
+                ggs = -dIs_vg;
+                gds = dIs_vg;
+              }
+            }
+
+            const Ieq = Id - gds * (vD - vS) - ggs * (vG - vS);
+
+            if (nd > 0) {
+              A[nd - 1][nd - 1] += gds;
+              if (ng > 0) A[nd - 1][ng - 1] += ggs;
+              if (ns > 0) A[nd - 1][ns - 1] -= (gds + ggs);
+              B[nd - 1] -= Ieq;
+            }
+
+            if (ns > 0) {
+              A[ns - 1][nd - 1] -= gds;
+              if (ng > 0) A[ns - 1][ng - 1] -= ggs;
+              if (ns > 0) A[ns - 1][ns - 1] += (gds + ggs);
+              B[ns - 1] += Ieq;
             }
           }
         });

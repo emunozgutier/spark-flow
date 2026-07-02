@@ -273,19 +273,114 @@ const loadInitialElements = (): CanvasElement[] => {
   return DEFAULT_ELEMENTS;
 };
 
+export const checkOverlap = (
+  rectA: { x: number; y: number; width: number; height: number },
+  rectB: { x: number; y: number; width: number; height: number }
+): boolean => {
+  return (
+    rectA.x < rectB.x + rectB.width &&
+    rectA.x + rectA.width > rectB.x &&
+    rectA.y < rectB.y + rectB.height &&
+    rectA.y + rectA.height > rectB.y
+  );
+};
+
+export const getCollisionBox = (card: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  componentType?: string;
+  rotation?: number;
+}): { x: number; y: number; width: number; height: number } => {
+  const isTwoPort = card.componentType && 
+                    card.componentType !== 'ground' && 
+                    card.componentType !== 'bjt' && 
+                    card.componentType !== 'mosfet';
+  
+  const isHorizontal = Math.abs(card.rotation || 0) % 180 === 0;
+
+  if (isTwoPort && isHorizontal) {
+    return {
+      x: card.x - 10,
+      y: card.y,
+      width: card.width + 20,
+      height: card.height
+    };
+  }
+
+  return {
+    x: card.x,
+    y: card.y,
+    width: card.width,
+    height: card.height
+  };
+};
+
+export const findNearestFreePosition = (
+  elements: CanvasElement[],
+  newCard: { x: number; y: number; width: number; height: number; componentType?: string; rotation?: number },
+  excludeId?: string
+): { x: number; y: number } => {
+  let { x, y } = newCard;
+  x = Math.round(x / 10) * 10;
+  y = Math.round(y / 10) * 10;
+
+  const cards = elements.filter(
+    (el) => el.type === 'box' && el.id !== excludeId
+  ) as CardElement[];
+
+  const isOverlappingAny = (cx: number, cy: number) => {
+    const tempCard = { ...newCard, x: cx, y: cy };
+    const testBox = getCollisionBox(tempCard);
+    
+    return cards.some((c) => {
+      const obstacleBox = getCollisionBox(c);
+      return checkOverlap(testBox, obstacleBox);
+    });
+  };
+
+  if (!isOverlappingAny(x, y)) {
+    return { x, y };
+  }
+
+  // Spiral search out in grid steps of 10px
+  let step = 1;
+  while (step < 100) {
+    for (let dx = -step; dx <= step; dx++) {
+      for (let dy = -step; dy <= step; dy++) {
+        if (Math.abs(dx) === step || Math.abs(dy) === step) {
+          const testX = x + dx * 10;
+          const testY = y + dy * 10;
+          if (!isOverlappingAny(testX, testY)) {
+            return { x: testX, y: testY };
+          }
+        }
+      }
+    }
+    step++;
+  }
+
+  return { x, y };
+};
+
 interface CanvasState {
   elements: CanvasElement[];
   selectedId: string | null;
   selectedIds: string[];
   activeTool: ToolType;
   liveDCOn: boolean;
+  showVoltageProbes: boolean;
+  showCurrentProbes: boolean;
   
   // Actions
   setActiveTool: (tool: ToolType) => void;
   setSelectedId: (id: string | null) => void;
   setSelectedIds: (ids: string[]) => void;
   setLiveDCOn: (on: boolean) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => void;
+  setShowVoltageProbes: (show: boolean) => void;
+  setShowCurrentProbes: (show: boolean) => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet' | 'text') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -315,9 +410,13 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         selectedIds: [] as string[],
         activeTool: 'select' as ToolType,
         liveDCOn: true,
+        showVoltageProbes: true,
+        showCurrentProbes: false,
 
         setActiveTool: (tool: ToolType) => set({ activeTool: tool }),
         setLiveDCOn: (on: boolean) => set({ liveDCOn: on }),
+        setShowVoltageProbes: (show: boolean) => set({ showVoltageProbes: show }),
+        setShowCurrentProbes: (show: boolean) => set({ showCurrentProbes: show }),
         
         setSelectedId: (id: string | null) => set(() => {
           if (id === null) {
@@ -358,7 +457,7 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           }
         },
 
-        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => {
+        addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet' | 'text') => {
           (useCanvas as any).temporal?.getState().resume();
           
           let defaultWidth = 200;
@@ -398,6 +497,23 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
               color = 'amethyst';
               defaultWidth = 60;
               defaultHeight = 60;
+            } else if (componentType === 'mosfet') {
+              ports = [
+                { id: `${cardId}-left`, direction: 'left', isConnected: false },
+                { id: `${cardId}-top`, direction: 'top', isConnected: false },
+                { id: `${cardId}-bottom`, direction: 'bottom', isConnected: false }
+              ];
+              val = 2.0; // default Vth = 2.0V
+              color = 'amethyst';
+              defaultWidth = 60;
+              defaultHeight = 60;
+            } else if (componentType === 'text') {
+              ports = undefined;
+              val = undefined;
+              content = 'Type text here...';
+              color = 'slate';
+              defaultWidth = 150;
+              defaultHeight = 50;
             } else {
               ports = [
                 { id: `${cardId}-left`, direction: 'left', isConnected: false },
@@ -435,13 +551,25 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
             color = colors[Math.floor(Math.random() * colors.length)];
           }
 
+          const cardWidth = componentType ? defaultWidth : (width !== undefined ? Math.round(width / 10) * 10 : defaultWidth);
+          const cardHeight = componentType ? defaultHeight : (height !== undefined ? Math.round(height / 10) * 10 : defaultHeight);
+
+          const resolvedPos = findNearestFreePosition(get().elements, {
+            x,
+            y,
+            width: cardWidth,
+            height: cardHeight,
+            componentType,
+            rotation: 0
+          });
+
           const newCard: CardElement = {
             id: cardId,
             type: 'box', // BoxAnnotation datatype
-            x: Math.round(x / 10) * 10,
-            y: Math.round(y / 10) * 10,
-            width: componentType ? defaultWidth : (width !== undefined ? Math.round(width / 10) * 10 : defaultWidth),
-            height: componentType ? defaultHeight : (height !== undefined ? Math.round(height / 10) * 10 : defaultHeight),
+            x: resolvedPos.x,
+            y: resolvedPos.y,
+            width: cardWidth,
+            height: cardHeight,
             title: componentType ? undefined : title,
             content: componentType ? undefined : content,
             color,
@@ -512,9 +640,43 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
         updateCardPosition: (id: string, x: number, y: number) => {
           (useCanvas as any).temporal?.getState().pause();
 
-          const nextElements = get().elements.map((el) => {
+          const elements = get().elements;
+          const card = elements.find((el) => el.id === id && el.type === 'box') as CardElement | undefined;
+          if (!card) return;
+
+          const targetX = Math.round(x / 10) * 10;
+          const targetY = Math.round(y / 10) * 10;
+
+          if (card.x === targetX && card.y === targetY) return;
+
+          const cards = elements.filter((el) => el.type === 'box' && el.id !== id) as CardElement[];
+
+          const isOverlappingAny = (cx: number, cy: number) => {
+            const tempCard = { ...card, x: cx, y: cy };
+            const testBox = getCollisionBox(tempCard);
+            return cards.some((c) => checkOverlap(testBox, getCollisionBox(c)));
+          };
+
+          let finalX = card.x;
+          let finalY = card.y;
+
+          if (!isOverlappingAny(targetX, targetY)) {
+            finalX = targetX;
+            finalY = targetY;
+          } else {
+            const horizontalFree = !isOverlappingAny(targetX, card.y);
+            const verticalFree = !isOverlappingAny(card.x, targetY);
+
+            if (horizontalFree) {
+              finalX = targetX;
+            } else if (verticalFree) {
+              finalY = targetY;
+            }
+          }
+
+          const nextElements = elements.map((el) => {
             if (el.id !== id || el.type !== 'box') return el;
-            return { ...el, x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10 };
+            return { ...el, x: finalX, y: finalY };
           });
           set({ elements: nextElements });
         },

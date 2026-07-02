@@ -43,6 +43,9 @@ const getCompactId = (card: CardElement): string => {
   if (card.componentType === 'bjt') {
     return `Q${card.instanceNumber || 1}`;
   }
+  if (card.componentType === 'mosfet') {
+    return `M${card.instanceNumber || 1}`;
+  }
   if (card.componentType === 'ground') {
     return card.instanceNumber ? `GND${card.instanceNumber}` : 'GND';
   }
@@ -106,6 +109,9 @@ export const serializeElements = (elements: CanvasElement[]): string => {
           defaultColor = 'amber';
         } else if (card.componentType === 'bjt') {
           defaultVal = 100;
+          defaultColor = 'amethyst';
+        } else if (card.componentType === 'mosfet') {
+          defaultVal = 2.0; // Vth = 2.0V
           defaultColor = 'amethyst';
         }
 
@@ -274,7 +280,7 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       if (fields.length < 4) return;
 
       const type = fields[0];
-      if (type === 'R' || type === 'C' || type === 'L' || type === 'G' || type === 'V' || type === 'Vac' || type === 'I' || type === 'D') {
+      if (type === 'R' || type === 'C' || type === 'L' || type === 'G' || type === 'V' || type === 'Vac' || type === 'I' || type === 'D' || type === 'Q' || type === 'M') {
         const componentType =
           type === 'R' ? 'resistor' :
           type === 'C' ? 'capacitor' :
@@ -282,7 +288,9 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
           type === 'V' ? 'voltage' :
           type === 'Vac' ? 'acvoltage' :
           type === 'I' ? 'current' :
-          type === 'D' ? 'diode' : 'ground';
+          type === 'D' ? 'diode' :
+          type === 'Q' ? 'bjt' :
+          type === 'M' ? 'mosfet' : 'ground';
         
         const instanceNumber = parseInt(fields[1], 10) || 1;
         const x = parseInt(fields[2], 10) || 0;
@@ -299,6 +307,8 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         else if (componentType === 'current') { defaultVal = 0.001; defaultColor = 'amethyst'; }
         else if (componentType === 'ground') { defaultColor = 'amethyst'; }
         else if (componentType === 'diode') { defaultColor = 'amber'; }
+        else if (componentType === 'bjt') { defaultVal = 100; defaultColor = 'amethyst'; }
+        else if (componentType === 'mosfet') { defaultVal = 2.0; defaultColor = 'amethyst'; }
 
         const value = fields[5] ? parseFloat(fields[5]) : defaultVal;
         let color = (fields[6] || defaultColor) as any;
@@ -306,12 +316,18 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
           color = 'amethyst';
         }
 
-        const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : type === 'V' ? 'V' : type === 'Vac' ? 'Vac' : type === 'I' ? 'I' : type === 'D' ? 'D' : 'GND';
+        const prefix = type === 'R' ? 'R' : type === 'C' ? 'C' : type === 'L' ? 'L' : type === 'V' ? 'V' : type === 'Vac' ? 'Vac' : type === 'I' ? 'I' : type === 'D' ? 'D' : type === 'Q' ? 'Q' : type === 'M' ? 'M' : 'GND';
         const cardId = `${prefix}${instanceNumber}`;
 
         let ports = undefined;
         if (componentType === 'ground') {
           ports = [{ id: `${cardId}-top`, direction: 'top' as const, isConnected: false }];
+        } else if (componentType === 'bjt' || componentType === 'mosfet') {
+          ports = [
+            { id: `${cardId}-left`, direction: 'left' as const, isConnected: false },
+            { id: `${cardId}-top`, direction: 'top' as const, isConnected: false },
+            { id: `${cardId}-bottom`, direction: 'bottom' as const, isConnected: false }
+          ];
         } else {
           ports = [
             { id: `${cardId}-left`, direction: 'left' as const, isConnected: false },
@@ -359,10 +375,10 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
 
       } else if (type === 'W') {
         const fromShort = fields[1];
-        const fromId = (fromShort.match(/^[RCLGV]/) || fromShort.startsWith('Vac') || fromShort.startsWith('I') || fromShort.startsWith('D') || fromShort === 'GND') ? fromShort : `card-${fromShort}`;
+        const fromId = (fromShort.match(/^[RCLGVQM]/) || fromShort.startsWith('Vac') || fromShort.startsWith('I') || fromShort.startsWith('D') || fromShort === 'GND') ? fromShort : `card-${fromShort}`;
         const fromSocket = fields[2] as any;
         const toShort = fields[3];
-        const toId = (toShort.match(/^[RCLGV]/) || toShort.startsWith('Vac') || toShort.startsWith('I') || toShort.startsWith('D') || toShort === 'GND') ? toShort : `card-${toShort}`;
+        const toId = (toShort.match(/^[RCLGVQM]/) || toShort.startsWith('Vac') || toShort.startsWith('I') || toShort.startsWith('D') || toShort === 'GND') ? toShort : `card-${toShort}`;
         const toSocket = fields[4] as any;
         const color = (fields[5] || 'slate') as any;
         const style = (fields[6] || 'curved') as any;
@@ -777,6 +793,48 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
         rotation
       } as CardElement);
     }
+    // M[num] -> MOSFET
+    else if (/^M\d+$/.test(type)) {
+      const id = type;
+      const instanceNumber = parseInt(type.substring(1), 10) || 1;
+      const x = parseInt(fields[1], 10) || 0;
+      const y = parseInt(fields[2], 10) || 0;
+      const rotation = fields[3] ? parseInt(fields[3], 10) : 0;
+      
+      const rawVal = fields[4];
+      const value = (rawVal !== undefined && rawVal !== '' && !isNaN(parseFloat(rawVal))) ? parseFloat(rawVal) : 2.0;
+      
+      let color = 'amethyst';
+      if (fields[5] !== undefined && fields[5] !== '') {
+        color = fields[5];
+      } else if (fields[4] !== undefined && fields[4] !== '' && isNaN(parseFloat(fields[4]))) {
+        color = fields[4];
+      }
+      if (color === 'slate' || color === 'emerald' || color === 'coral') {
+        color = 'amethyst';
+      }
+
+      const ports = [
+        { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+        { id: `${id}-top`, direction: 'top' as const, isConnected: false },
+        { id: `${id}-bottom`, direction: 'bottom' as const, isConnected: false }
+      ];
+
+      elements.push({
+        id,
+        type: 'box',
+        x,
+        y,
+        width: 60,
+        height: 60,
+        color,
+        componentType: 'mosfet',
+        instanceNumber,
+        value,
+        ports,
+        rotation
+      } as CardElement);
+    }
     // Backward compatibility: Old 'b' (box) format
     else if (type === 'b') {
       const id = fields[1];
@@ -801,6 +859,12 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
       if (componentType) {
         if (componentType === 'ground') {
           ports = [{ id: `${id}-top`, direction: 'top' as const, isConnected: false }];
+        } else if (componentType === 'bjt' || componentType === 'mosfet') {
+          ports = [
+            { id: `${id}-left`, direction: 'left' as const, isConnected: false },
+            { id: `${id}-top`, direction: 'top' as const, isConnected: false },
+            { id: `${id}-bottom`, direction: 'bottom' as const, isConnected: false }
+          ];
         } else {
           ports = [
             { id: `${id}-left`, direction: 'left' as const, isConnected: false },

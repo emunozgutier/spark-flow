@@ -1,11 +1,16 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useStyle } from '../store/useStyle';
 import { useCanvas } from '../store/useCanvas';
+import { useEditMode } from '../store/useEditMode';
+import { useProjectSettings } from '../store/useProjectSettings';
 import { CircuitElements } from './Canvas/CircuitElements';
 import { Anotations } from './Canvas/Anotations';
 import { Join } from './Canvas/Wire/Join';
 import { Wires, getAbsoluteDirection, getOrthogonalPathPoints } from './Canvas/Wires';
 import { AnimationManager } from './Canvas/AnimationManager';
+import { Grid } from './Canvas/Grid';
+import { getNextVoltageValue, getNextDecadeValue } from '../utils/math';
+import './Canvas/Canvas.css';
 
 
 // DSU helper to group connected pins into electrical nodes
@@ -55,7 +60,7 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   compCards.forEach((c) => {
     if (c.componentType === 'ground') {
       socketKeys.push(`${c.id}-top`);
-    } else if (c.componentType === 'bjt') {
+    } else if (c.componentType === 'bjt' || c.componentType === 'mosfet') {
       socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
     } else {
       socketKeys.push(`${c.id}-left`, `${c.id}-right`);
@@ -84,7 +89,7 @@ const ensureNetNames = (elements: CanvasElement[]): CanvasElement[] => {
   cards.forEach((card) => {
     const isGround = card.componentType === 'ground';
     const isJoin = card.id.startsWith('join') || card.title === 'join';
-    const isBjt = card.componentType === 'bjt';
+    const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
     const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
     
     portsList.forEach((socket) => {
@@ -314,7 +319,7 @@ interface CanvasProps {
   setSelectedIds: (ids: string[]) => void;
   setPan: (newPan: Point | ((p: Point) => Point)) => void;
   setZoom: (newZoom: number | ((z: number) => number)) => void;
-  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt') => void;
+  addCard: (x: number, y: number, width?: number, height?: number, componentType?: 'resistor' | 'capacitor' | 'inductor' | 'ground' | 'voltage' | 'acvoltage' | 'current' | 'diode' | 'bjt' | 'mosfet' | 'text') => void;
   addArrow: (arrow: Omit<ArrowElement, 'id' | 'type'>) => void;
   updateElement: (id: string, updates: Partial<any>, record?: boolean) => void;
   updateCardPosition: (id: string, x: number, y: number) => void;
@@ -333,6 +338,7 @@ interface CanvasProps {
     }
   >;
   wireVoltages?: Record<string, number>;
+  wireCurrents?: Record<string, number>;
 }
 
 export const Canvas: React.FC<CanvasProps> = ({
@@ -356,9 +362,11 @@ export const Canvas: React.FC<CanvasProps> = ({
   setToast,
   solvedDCOperatingPoint,
   wireVoltages = {},
+  wireCurrents = {},
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { liveDCOn } = useCanvas();
+  const { eSeries } = useProjectSettings();
   const loopCounterRef = useRef(0);
   const loopResetTimeRef = useRef(Date.now());
 
@@ -493,7 +501,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const getSocketPosition = useCallback((card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left'): Point => {
     let basePt = { x: 0, y: 0 };
     const isPassive = !!card.componentType;
-    const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt';
+    const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt' && card.componentType !== 'mosfet';
     switch (socket) {
       case 'top':
         basePt = { x: card.x + card.width / 2, y: card.y };
@@ -531,10 +539,52 @@ export const Canvas: React.FC<CanvasProps> = ({
     return basePt;
   }, []);
 
-  // Zoom-to-Mouse Wheel Handler
+  // Zoom-to-Mouse Wheel Handler / Component Value Scroll Handler
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (!containerRef.current) return;
+
+    // Scroll value if a component is selected and has a value
+    if (selectedId) {
+      const selectedEl = elements.find((el) => el.id === selectedId);
+      if (selectedEl && selectedEl.type === 'box') {
+        const card = selectedEl as CardElement;
+        if (
+          card.componentType &&
+          card.componentType !== 'ground' &&
+          card.componentType !== 'diode'
+        ) {
+          const currentVal = card.value ?? 0;
+          const direction = e.deltaY < 0 ? 'up' : 'down'; // wheel scroll up means e.deltaY is negative
+
+          let nextVal = currentVal;
+          if (
+            card.componentType === 'voltage' ||
+            card.componentType === 'acvoltage'
+          ) {
+            nextVal = getNextVoltageValue(currentVal, direction);
+          } else if (
+            card.componentType === 'resistor' ||
+            card.componentType === 'capacitor' ||
+            card.componentType === 'inductor' ||
+            card.componentType === 'current'
+          ) {
+            nextVal = getNextDecadeValue(currentVal, direction, eSeries);
+          } else if (card.componentType === 'bjt') {
+            // BJT gain (beta) increment/decrement by 10
+            nextVal = direction === 'up' ? currentVal + 10 : Math.max(10, currentVal - 10);
+          } else if (card.componentType === 'mosfet') {
+            // MOSFET Vth increment/decrement by 0.1V
+            nextVal = direction === 'up' 
+              ? parseFloat((currentVal + 0.1).toFixed(1)) 
+              : Math.max(0.1, parseFloat((currentVal - 0.1).toFixed(1)));
+          }
+
+          updateElement(card.id, { value: nextVal });
+          return;
+        }
+      }
+    }
 
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -594,10 +644,11 @@ export const Canvas: React.FC<CanvasProps> = ({
       activeTool === 'acvoltage' ||
       activeTool === 'current' ||
       activeTool === 'diode' ||
-      activeTool === 'bjt'
+      activeTool === 'bjt' ||
+      activeTool === 'mosfet'
     ) {
       const clickCoords = screenToCanvas(e.clientX, e.clientY);
-      if (activeTool === 'ground' || activeTool === 'bjt') {
+      if (activeTool === 'ground' || activeTool === 'bjt' || activeTool === 'mosfet') {
         addCard(clickCoords.x - 30, clickCoords.y - 30, 60, 60, activeTool);
       } else {
         addCard(clickCoords.x - 30, clickCoords.y - 20, 60, 60, activeTool);
@@ -727,12 +778,15 @@ export const Canvas: React.FC<CanvasProps> = ({
       const width = Math.abs(drawingBox.currentPoint.x - drawingBox.startPoint.x);
       const height = Math.abs(drawingBox.currentPoint.y - drawingBox.startPoint.y);
 
+      const submode = useEditMode.getState().editSubmode;
+      const compType = submode === 'text' ? 'text' : undefined;
+
       // If the drag shape size is extremely small (e.g. less than 15px), we treat it as a click-to-spawn centered box!
       if (width < 15 || height < 15) {
-        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, undefined);
+        addCard(drawingBox.startPoint.x - 100, drawingBox.startPoint.y - 60, undefined, undefined, compType);
       } else {
         // Spawn standard box with custom dimensions drawn!
-        addCard(x1, y1, width, height, undefined);
+        addCard(x1, y1, width, height, compType);
       }
 
       setDrawingBox(null);
@@ -950,6 +1004,12 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Node drag parameters setup
   const initiateCardDrag = (card: CardElement, e: React.MouseEvent) => {
+    const { editMode } = useEditMode.getState();
+    if (editMode === 'delete') {
+      deleteElement(card.id);
+      e.stopPropagation();
+      return;
+    }
     if (activeTool !== 'select') return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) {
       return;
@@ -1023,22 +1083,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       style={{ touchAction: 'none' }}
     >
       {/* 1. Vector Grid Background layer */}
-      <div
-        className="canvas-grid"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          backgroundImage: zoom > 0.35 
-            ? 'radial-gradient(var(--border-strong) 1.2px, transparent 1.2px), radial-gradient(var(--border-subtle) 1px, transparent 1px)' 
-            : 'none',
-          backgroundSize: '40px 40px, 20px 20px',
-          backgroundPosition: '0 0, 10px 10px',
-          width: '50000px',
-          height: '50000px',
-          top: '-25000px',
-          left: '-25000px',
-          opacity: Math.min(1.0, zoom * 1.5)
-        }}
-      />
+      <Grid pan={pan} zoom={zoom} />
 
       {/* Viewport content layer */}
       <div
@@ -1068,6 +1113,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           getSocketPosition={getSocketPosition}
           activeSnap={activeSnap}
           wireVoltages={wireVoltages}
+          wireCurrents={wireCurrents}
         />
 
         {/* Render temporary live box drawing preview */}

@@ -47,7 +47,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   cards.forEach((card) => {
     const isGround = card.componentType === 'ground';
     const isJoin = card.id.startsWith('join') || card.title === 'join';
-    const isBjt = card.componentType === 'bjt';
+    const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
     const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
     
     portsList.forEach((socket) => {
@@ -127,7 +127,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   }
 
   const getDesignator = (card: CardElement) => {
-    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : 'GND';
+    const prefix = card.componentType === 'resistor' ? 'R' : card.componentType === 'capacitor' ? 'C' : card.componentType === 'inductor' ? 'L' : card.componentType === 'voltage' ? 'V' : card.componentType === 'acvoltage' ? 'Vac' : card.componentType === 'current' ? 'I' : card.componentType === 'diode' ? 'D' : card.componentType === 'bjt' ? 'Q' : card.componentType === 'mosfet' ? 'M' : 'GND';
     return `${prefix}${card.instanceNumber || 1}`;
   };
 
@@ -148,7 +148,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   // 2. Solve operating point system
   let solvedVoltages: Record<string, number> = { '0': 0 };
   let solvedX = new Array(mnaSize).fill(0);
-  const hasNonLinear = cards.some((c) => c.componentType === 'diode' || c.componentType === 'bjt');
+  const hasNonLinear = cards.some((c) => c.componentType === 'diode' || c.componentType === 'bjt' || c.componentType === 'mosfet');
 
   const compileSystemWalkthrough = (voltages: Record<string, number>) => {
     const A_sys = Array.from({ length: mnaSize }, () => new Array(mnaSize).fill(0));
@@ -320,6 +320,81 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           B_sys[ne - 1] += Be;
         }
       }
+      if (card.componentType === 'mosfet') {
+        const nDStr = getPinNode(card.id, 'top');
+        const nGStr = getPinNode(card.id, 'left');
+        const nSStr = getPinNode(card.id, 'bottom');
+        const nd = parseInt(nDStr, 10);
+        const ng = parseInt(nGStr, 10);
+        const ns = parseInt(nSStr, 10);
+
+        const vD = voltages[nDStr] || 0;
+        const vG = voltages[nGStr] || 0;
+        const vS = voltages[nSStr] || 0;
+
+        const Vth = card.value !== undefined ? card.value : 2.0;
+        const beta = 1e-3;
+
+        let Id = 0;
+        let gds = 0;
+        let ggs = 0;
+
+        if (vD >= vS) {
+          const vgs = Math.max(-10, Math.min(10, vG - vS));
+          const vds = Math.max(0, Math.min(10, vD - vS));
+
+          if (vgs < Vth) {
+            Id = 0;
+            gds = 0;
+            ggs = 0;
+          } else if (vds < vgs - Vth) {
+            Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+            ggs = beta * vds;
+            gds = beta * (vgs - Vth - vds);
+          } else {
+            Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+            ggs = beta * (vgs - Vth);
+            gds = 0;
+          }
+        } else {
+          const vgd = Math.max(-10, Math.min(10, vG - vD));
+          const vsd = Math.max(0, Math.min(10, vS - vD));
+
+          if (vgd < Vth) {
+            Id = 0;
+            gds = 0;
+            ggs = 0;
+          } else if (vsd < vgd - Vth) {
+            const Is = beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+            const dIs_vg = beta * vsd;
+            const dIs_vs = beta * (vgd - Vth - vsd);
+            Id = -Is;
+            ggs = -dIs_vg;
+            gds = dIs_vg + dIs_vs;
+          } else {
+            const Is = 0.5 * beta * (vgd - Vth) * (vgd - Vth);
+            const dIs_vg = beta * (vgd - Vth);
+            Id = -Is;
+            ggs = -dIs_vg;
+            gds = dIs_vg;
+          }
+        }
+
+        const Ieq = Id - gds * (vD - vS) - ggs * (vG - vS);
+
+        if (nd > 0) {
+          A_sys[nd - 1][nd - 1] += gds;
+          if (ng > 0) A_sys[nd - 1][ng - 1] += ggs;
+          if (ns > 0) A_sys[nd - 1][ns - 1] -= (gds + ggs);
+          B_sys[nd - 1] -= Ieq;
+        }
+        if (ns > 0) {
+          A_sys[ns - 1][nd - 1] -= gds;
+          if (ng > 0) A_sys[ns - 1][ng - 1] -= ggs;
+          if (ns > 0) A_sys[ns - 1][ns - 1] += (gds + ggs);
+          B_sys[ns - 1] += Ieq;
+        }
+      }
     });
 
     return { A: A_sys, B: B_sys };
@@ -327,7 +402,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
   interface NonLinearStampRecord {
     designator: string;
-    type: 'diode' | 'bjt';
+    type: 'diode' | 'bjt' | 'mosfet';
     vd?: number;
     gd?: number;
     Ieq?: number;
@@ -335,6 +410,9 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     vbc?: number;
     iCollector?: number;
     iBase?: number;
+    vgs?: number;
+    vds?: number;
+    iDrain?: number;
     highlights: string[];
   }
 
@@ -439,6 +517,57 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
           vbc,
           iCollector: Ic,
           iBase: Ib,
+          highlights
+        });
+      } else if (card.componentType === 'mosfet') {
+        const nDStr = getPinNode(card.id, 'top');
+        const nGStr = getPinNode(card.id, 'left');
+        const nSStr = getPinNode(card.id, 'bottom');
+        const nd = parseInt(nDStr, 10);
+        const ng = parseInt(nGStr, 10);
+        const ns = parseInt(nSStr, 10);
+
+        const vD = voltagesGuess[nDStr] || 0;
+        const vG = voltagesGuess[nGStr] || 0;
+        const vS = voltagesGuess[nSStr] || 0;
+
+        const Vth = card.value !== undefined ? card.value : 2.0;
+        const beta = 1e-3;
+        let Id = 0;
+
+        if (vD >= vS) {
+          const vgs = Math.max(-10, Math.min(10, vG - vS));
+          const vds = Math.max(0, Math.min(10, vD - vS));
+          if (vgs >= Vth) {
+            if (vds < vgs - Vth) {
+              Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+            } else {
+              Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+            }
+          }
+        } else {
+          const vgd = Math.max(-10, Math.min(10, vG - vD));
+          const vsd = Math.max(0, Math.min(10, vS - vD));
+          if (vgd >= Vth) {
+            if (vsd < vgd - Vth) {
+              Id = -beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+            } else {
+              Id = -0.5 * beta * (vgd - Vth) * (vgd - Vth);
+            }
+          }
+        }
+
+        const highlights: string[] = [];
+        if (nd > 0) highlights.push(`${nd - 1}-${nd - 1}`, `rhs-${nd - 1}`);
+        if (ng > 0) highlights.push(`${ng - 1}-${ng - 1}`);
+        if (ns > 0) highlights.push(`${ns - 1}-${ns - 1}`, `rhs-${ns - 1}`);
+
+        nonLinearStamps.push({
+          designator: getDesignator(card),
+          type: 'mosfet',
+          vgs: vG - vS,
+          vds: vD - vS,
+          iDrain: Id,
           highlights
         });
       }
@@ -553,6 +682,16 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       if (nc > 0) modifiedCells.push(`${nc - 1}-${nc - 1}`);
       if (nb > 0) modifiedCells.push(`${nb - 1}-${nb - 1}`);
       if (ne > 0) modifiedCells.push(`${ne - 1}-${ne - 1}`);
+    } else if (card.componentType === 'mosfet') {
+      const nDStr = getPinNode(card.id, 'top');
+      const nGStr = getPinNode(card.id, 'left');
+      const nSStr = getPinNode(card.id, 'bottom');
+      const nd = parseInt(nDStr, 10);
+      const ng = parseInt(nGStr, 10);
+      const ns = parseInt(nSStr, 10);
+      if (nd > 0) modifiedCells.push(`${nd - 1}-${nd - 1}`);
+      if (ng > 0) modifiedCells.push(`${ng - 1}-${ng - 1}`);
+      if (ns > 0) modifiedCells.push(`${ns - 1}-${ns - 1}`);
     }
 
     return modifiedCells;
@@ -615,6 +754,11 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       const nB = getPinNode(card.id, 'left');
       const nE = getPinNode(card.id, 'bottom');
       desc += `BJT connects Node ${nC} (Collector), Node ${nB} (Base), and Node ${nE} (Emitter). In the linear system setup, its entries are placeholder conductances and companion sources to be refined in Newton-Raphson iterations.`;
+    } else if (card.componentType === 'mosfet') {
+      const nD = getPinNode(card.id, 'top');
+      const nG = getPinNode(card.id, 'left');
+      const nS = getPinNode(card.id, 'bottom');
+      desc += `MOSFET connects Node ${nD} (Drain), Node ${nG} (Gate), and Node ${nS} (Source). In the linear system setup, its entries are companion conductances and sources to be refined in Newton-Raphson iterations.`;
     }
 
     nmaSteps.push({
@@ -641,6 +785,8 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       record.nonLinearStamps.forEach(ds => {
         if (ds.type === 'diode') {
           desc += `Diode ${ds.designator} has guessed Vd = ${ds.vd!.toFixed(4)} V. Stamped companion conductance gd = ${ds.gd!.toFixed(4)} S and companion current Ieq = ${(ds.Ieq! * 1000).toFixed(4)} mA. `;
+        } else if (ds.type === 'mosfet') {
+          desc += `MOSFET ${ds.designator} has guessed Vgs = ${ds.vgs!.toFixed(4)} V, Vds = ${ds.vds!.toFixed(4)} V. Companion current Id = ${(ds.iDrain! * 1000).toFixed(4)} mA. `;
         } else {
           desc += `BJT ${ds.designator} has guessed Vbe = ${ds.vbe!.toFixed(4)} V, Vbc = ${ds.vbc!.toFixed(4)} V. Companion currents: Ic = ${(ds.iCollector! * 1000).toFixed(4)} mA, Ib = ${(ds.iBase! * 1000).toFixed(4)} mA. `;
         }

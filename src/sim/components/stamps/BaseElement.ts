@@ -13,7 +13,7 @@ export interface ElementStamp {
 
 export interface BaseElement {
   name: string;
-  type: 'resistor' | 'capacitor' | 'inductor' | 'voltage' | 'current' | 'diode' | 'bjt';
+  type: 'resistor' | 'capacitor' | 'inductor' | 'voltage' | 'current' | 'diode' | 'bjt' | 'mosfet';
   node1: string;
   node2: string;
   node3?: string;
