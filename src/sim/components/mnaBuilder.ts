@@ -6,7 +6,7 @@
  */
 
 import { MnaModel } from '../../utils/mnaModel';
-import type { BaseElement, ElementStamp } from './stamps/BaseElement';
+import type { BaseElement } from './stamps/BaseElement';
 
 export interface MnaBuildResult {
   mnaModel: MnaModel;
