@@ -62,4 +62,16 @@ export class StampBuilder {
   buildAllStamps(elementList: BaseElement[], dimensions: string[], voltages?: Record<string, number>): Stamp[] {
     return elementList.map(el => el.createStamp(dimensions, voltages));
   }
+
+  /**
+   * Builds all element stamps and sums them up into a single final Stamp.
+   */
+  buildFinalStamp(elementList: BaseElement[], dimensions: string[], voltages?: Record<string, number>): Stamp {
+    const stamps = this.buildAllStamps(elementList, dimensions, voltages);
+    const finalStamp = new Stamp(dimensions);
+    for (const s of stamps) {
+      finalStamp.add(s);
+    }
+    return finalStamp;
+  }
 }

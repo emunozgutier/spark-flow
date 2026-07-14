@@ -142,4 +142,14 @@ console.assert(r1Stamp.G.get('i_R1', 'i_R1') === -1000, `Expected R1 stamp G("i_
 
 console.log('All elements successfully created their dimension-aware Stamp.');
 
+// Test buildFinalStamp
+console.log('\n--- Running StampBuilder.buildFinalStamp Validation ---');
+const finalStamp = builder.buildFinalStamp(sim.elementsList, dims);
+// Check V1 contributions in finalStamp
+console.assert(finalStamp.S.get('i_V1') === 5, `Expected finalStamp S("i_V1") to be 5, got ${finalStamp.S.get('i_V1')}`);
+// Check R1 contributions in finalStamp
+console.assert(finalStamp.G.get('V1', 'i_R1') === 1, `Expected finalStamp G("V1", "i_R1") to be 1, got ${finalStamp.G.get('V1', 'i_R1')}`);
+console.assert(finalStamp.G.get('i_R1', 'i_R1') === -1000, `Expected finalStamp G("i_R1", "i_R1") to be -1000, got ${finalStamp.G.get('i_R1', 'i_R1')}`);
+console.log('Final combined stamp built and verified successfully.');
+
 console.log('\n--- All assertions passed! Parser test successful. ---');

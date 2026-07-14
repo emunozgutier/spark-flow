@@ -50,4 +50,15 @@ export class Matrix {
   isEmpty(): boolean {
     return this.data.every(row => row.every(val => val === 0 || Number.isNaN(val)));
   }
+
+  add(other: Matrix): void {
+    if (this.rows !== other.rows || this.cols !== other.cols) {
+      throw new Error("Matrix dimensions must match for addition");
+    }
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        this.data[r][c] += other.data[r][c];
+      }
+    }
+  }
 }

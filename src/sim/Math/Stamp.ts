@@ -28,4 +28,12 @@ export class Stamp {
   makeEmptyStamp(): Stamp {
     return new Stamp(this.dimensions);
   }
+
+  add(other: Stamp): void {
+    this.G.add(other.G);
+    this.H.add(other.H);
+    this.Jf.add(other.Jf);
+    this.Jg.add(other.Jg);
+    this.S.add(other.S);
+  }
 }

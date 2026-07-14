@@ -46,4 +46,13 @@ export class Vector {
   isEmpty(): boolean {
     return this.data.every(val => val === 0 || Number.isNaN(val));
   }
+
+  add(other: Vector): void {
+    if (this.size !== other.size) {
+      throw new Error("Vector dimensions must match for addition");
+    }
+    for (let i = 0; i < this.size; i++) {
+      this.data[i] += other.data[i];
+    }
+  }
 }
