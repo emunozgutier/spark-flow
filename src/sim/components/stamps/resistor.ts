@@ -42,18 +42,22 @@ export class ResistorElement implements BaseElement {
 
   createStamp(dimensions: string[]): Stamp {
     const stamp = new Stamp(dimensions);
+    const V1 = `V${this.node1}`;
+    const V2 = `V${this.node2}`;
+    const In = `i_${this.name}`;
+
     if (!this.isGroup2) {
       const g = 1 / this.value;
-      stamp.G.set(`V${this.node1}`, `V${this.node1}`, stamp.G.get(`V${this.node1}`, `V${this.node1}`) + g);
-      stamp.G.set(`V${this.node2}`, `V${this.node2}`, stamp.G.get(`V${this.node2}`, `V${this.node2}`) + g);
-      stamp.G.set(`V${this.node1}`, `V${this.node2}`, stamp.G.get(`V${this.node1}`, `V${this.node2}`) - g);
-      stamp.G.set(`V${this.node2}`, `V${this.node1}`, stamp.G.get(`V${this.node2}`, `V${this.node1}`) - g);
+      stamp.G.set(V1, V1, stamp.G.get(V1, V1) + g);
+      stamp.G.set(V2, V2, stamp.G.get(V2, V2) + g);
+      stamp.G.set(V1, V2, stamp.G.get(V1, V2) - g);
+      stamp.G.set(V2, V1, stamp.G.get(V2, V1) - g);
     } else {
-      stamp.G.set(`V${this.node1}`, `i_${this.name}`, stamp.G.get(`V${this.node1}`, `i_${this.name}`) + 1);
-      stamp.G.set(`V${this.node2}`, `i_${this.name}`, stamp.G.get(`V${this.node2}`, `i_${this.name}`) - 1);
-      stamp.G.set(`i_${this.name}`, `V${this.node1}`, stamp.G.get(`i_${this.name}`, `V${this.node1}`) + 1);
-      stamp.G.set(`i_${this.name}`, `V${this.node2}`, stamp.G.get(`i_${this.name}`, `V${this.node2}`) - 1);
-      stamp.G.set(`i_${this.name}`, `i_${this.name}`, stamp.G.get(`i_${this.name}`, `i_${this.name}`) - this.value);
+      stamp.G.set(V1, In, stamp.G.get(V1, In) + 1);
+      stamp.G.set(V2, In, stamp.G.get(V2, In) - 1);
+      stamp.G.set(In, V1, stamp.G.get(In, V1) + 1);
+      stamp.G.set(In, V2, stamp.G.get(In, V2) - 1);
+      stamp.G.set(In, In, stamp.G.get(In, In) - this.value);
     }
     return stamp;
   }

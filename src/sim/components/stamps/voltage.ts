@@ -40,11 +40,15 @@ export class VoltageSourceElement implements BaseElement {
 
   createStamp(dimensions: string[]): Stamp {
     const stamp = new Stamp(dimensions);
-    stamp.G.set(`V${this.node1}`, `i_${this.name}`, stamp.G.get(`V${this.node1}`, `i_${this.name}`) + 1);
-    stamp.G.set(`V${this.node2}`, `i_${this.name}`, stamp.G.get(`V${this.node2}`, `i_${this.name}`) - 1);
-    stamp.G.set(`i_${this.name}`, `V${this.node1}`, stamp.G.get(`i_${this.name}`, `V${this.node1}`) + 1);
-    stamp.G.set(`i_${this.name}`, `V${this.node2}`, stamp.G.get(`i_${this.name}`, `V${this.node2}`) - 1);
-    stamp.S.set(`i_${this.name}`, stamp.S.get(`i_${this.name}`) + this.value);
+    const V1 = `V${this.node1}`;
+    const V2 = `V${this.node2}`;
+    const In = `i_${this.name}`;
+
+    stamp.G.set(V1, In, stamp.G.get(V1, In) + 1);
+    stamp.G.set(V2, In, stamp.G.get(V2, In) - 1);
+    stamp.G.set(In, V1, stamp.G.get(In, V1) + 1);
+    stamp.G.set(In, V2, stamp.G.get(In, V2) - 1);
+    stamp.S.set(In, stamp.S.get(In) + this.value);
     return stamp;
   }
 }
