@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { CanvasElement, CardElement, ArrowElement } from '../../../dataTypes/AnotateType';
-import { solveLinearSystem } from '../../../sim/components/mnaSolver';
 import { formatEngineering } from '../../../utils/math';
 
 
@@ -574,11 +573,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     });
 
     let nextX = new Array(mnaSize).fill(0);
-    try {
-      nextX = solveLinearSystem(A_iter, B_iter);
-    } catch (e) {
-      break;
-    }
 
     const nextVoltages: Record<string, number> = { '0': 0 };
     for (let i = 1; i <= nodeCount; i++) {

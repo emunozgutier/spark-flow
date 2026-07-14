@@ -11,29 +11,6 @@ import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/Anota
 import { formatEngineering } from './utils/math';
 import './App.css';
 
-class UnionFind {
-  parent: Record<string, string> = {};
-
-  find(id: string): string {
-    if (!this.parent[id]) {
-      this.parent[id] = id;
-    }
-    if (this.parent[id] === id) {
-      return id;
-    }
-    this.parent[id] = this.find(this.parent[id]);
-    return this.parent[id];
-  }
-
-  union(x: string, y: string) {
-    const rootX = this.find(x);
-    const rootY = this.find(y);
-    if (rootX !== rootY) {
-      this.parent[rootX] = rootY;
-    }
-  }
-}
-
 
 function App() {
   const {
@@ -75,7 +52,11 @@ function App() {
 
   // --- REAL-TIME MNA DC OPERATING POINT SOLVER & WIRE CURRENTS & VOLTAGES ---
   const { solvedDCOperatingPoint, wireCurrents, wireVoltages } = useMemo(() => {
-    return { solvedDCOperatingPoint: {}, wireCurrents: {}, wireVoltages: {} };
+    return {
+      solvedDCOperatingPoint: {} as Record<string, any>,
+      wireCurrents: {} as Record<string, number>,
+      wireVoltages: {} as Record<string, number>
+    };
   }, [elements, liveDCOn]);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
