@@ -3,7 +3,7 @@
  * CurrentSourceElement class implementation.
  */
 
-import type { BaseElement, ElementStamp } from './BaseElement';
+import type { BaseElement } from './BaseElement';
 import { parseEngineeringValue } from '../../../utils/math';
 import { Stamp } from '../../Math/Stamp';
 
@@ -36,27 +36,6 @@ export class CurrentSourceElement implements BaseElement {
     return 0;
   }
 
-  getStampGroup1(nodeMap: Map<string, number>): ElementStamp {
-    const getNodeIdx = (node: string): number => {
-      if (node === '0' || node.toUpperCase() === 'GND') return 0;
-      return nodeMap.get(node) || 0;
-    };
-
-    const i1 = getNodeIdx(this.node1);
-    const i2 = getNodeIdx(this.node2);
-
-    const g1 = i1 > 0 ? i1 - 1 : -1;
-    const g2 = i2 > 0 ? i2 - 1 : -1;
-
-    // CURRENT SOURCE MNA STAMP (Group 1 - stamp RHS only)
-    const s_local = [-this.value, this.value];
-    const globalIndices = [g1, g2];
-    return { s_local, globalIndices };
-  }
-
-  getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
-    return { globalIndices: [] };
-  }
 
   createStamp(dimensions: string[]): Stamp {
     const stamp = new Stamp(dimensions);

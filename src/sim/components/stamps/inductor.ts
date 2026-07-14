@@ -3,7 +3,7 @@
  * InductorElement class implementation.
  */
 
-import type { BaseElement, ElementStamp } from './BaseElement';
+import type { BaseElement } from './BaseElement';
 import { parseEngineeringValue } from '../../../utils/math';
 import { Stamp } from '../../Math/Stamp';
 
@@ -36,31 +36,6 @@ export class InductorElement implements BaseElement {
     return 1;
   }
 
-  getStampGroup1(_nodeMap: Map<string, number>): ElementStamp {
-    return { globalIndices: [] };
-  }
-
-  getStampGroup2(nodeMap: Map<string, number>, group2Idx: number): ElementStamp {
-    const getNodeIdx = (node: string): number => {
-      if (node === '0' || node.toUpperCase() === 'GND') return 0;
-      return nodeMap.get(node) || 0;
-    };
-
-    const i1 = getNodeIdx(this.node1);
-    const i2 = getNodeIdx(this.node2);
-
-    const g1 = i1 > 0 ? i1 - 1 : -1;
-    const g2 = i2 > 0 ? i2 - 1 : -1;
-
-    // INDUCTOR DC OP SHORT-CIRCUIT STAMP (Group 2)
-    const G_local = [
-      [0, 0, 1],
-      [0, 0, -1],
-      [1, -1, 0]
-    ];
-    const globalIndices = [g1, g2, group2Idx];
-    return { G_local, globalIndices };
-  }
 
   createStamp(dimensions: string[]): Stamp {
     const stamp = new Stamp(dimensions);

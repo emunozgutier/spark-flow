@@ -3,9 +3,10 @@
  * CapacitorElement class implementation.
  */
 
-import type { BaseElement, ElementStamp } from './BaseElement';
+import type { BaseElement } from './BaseElement';
 import { parseEngineeringValue } from '../../../utils/math';
 import { Stamp } from '../../Math/Stamp';
+import { StampType } from '../../../dataTypes/Stamps';
 
 export class CapacitorElement implements BaseElement {
   static pattern = /^(C\S*)\s+(\S+)\s+(\S+)\s+(\S+)/i;
@@ -19,7 +20,7 @@ export class CapacitorElement implements BaseElement {
   }
 
   name: string;
-  type: 'capacitor' = 'capacitor';
+  type: typeof StampType.Capacitor = StampType.Capacitor;
   node1: string;
   node2: string;
   value: number;
@@ -36,30 +37,6 @@ export class CapacitorElement implements BaseElement {
     return 0;
   }
 
-  getStampGroup1(nodeMap: Map<string, number>): ElementStamp {
-    const getNodeIdx = (node: string): number => {
-      if (node === '0' || node.toUpperCase() === 'GND') return 0;
-      return nodeMap.get(node) || 0;
-    };
-
-    const i1 = getNodeIdx(this.node1);
-    const i2 = getNodeIdx(this.node2);
-
-    const g1 = i1 > 0 ? i1 - 1 : -1;
-    const g2 = i2 > 0 ? i2 - 1 : -1;
-
-    // CAPACITOR DC OP OPEN-CIRCUIT STAMP
-    const G_local = [
-      [0, 0],
-      [0, 0]
-    ];
-    const globalIndices = [g1, g2];
-    return { G_local, globalIndices };
-  }
-
-  getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
-    return { globalIndices: [] };
-  }
 
   createStamp(dimensions: string[]): Stamp {
     const stamp = new Stamp(dimensions);
