@@ -39,6 +39,9 @@ export class DiodeElement implements BaseElement {
 
   createStamp(dimensions: string[], voltages?: Record<string, number>): Stamp {
     const stamp = new Stamp(dimensions);
+    const V1 = `V${this.node1}`;
+    const V2 = `V${this.node2}`;
+
     const v1 = voltages ? (voltages[this.node1] || 0) : 0;
     const v2 = voltages ? (voltages[this.node2] || 0) : 0;
     let vd = v1 - v2;
@@ -58,13 +61,13 @@ export class DiodeElement implements BaseElement {
 
     const Ieq = id - gd * vd;
 
-    stamp.Jg.set(`V${this.node1}`, `V${this.node1}`, stamp.Jg.get(`V${this.node1}`, `V${this.node1}`) + gd);
-    stamp.Jg.set(`V${this.node2}`, `V${this.node2}`, stamp.Jg.get(`V${this.node2}`, `V${this.node2}`) + gd);
-    stamp.Jg.set(`V${this.node1}`, `V${this.node2}`, stamp.Jg.get(`V${this.node1}`, `V${this.node2}`) - gd);
-    stamp.Jg.set(`V${this.node2}`, `V${this.node1}`, stamp.Jg.get(`V${this.node2}`, `V${this.node1}`) - gd);
+    stamp.Jg.set(V1, V1, stamp.Jg.get(V1, V1) + gd);
+    stamp.Jg.set(V2, V2, stamp.Jg.get(V2, V2) + gd);
+    stamp.Jg.set(V1, V2, stamp.Jg.get(V1, V2) - gd);
+    stamp.Jg.set(V2, V1, stamp.Jg.get(V2, V1) - gd);
 
-    stamp.S.set(`V${this.node1}`, stamp.S.get(`V${this.node1}`) - Ieq);
-    stamp.S.set(`V${this.node2}`, stamp.S.get(`V${this.node2}`) + Ieq);
+    stamp.S.set(V1, stamp.S.get(V1) - Ieq);
+    stamp.S.set(V2, stamp.S.get(V2) + Ieq);
 
     return stamp;
   }

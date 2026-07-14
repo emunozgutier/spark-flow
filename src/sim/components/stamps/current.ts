@@ -39,14 +39,18 @@ export class CurrentSourceElement implements BaseElement {
 
   createStamp(dimensions: string[]): Stamp {
     const stamp = new Stamp(dimensions);
+    const V1 = `V${this.node1}`;
+    const V2 = `V${this.node2}`;
+    const In = `i_${this.name}`;
+
     if (!this.isGroup2) {
-      stamp.S.set(`V${this.node1}`, stamp.S.get(`V${this.node1}`) - this.value);
-      stamp.S.set(`V${this.node2}`, stamp.S.get(`V${this.node2}`) + this.value);
+      stamp.S.set(V1, stamp.S.get(V1) - this.value);
+      stamp.S.set(V2, stamp.S.get(V2) + this.value);
     } else {
-      stamp.G.set(`V${this.node1}`, `i_${this.name}`, stamp.G.get(`V${this.node1}`, `i_${this.name}`) + 1);
-      stamp.G.set(`V${this.node2}`, `i_${this.name}`, stamp.G.get(`V${this.node2}`, `i_${this.name}`) - 1);
-      stamp.G.set(`i_${this.name}`, `i_${this.name}`, stamp.G.get(`i_${this.name}`, `i_${this.name}`) + 1);
-      stamp.S.set(`i_${this.name}`, stamp.S.get(`i_${this.name}`) + this.value);
+      stamp.G.set(V1, In, stamp.G.get(V1, In) + 1);
+      stamp.G.set(V2, In, stamp.G.get(V2, In) - 1);
+      stamp.G.set(In, In, stamp.G.get(In, In) + 1);
+      stamp.S.set(In, stamp.S.get(In) + this.value);
     }
     return stamp;
   }

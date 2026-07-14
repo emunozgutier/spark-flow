@@ -42,6 +42,10 @@ export class MosfetElement implements BaseElement {
 
   createStamp(dimensions: string[], voltages?: Record<string, number>): Stamp {
     const stamp = new Stamp(dimensions);
+    const V1 = `V${this.node1}`;
+    const V2 = `V${this.node2}`;
+    const V3 = `V${this.node3}`;
+
     const vD = voltages ? (voltages[this.node1] || 0) : 0;
     const vG = voltages ? (voltages[this.node2] || 0) : 0;
     const vS = voltages ? (voltages[this.node3] || 0) : 0;
@@ -120,12 +124,12 @@ export class MosfetElement implements BaseElement {
       I_nonlin[2] - (Jac[2][0] * vD + Jac[2][1] * vG + Jac[2][2] * vS)
     ];
 
-    const nodes = [this.node1, this.node2, this.node3];
+    const nodes = [V1, V2, V3];
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
-        stamp.Jg.set(`V${nodes[r]}`, `V${nodes[c]}`, stamp.Jg.get(`V${nodes[r]}`, `V${nodes[c]}`) + Jac[r][c]);
+        stamp.Jg.set(nodes[r], nodes[c], stamp.Jg.get(nodes[r], nodes[c]) + Jac[r][c]);
       }
-      stamp.S.set(`V${nodes[r]}`, stamp.S.get(`V${nodes[r]}`) - I_eq[r]);
+      stamp.S.set(nodes[r], stamp.S.get(nodes[r]) - I_eq[r]);
     }
 
     return stamp;
