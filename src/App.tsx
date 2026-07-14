@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useCanvas } from './store/useCanvas';
 import { useZoom } from './store/useZoom';
 import { KeyListner } from './components/ZoomControl/KeyListner';
@@ -73,6 +73,36 @@ function App() {
   } = useZoom();
 
   const selectedElement = elements.find((el: CanvasElement) => el.id === selectedId) || null;
+  const lastShiftLeft = useRef<number>(0);
+
+  // Auto-shift components horizontally to prevent sidebar coverage
+  useEffect(() => {
+    if (selectedId) {
+      const selected = elements.find((el) => el.id === selectedId);
+      if (selected && selected.type === 'box') {
+        const card = selected as CardElement;
+        
+        // Calculate the card's right edge in screen coordinates
+        const cardRightLocal = card.x + card.width;
+        const cardRightScreen = cardRightLocal * zoom + offset.x;
+
+        // Left edge of the sidebar on screen (320px sidebar + 24px right spacing + 16px safety margin)
+        const sidebarLeft = window.innerWidth - 360;
+
+        if (cardRightScreen > sidebarLeft) {
+          const shift = cardRightScreen - sidebarLeft;
+          lastShiftLeft.current = shift;
+          setOffset({ x: offset.x - shift, y: offset.y });
+        } else {
+          lastShiftLeft.current = 0;
+        }
+      }
+    } else if (lastShiftLeft.current > 0) {
+      // Shift back to the right when deselected
+      setOffset({ x: offset.x + lastShiftLeft.current, y: offset.y });
+      lastShiftLeft.current = 0;
+    }
+  }, [selectedId]);
 
   // --- REAL-TIME MNA DC OPERATING POINT SOLVER & WIRE CURRENTS & VOLTAGES ---
   const { solvedDCOperatingPoint, wireCurrents, wireVoltages } = useMemo(() => {

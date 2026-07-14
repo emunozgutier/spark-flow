@@ -440,6 +440,24 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [spacePressed, setSpacePressed] = useState(false);
   const [drawingSelectionBox, setDrawingSelectionBox] = useState<{ startPoint: Point; currentPoint: Point } | null>(null);
   const [activeSnap, setActiveSnap] = useState<{ wire: ArrowElement; point: Point } | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const lastZoomRef = useRef(zoom);
+  const lastPanRef = useRef(pan);
+
+  useEffect(() => {
+    const isUserInteracting = isPanning || !!draggingCard || !!drawingArrow || !!resizingCard || !!drawingSelectionBox || !!drawingBox;
+    
+    if (!isUserInteracting && (zoom !== lastZoomRef.current || pan.x !== lastPanRef.current.x || pan.y !== lastPanRef.current.y)) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 400);
+      lastZoomRef.current = zoom;
+      lastPanRef.current = pan;
+      return () => clearTimeout(timer);
+    }
+
+    lastZoomRef.current = zoom;
+    lastPanRef.current = pan;
+  }, [zoom, pan, isPanning, draggingCard, drawingArrow, resizingCard, drawingSelectionBox, drawingBox]);
 
   // Monitor Spacebar key bindings for panning toggle and R key rotation
   useEffect(() => {
@@ -1087,7 +1105,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 
       {/* Viewport content layer */}
       <div
-        className="canvas-viewport"
+        className={`canvas-viewport${isAnimating ? ' is-animating' : ''}`}
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
         }}
