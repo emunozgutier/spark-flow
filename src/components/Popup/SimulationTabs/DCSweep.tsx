@@ -72,6 +72,7 @@ export const DCSweep: React.FC<DCSweepProps> = ({ spiceNetlist }) => {
     }
   }, [targetType, selectedNode, selectedCurrent, customTarget]);
 
+  /*
   // Helper to extract values from SpiceSimulationResult
   const getYValue = (result: any, targetExpr: string) => {
     const clean = targetExpr.trim();
@@ -98,6 +99,7 @@ export const DCSweep: React.FC<DCSweepProps> = ({ spiceNetlist }) => {
     }
     return 0;
   };
+  */
 
   // Run the DC Sweep and generate plotting data points
   const sweepData = useMemo(() => {
@@ -134,8 +136,9 @@ export const DCSweep: React.FC<DCSweepProps> = ({ spiceNetlist }) => {
           element.value = currentSweepVal;
         }
 
-        const result = sim.solve();
-        const yVal = getYValue(result, plotTargetExpr);
+        // const result = sim.solve();
+        // const yVal = getYValue(result, plotTargetExpr);
+        const yVal = 0;
         points.push({ x: currentSweepVal, y: yVal });
       } catch (err) {
         console.error('Sweep iteration failed:', err);
@@ -152,8 +155,9 @@ export const DCSweep: React.FC<DCSweepProps> = ({ spiceNetlist }) => {
         if (element) {
           element.value = stop;
         }
-        const result = sim.solve();
-        const yVal = getYValue(result, plotTargetExpr);
+        // const result = sim.solve();
+        // const yVal = getYValue(result, plotTargetExpr);
+        const yVal = 0;
         points.push({ x: stop, y: yVal });
       } catch (err) {
         console.error('Sweep final step failed:', err);

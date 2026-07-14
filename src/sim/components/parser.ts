@@ -12,7 +12,6 @@ import { CurrentSourceElement } from './stamps/current';
 import { DiodeElement } from './stamps/diode';
 import { BjtElement } from './stamps/bjt';
 import { MosfetElement } from './stamps/mosfet';
-import { parseEngineeringValue } from '../../utils/math';
 
 export interface ParsedNetlist {
   elementsList: BaseElement[];

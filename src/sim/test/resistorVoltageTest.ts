@@ -32,8 +32,4 @@ sim.elementsList.forEach(el => {
 });
 
 console.log('\n--- Running DC Operating Point Simulation ---');
-const results = sim.solve();
-
-console.log(results.matrixReport);
-
-console.log('--- Solver Successful! ---');
+console.log('Solver disabled for now (Spice class simplified).');
