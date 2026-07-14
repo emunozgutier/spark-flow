@@ -1,7 +1,7 @@
 import { parseSpiceNetlistToElements } from './components/parser';
 import type { BaseElement } from './components/stamps/BaseElement';
 import { SystemBuilder } from './components/SystemBuilder';
-import { SystemSolver } from './Math/SystemSolver';
+import { SystemSolver } from './components/SystemSolver';
 import { Vector } from './Math/Vector';
 
 export class Spice {

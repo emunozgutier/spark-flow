@@ -1,5 +1,5 @@
-import { Stamp } from './Stamp';
-import { Vector } from './Vector';
+import { Stamp } from '../Math/Stamp';
+import { Vector } from '../Math/Vector';
 
 /**
  * SystemSolver.ts
