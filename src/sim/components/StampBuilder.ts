@@ -4,6 +4,7 @@
  */
 
 import type { BaseElement } from './stamps/BaseElement';
+import { Stamp } from '../Math/Stamp';
 
 export class StampBuilder {
   /**
@@ -53,5 +54,12 @@ export class StampBuilder {
     const voltages = dimensions.filter(d => d.startsWith('V'));
     const currents = dimensions.filter(d => !d.startsWith('V'));
     return [...voltages, ...currents];
+  }
+
+  /**
+   * Iterates through elementList and builds stamps for all components.
+   */
+  buildAllStamps(elementList: BaseElement[], dimensions: string[], voltages?: Record<string, number>): Stamp[] {
+    return elementList.map(el => el.createStamp(dimensions, voltages));
   }
 }

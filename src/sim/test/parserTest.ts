@@ -126,4 +126,20 @@ console.assert(stamp.S.get(3) === -2.5, `Expected S(3) to be -2.5, got ${stamp.S
 
 console.log('Stamp matrices successfully mapped and index/label assertions verified.');
 
+// Test buildAllStamps
+console.log('\n--- Running StampBuilder.buildAllStamps Validation ---');
+const stamps = builder.buildAllStamps(sim.elementsList, dims);
+console.assert(stamps.length === sim.elementsList.length, `Expected ${sim.elementsList.length} stamps, got ${stamps.length}`);
+
+// Assert V1 stamp contributions (V1 is first element)
+const v1Stamp = stamps[0];
+console.assert(v1Stamp.S.get('i_V1') === 5, `Expected V1 stamp branch current source value 5, got ${v1Stamp.S.get('i_V1')}`);
+
+// Assert R1 stamp contributions (R1 is second element, Group 2 by default)
+const r1Stamp = stamps[1];
+console.assert(r1Stamp.G.get('V1', 'i_R1') === 1, `Expected R1 stamp G("V1", "i_R1") to be 1, got ${r1Stamp.G.get('V1', 'i_R1')}`);
+console.assert(r1Stamp.G.get('i_R1', 'i_R1') === -1000, `Expected R1 stamp G("i_R1", "i_R1") to be -1000, got ${r1Stamp.G.get('i_R1', 'i_R1')}`);
+
+console.log('All elements successfully created their dimension-aware Stamp.');
+
 console.log('\n--- All assertions passed! Parser test successful. ---');

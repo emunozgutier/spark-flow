@@ -5,6 +5,7 @@
 
 import type { BaseElement, ElementStamp } from './BaseElement';
 import { parseEngineeringValue } from '../../../utils/math';
+import { Stamp } from '../../Math/Stamp';
 
 export class BjtElement implements BaseElement {
   // Pattern matches Qname collector base emitter [beta]
@@ -98,5 +99,60 @@ export class BjtElement implements BaseElement {
 
   getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number, _voltages?: Record<string, number>): ElementStamp {
     return { globalIndices: [] };
+  }
+
+  createStamp(dimensions: string[], voltages?: Record<string, number>): Stamp {
+    const stamp = new Stamp(dimensions);
+    const vC = voltages ? (voltages[this.node1] || 0) : 0;
+    const vB = voltages ? (voltages[this.node2] || 0) : 0;
+    const vE = voltages ? (voltages[this.node3] || 0) : 0;
+
+    const vbe = vB - vE;
+    const vbc = vB - vC;
+
+    const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+    const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+
+    const Is = 1e-14;
+    const Vt = 0.026;
+    const betaF = this.value;
+    const betaR = 1;
+
+    const expTermF = Math.exp(vbeClamped / Vt);
+    const expTermR = Math.exp(vbcClamped / Vt);
+
+    const gf = (Is / Vt) * expTermF;
+    const gr = (Is / Vt) * expTermR;
+
+    const If = Is * (expTermF - 1);
+    const Ir = Is * (expTermR - 1);
+
+    const Jac = [
+      [(1 + 1 / betaR) * gr, gf - (1 + 1 / betaR) * gr, -gf],
+      [-gr / betaR, gf / betaF + gr / betaR, -gf / betaF],
+      [-gr, -(1 + 1 / betaF) * gf + gr, (1 + 1 / betaF) * gf]
+    ];
+
+    const I_nonlin = [
+      If - (1 + 1 / betaR) * Ir,
+      If / betaF + Ir / betaR,
+      -(1 + 1 / betaF) * If + Ir
+    ];
+
+    const I_eq = [
+      I_nonlin[0] - (Jac[0][0] * vC + Jac[0][1] * vB + Jac[0][2] * vE),
+      I_nonlin[1] - (Jac[1][0] * vC + Jac[1][1] * vB + Jac[1][2] * vE),
+      I_nonlin[2] - (Jac[2][0] * vC + Jac[2][1] * vB + Jac[2][2] * vE)
+    ];
+
+    const nodes = [this.node1, this.node2, this.node3];
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        stamp.Jg.set(`V${nodes[r]}`, `V${nodes[c]}`, stamp.Jg.get(`V${nodes[r]}`, `V${nodes[c]}`) + Jac[r][c]);
+      }
+      stamp.S.set(`V${nodes[r]}`, stamp.S.get(`V${nodes[r]}`) - I_eq[r]);
+    }
+
+    return stamp;
   }
 }

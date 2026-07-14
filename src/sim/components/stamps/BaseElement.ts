@@ -1,3 +1,5 @@
+import { Stamp } from '../../Math/Stamp';
+
 export interface ElementStamp {
   globalIndices: number[];
   
@@ -39,4 +41,9 @@ export interface BaseElement {
    * @param voltages Optional map of current node voltages for non-linear elements
    */
   getStampGroup2(nodeMap: Map<string, number>, group2Idx: number, voltages?: Record<string, number>): ElementStamp;
+
+  /**
+   * Directly creates and populates a Stamp instance matching the simulation dimensions.
+   */
+  createStamp(dimensions: string[], voltages?: Record<string, number>): Stamp;
 }

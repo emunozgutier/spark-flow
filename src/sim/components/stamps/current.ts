@@ -5,6 +5,7 @@
 
 import type { BaseElement, ElementStamp } from './BaseElement';
 import { parseEngineeringValue } from '../../../utils/math';
+import { Stamp } from '../../Math/Stamp';
 
 export class CurrentSourceElement implements BaseElement {
   static pattern = /^(I\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
@@ -55,5 +56,19 @@ export class CurrentSourceElement implements BaseElement {
 
   getStampGroup2(_nodeMap: Map<string, number>, _group2Idx: number): ElementStamp {
     return { globalIndices: [] };
+  }
+
+  createStamp(dimensions: string[]): Stamp {
+    const stamp = new Stamp(dimensions);
+    if (!this.isGroup2) {
+      stamp.S.set(`V${this.node1}`, stamp.S.get(`V${this.node1}`) - this.value);
+      stamp.S.set(`V${this.node2}`, stamp.S.get(`V${this.node2}`) + this.value);
+    } else {
+      stamp.G.set(`V${this.node1}`, `i_${this.name}`, stamp.G.get(`V${this.node1}`, `i_${this.name}`) + 1);
+      stamp.G.set(`V${this.node2}`, `i_${this.name}`, stamp.G.get(`V${this.node2}`, `i_${this.name}`) - 1);
+      stamp.G.set(`i_${this.name}`, `i_${this.name}`, stamp.G.get(`i_${this.name}`, `i_${this.name}`) + 1);
+      stamp.S.set(`i_${this.name}`, stamp.S.get(`i_${this.name}`) + this.value);
+    }
+    return stamp;
   }
 }

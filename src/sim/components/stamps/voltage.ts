@@ -5,6 +5,7 @@
 
 import type { BaseElement, ElementStamp } from './BaseElement';
 import { parseEngineeringValue } from '../../../utils/math';
+import { Stamp } from '../../Math/Stamp';
 
 export class VoltageSourceElement implements BaseElement {
   static pattern = /^(V\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
@@ -60,5 +61,15 @@ export class VoltageSourceElement implements BaseElement {
     const s_local = [0, 0, this.value];
     const globalIndices = [g1, g2, group2Idx];
     return { G_local, s_local, globalIndices };
+  }
+
+  createStamp(dimensions: string[]): Stamp {
+    const stamp = new Stamp(dimensions);
+    stamp.G.set(`V${this.node1}`, `i_${this.name}`, stamp.G.get(`V${this.node1}`, `i_${this.name}`) + 1);
+    stamp.G.set(`V${this.node2}`, `i_${this.name}`, stamp.G.get(`V${this.node2}`, `i_${this.name}`) - 1);
+    stamp.G.set(`i_${this.name}`, `V${this.node1}`, stamp.G.get(`i_${this.name}`, `V${this.node1}`) + 1);
+    stamp.G.set(`i_${this.name}`, `V${this.node2}`, stamp.G.get(`i_${this.name}`, `V${this.node2}`) - 1);
+    stamp.S.set(`i_${this.name}`, stamp.S.get(`i_${this.name}`) + this.value);
+    return stamp;
   }
 }
