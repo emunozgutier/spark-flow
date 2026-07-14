@@ -459,6 +459,36 @@ export const Canvas: React.FC<CanvasProps> = ({
     lastPanRef.current = pan;
   }, [zoom, pan, isPanning, draggingCard, drawingArrow, resizingCard, drawingSelectionBox, drawingBox]);
 
+  const lastPanForDragRef = useRef(pan);
+
+  useEffect(() => {
+    const dx = pan.x - lastPanForDragRef.current.x;
+    const dy = pan.y - lastPanForDragRef.current.y;
+    if (dx !== 0 || dy !== 0) {
+      if (draggingCard) {
+        setDraggingCard((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            startX: prev.startX + dx,
+            startY: prev.startY + dy
+          };
+        });
+      }
+      if (resizingCard) {
+        setResizingCard((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            startMouseX: prev.startMouseX + dx,
+            startMouseY: prev.startMouseY + dy
+          };
+        });
+      }
+    }
+    lastPanForDragRef.current = pan;
+  }, [pan, draggingCard, resizingCard]);
+
   // Monitor Spacebar key bindings for panning toggle and R key rotation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
