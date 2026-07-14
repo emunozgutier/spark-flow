@@ -19,8 +19,7 @@ export class Spice {
   solve(voltages?: Record<string, number>): Vector {
     const builder = new SystemBuilder();
     const dims = builder.findDimensions(this.elementsList);
-    const finalStamp = builder.buildFinalStamp(this.elementsList, dims, voltages);
     const solver = new SystemSolver();
-    return solver.solveAlgebraicEquation(finalStamp);
+    return solver.solve(builder, this.elementsList, dims, voltages);
   }
 }

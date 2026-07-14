@@ -1,5 +1,7 @@
 import { Stamp } from '../Math/Stamp';
 import { Vector } from '../Math/Vector';
+import type { SystemBuilder } from './SystemBuilder';
+import type { BaseElement } from './stamps/BaseElement';
 
 /**
  * SystemSolver.ts
@@ -11,7 +13,7 @@ export class SystemSolver {
    * using Gaussian elimination with partial pivoting.
    * Returns the solution Vector x.
    */
-  solveAlgebraicEquation(stamp: Stamp): Vector {
+  solveLinearAlgebraicEquation(stamp: Stamp): Vector {
     const dims = stamp.dimensions;
     const n = dims.length;
 
@@ -77,5 +79,68 @@ export class SystemSolver {
     }
 
     return new Vector(n, xData, dims);
+  }
+
+  /**
+   * Main entry point to solve the equation system.
+   * Runs the Newton-Raphson nonlinear solver.
+   */
+  solve(
+    builder: SystemBuilder,
+    elementList: BaseElement[],
+    dimensions: string[],
+    initialVoltages?: Record<string, number>
+  ): Vector {
+    return this.solveNonLinearAlgebraicEquation(builder, elementList, dimensions, initialVoltages);
+  }
+
+  /**
+   * Newton-Raphson algorithm to solve the nonlinear algebraic equation system.
+   */
+  solveNonLinearAlgebraicEquation(
+    builder: SystemBuilder,
+    elementList: BaseElement[],
+    dimensions: string[],
+    initialVoltages?: Record<string, number>
+  ): Vector {
+    const maxIterations = 50;
+    const tolerance = 1e-4;
+
+    let currentVoltages: Record<string, number> = { ...initialVoltages };
+    let lastSolution: Vector | null = null;
+
+    for (let iter = 0; iter < maxIterations; iter++) {
+      const stamp = builder.buildFinalStamp(elementList, dimensions, currentVoltages);
+      const solution = this.solveLinearAlgebraicEquation(stamp);
+
+      if (lastSolution) {
+        let converged = true;
+        for (let i = 0; i < solution.dimensions.length; i++) {
+          const dim = solution.dimensions[i];
+          if (dim.startsWith('V')) {
+            const diff = Math.abs(solution.data[i] - lastSolution.data[i]);
+            if (diff > tolerance) {
+              converged = false;
+              break;
+            }
+          }
+        }
+        if (converged) {
+          return solution;
+        }
+      }
+
+      lastSolution = solution;
+      currentVoltages = {};
+      for (let i = 0; i < solution.dimensions.length; i++) {
+        const dim = solution.dimensions[i];
+        if (dim.startsWith('V')) {
+          const nodeName = dim.substring(1);
+          currentVoltages[nodeName] = solution.data[i];
+        }
+      }
+    }
+
+    return lastSolution!;
   }
 }
