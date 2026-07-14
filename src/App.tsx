@@ -9,7 +9,31 @@ import { SettingsSideMenu } from './components/SettingsSideMenu';
 import { Cursor } from './components/Cursor';
 import type { CanvasElement, CardElement, ArrowElement } from './dataTypes/AnotateType';
 import { formatEngineering } from './utils/math';
+import { Spice } from './sim/Spice';
 import './App.css';
+
+class UnionFind {
+  parent: Record<string, string> = {};
+
+  find(id: string): string {
+    if (!this.parent[id]) {
+      this.parent[id] = id;
+    }
+    if (this.parent[id] === id) {
+      return id;
+    }
+    this.parent[id] = this.find(this.parent[id]);
+    return this.parent[id];
+  }
+
+  union(x: string, y: string) {
+    const rootX = this.find(x);
+    const rootY = this.find(y);
+    if (rootX !== rootY) {
+      this.parent[rootX] = rootY;
+    }
+  }
+}
 
 
 function App() {
@@ -52,11 +76,423 @@ function App() {
 
   // --- REAL-TIME MNA DC OPERATING POINT SOLVER & WIRE CURRENTS & VOLTAGES ---
   const { solvedDCOperatingPoint, wireCurrents, wireVoltages } = useMemo(() => {
-    return {
-      solvedDCOperatingPoint: {} as Record<string, any>,
-      wireCurrents: {} as Record<string, number>,
-      wireVoltages: {} as Record<string, number>
-    };
+    if (!liveDCOn) return { solvedDCOperatingPoint: {} as Record<string, any>, wireCurrents: {} as Record<string, number>, wireVoltages: {} as Record<string, number> };
+    try {
+      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+      
+      const uf = new UnionFind();
+
+      // 1. Union ports belonging to join elements
+      cards.forEach((card) => {
+        if (card.id.startsWith('join') || card.title === 'join') {
+          uf.union(`${card.id}-top`, `${card.id}-right`);
+          uf.union(`${card.id}-top`, `${card.id}-bottom`);
+          uf.union(`${card.id}-top`, `${card.id}-left`);
+        }
+      });
+
+      // 2. Union ports connected by wires
+      arrows.forEach((w) => {
+        if (w.fromId && w.fromSocket && w.toId && w.toSocket) {
+          uf.union(`${w.fromId}-${w.fromSocket}`, `${w.toId}-${w.toSocket}`);
+        }
+      });
+
+      // 3. Map sets to node keys
+      const groups: Record<string, string[]> = {};
+      cards.forEach((card) => {
+        const isGround = card.componentType === 'ground';
+        const isJoin = card.id.startsWith('join') || card.title === 'join';
+        const isBjt = card.componentType === 'bjt' || card.componentType === 'mosfet';
+        const portsList = isGround ? ['top'] : (isJoin ? ['top', 'right', 'bottom', 'left'] : (isBjt ? ['left', 'top', 'bottom'] : ['left', 'right']));
+        
+        portsList.forEach((socket) => {
+          const pin = `${card.id}-${socket}`;
+          const root = uf.find(pin);
+          if (!groups[root]) groups[root] = [];
+          groups[root].push(pin);
+        });
+      });
+
+      // Identify all ground roots
+      const gndRoots = new Set<string>();
+      Object.keys(groups).forEach((root) => {
+        const hasGndPin = groups[root].some((pin) => {
+          const cardId = pin.substring(0, pin.lastIndexOf('-'));
+          const card = cards.find((c) => c.id === cardId);
+          return card?.componentType === 'ground';
+        });
+        if (hasGndPin) {
+          gndRoots.add(root);
+        }
+      });
+
+      const rootToNodeName: Record<string, string> = {};
+      let nodeCounter = 1;
+      
+      gndRoots.forEach((root) => {
+        rootToNodeName[root] = '0';
+      });
+
+      if (gndRoots.size === 0 && Object.keys(groups).length > 0) {
+        const defaultGnd = Object.keys(groups)[0];
+        rootToNodeName[defaultGnd] = '0';
+        gndRoots.add(defaultGnd);
+      }
+
+      Object.keys(groups).forEach((root) => {
+        if (gndRoots.has(root)) return;
+        rootToNodeName[root] = String(nodeCounter++);
+      });
+
+      const getPinNode = (cardId: string, socket: string): string => {
+        const root = uf.find(`${cardId}-${socket}`);
+        return rootToNodeName[root] || '0';
+      };
+
+      const nodeCount = nodeCounter - 1;
+
+      // Compile netlist string
+      let netlist = `* SparkFlow Live SPICE Netlist\n`;
+      cards.forEach((card) => {
+        if (card.componentType === 'resistor') {
+          const g2Str = card.isGroup2 ? ' G2' : '';
+          netlist += `R${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}${g2Str}\n`;
+        } else if (card.componentType === 'capacitor') {
+          netlist += `C${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'inductor') {
+          netlist += `L${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'voltage') {
+          netlist += `V${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'acvoltage') {
+          netlist += `Vac${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} AC ${formatEngineering(card.value)} ${formatEngineering(card.frequency ?? 60)}\n`;
+        } else if (card.componentType === 'current') {
+          netlist += `I${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} DC ${formatEngineering(card.value)}\n`;
+        } else if (card.componentType === 'diode') {
+          netlist += `D${card.instanceNumber || 1} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'right')} 1N4148\n`;
+        } else if (card.componentType === 'bjt') {
+          netlist += `Q${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} NPN\n`;
+        } else if (card.componentType === 'mosfet') {
+          netlist += `M${card.instanceNumber || 1} ${getPinNode(card.id, 'top')} ${getPinNode(card.id, 'left')} ${getPinNode(card.id, 'bottom')} ${getPinNode(card.id, 'bottom')} NMOS\n`;
+        }
+      });
+      netlist += `.op\n.backanno\n.end\n`;
+
+      let voltages: Record<string, number> = { '0': 0 };
+      for (let i = 1; i <= nodeCount; i++) {
+        voltages[String(i)] = 0.0;
+      }
+
+      const hasNonLinear = cards.some(c => c.componentType === 'diode' || c.componentType === 'bjt' || c.componentType === 'mosfet');
+      const maxIterations = hasNonLinear ? 50 : 1;
+      const tolerance = 1e-5;
+      let solutionVector: any = null;
+
+      for (let iter = 0; iter < maxIterations; iter++) {
+        const sim = new Spice(netlist);
+        solutionVector = sim.solve(voltages);
+
+        let maxDiff = 0;
+        const nextVoltages: Record<string, number> = { '0': 0 };
+        for (const dim of solutionVector.dimensions) {
+          if (dim.startsWith('V')) {
+            const nodeName = dim.substring(1);
+            const vOld = voltages[nodeName] || 0;
+            const vNew = solutionVector.get(dim);
+            nextVoltages[nodeName] = vNew;
+            const diff = Math.abs(vNew - vOld);
+            if (diff > maxDiff) {
+              maxDiff = diff;
+            }
+          }
+        }
+
+        voltages = nextVoltages;
+
+        if (!hasNonLinear || maxDiff < tolerance) {
+          break;
+        }
+      }
+
+      const solvedDCOperatingPoint: Record<string, any> = {};
+      cards.forEach((card) => {
+        if (!card.componentType) return;
+        if (card.componentType === 'ground') {
+          solvedDCOperatingPoint[card.id] = { voltageDrop: 0, branchCurrent: 0 };
+          return;
+        }
+        if (card.componentType === 'bjt') {
+          const nCStr = getPinNode(card.id, 'top');
+          const nBStr = getPinNode(card.id, 'left');
+          const nEStr = getPinNode(card.id, 'bottom');
+          const vC = voltages[nCStr] || 0;
+          const vB = voltages[nBStr] || 0;
+          const vE = voltages[nEStr] || 0;
+          const vbe = vB - vE;
+          const vbc = vB - vC;
+          const vbeClamped = Math.max(-1.0, Math.min(0.8, vbe));
+          const vbcClamped = Math.max(-1.0, Math.min(0.8, vbc));
+          const Is = 1e-14;
+          const Vt = 0.026;
+          const If = Is * (Math.exp(vbeClamped / Vt) - 1);
+          const Ir = Is * (Math.exp(vbcClamped / Vt) - 1);
+          const betaF = card.value !== undefined ? card.value : 100;
+          const betaR = 1;
+          const Ic = If - Ir - Ir / betaR;
+          const Ib = If / betaF + Ir / betaR;
+          const Ie = -(If + If / betaF - Ir);
+
+          solvedDCOperatingPoint[card.id] = {
+            voltageDrop: vC - vE,
+            branchCurrent: Math.abs(Ic),
+            vLeft: vB,
+            vRight: vC,
+            vBase: vB,
+            vCollector: vC,
+            vEmitter: vE,
+            iCollector: Ic,
+            iBase: Ib,
+            iEmitter: Ie,
+            signedCurrent: Ic
+          };
+          return;
+        }
+        if (card.componentType === 'mosfet') {
+          const nDStr = getPinNode(card.id, 'top');
+          const nGStr = getPinNode(card.id, 'left');
+          const nSStr = getPinNode(card.id, 'bottom');
+          const vD = voltages[nDStr] || 0;
+          const vG = voltages[nGStr] || 0;
+          const vS = voltages[nSStr] || 0;
+
+          const Vth = card.value !== undefined ? card.value : 2.0;
+          const beta = 1e-3;
+          let Id = 0;
+
+          if (vD >= vS) {
+            const vgs = Math.max(-10, Math.min(10, vG - vS));
+            const vds = Math.max(0, Math.min(10, vD - vS));
+            if (vgs >= Vth) {
+              if (vds < vgs - Vth) {
+                Id = beta * ((vgs - Vth) * vds - 0.5 * vds * vds);
+              } else {
+                Id = 0.5 * beta * (vgs - Vth) * (vgs - Vth);
+              }
+            }
+          } else {
+            const vgd = Math.max(-10, Math.min(10, vG - vD));
+            const vsd = Math.max(0, Math.min(10, vS - vD));
+            if (vgd >= Vth) {
+              if (vsd < vgd - Vth) {
+                Id = -beta * ((vgd - Vth) * vsd - 0.5 * vsd * vsd);
+              } else {
+                Id = -0.5 * beta * (vgd - Vth) * (vgd - Vth);
+              }
+            }
+          }
+
+          solvedDCOperatingPoint[card.id] = {
+            voltageDrop: vD - vS,
+            branchCurrent: Math.abs(Id),
+            vLeft: vG,
+            vRight: vD,
+            vGate: vG,
+            vDrain: vD,
+            vSource: vS,
+            iDrain: Id,
+            signedCurrent: Id
+          };
+          return;
+        }
+
+        const n1Str = getPinNode(card.id, 'left');
+        const n2Str = getPinNode(card.id, 'right');
+        const v1 = voltages[n1Str] || 0;
+        const v2 = voltages[n2Str] || 0;
+        const vDrop = v1 - v2;
+
+        let iBranch = 0;
+        if (card.componentType === 'resistor') {
+          if (card.isGroup2) {
+            const varName = `i_R${card.instanceNumber || 1}`;
+            iBranch = solutionVector.get(varName) || 0;
+          } else {
+            const rVal = card.value !== undefined ? (card.value <= 0 ? 1e-3 : card.value) : 1000;
+            iBranch = vDrop / rVal;
+          }
+        } else if (card.componentType === 'voltage') {
+          const varName = `i_V${card.instanceNumber || 1}`;
+          iBranch = solutionVector.get(varName) || 0;
+        } else if (card.componentType === 'acvoltage') {
+          const varName = `i_Vac${card.instanceNumber || 1}`;
+          iBranch = solutionVector.get(varName) || 0;
+        } else if (card.componentType === 'current') {
+          iBranch = card.value !== undefined ? card.value : 0.001;
+        } else if (card.componentType === 'capacitor') {
+          iBranch = 0;
+        } else if (card.componentType === 'inductor') {
+          const varName = `i_L${card.instanceNumber || 1}`;
+          iBranch = solutionVector.get(varName) || 0;
+        } else if (card.componentType === 'diode') {
+          const Is = 1e-14;
+          const Vt = 0.026;
+          const vDropClamped = Math.max(-1.0, Math.min(0.8, vDrop));
+          iBranch = Is * (Math.exp(vDropClamped / Vt) - 1);
+        }
+
+        const displayVDrop = card.componentType === 'voltage' ? vDrop : Math.abs(vDrop);
+        const displayIBranch = Math.abs(iBranch);
+
+        solvedDCOperatingPoint[card.id] = {
+          voltageDrop: displayVDrop,
+          branchCurrent: displayIBranch,
+          vLeft: v1,
+          vRight: v2,
+          signedCurrent: iBranch
+        };
+      });
+
+      const joinCards = cards.filter((c) => c.id.startsWith('join') || c.title === 'join');
+      const compCards = cards.filter((c) => c.componentType !== undefined);
+
+      const socketKeys: string[] = [];
+      compCards.forEach((c) => {
+        if (c.componentType === 'ground') {
+          socketKeys.push(`${c.id}-top`);
+        } else if (c.componentType === 'bjt' || c.componentType === 'mosfet') {
+          socketKeys.push(`${c.id}-left`, `${c.id}-top`, `${c.id}-bottom`);
+        } else {
+          socketKeys.push(`${c.id}-left`, `${c.id}-right`);
+        }
+      });
+      joinCards.forEach((j) => {
+        socketKeys.push(`${j.id}-top`, `${j.id}-right`, `${j.id}-bottom`, `${j.id}-left`);
+      });
+
+      const nodeMaxCurrents: Record<string, number> = {};
+      const getSocketRole = (cardId: string, socket: string) => {
+        const card = cards.find((c) => c.id === cardId);
+        if (!card || !card.componentType) return { role: 'none', current: 0 };
+        if (card.componentType === 'ground') {
+          return { role: 'sink', current: 0 };
+        }
+        if (card.componentType === 'bjt') {
+          const solved = solvedDCOperatingPoint[card.id];
+          const Ic = solved?.iCollector || 0;
+          const Ib = solved?.iBase || 0;
+          const Ie = solved?.iEmitter || 0;
+
+          if (socket === 'left') {
+            return { role: Ib >= 0 ? 'sink' : 'source', current: Math.abs(Ib) };
+          } else if (socket === 'top') {
+            return { role: Ic >= 0 ? 'sink' : 'source', current: Math.abs(Ic) };
+          } else if (socket === 'bottom') {
+            return { role: Ie <= 0 ? 'source' : 'sink', current: Math.abs(Ie) };
+          }
+          return { role: 'none', current: 0 };
+        }
+        if (card.componentType === 'mosfet') {
+          const solved = solvedDCOperatingPoint[card.id];
+          const Id = solved?.iDrain || 0;
+          const Is = -Id;
+
+          if (socket === 'left') {
+            return { role: 'none', current: 0 };
+          } else if (socket === 'top') {
+            return { role: Id >= 0 ? 'sink' : 'source', current: Math.abs(Id) };
+          } else if (socket === 'bottom') {
+            return { role: Is >= 0 ? 'sink' : 'source', current: Math.abs(Is) };
+          }
+          return { role: 'none', current: 0 };
+        }
+
+        const solved = solvedDCOperatingPoint[card.id];
+        const signedI = solved?.signedCurrent || 0;
+        const branchI = Math.abs(solved?.branchCurrent || 0);
+
+        if (card.componentType === 'capacitor') {
+          return { role: 'none', current: 0 };
+        }
+
+        if (socket === 'left') {
+          return {
+            role: signedI > 0 ? 'sink' : signedI < 0 ? 'source' : 'none',
+            current: branchI
+          };
+        } else if (socket === 'right') {
+          return {
+            role: signedI > 0 ? 'source' : signedI < 0 ? 'sink' : 'none',
+            current: branchI
+          };
+        }
+        return { role: 'none', current: 0 };
+      };
+
+      Object.keys(groups).forEach((root) => {
+        const groupSockets = groups[root];
+        let maxNodeCurrent = 0;
+
+        groupSockets.forEach((s) => {
+          const lastDash = s.lastIndexOf('-');
+          const cardId = s.substring(0, lastDash);
+          const socket = s.substring(lastDash + 1);
+
+          const { current } = getSocketRole(cardId, socket);
+          maxNodeCurrent = Math.max(maxNodeCurrent, current);
+        });
+
+        nodeMaxCurrents[root] = maxNodeCurrent;
+      });
+
+      const wireCurrents: Record<string, number> = {};
+      arrows.forEach((w) => {
+        if (!w.fromId || !w.fromSocket) return;
+        const sStart = `${w.fromId}-${w.fromSocket}`;
+        const root = uf.find(sStart);
+        let current = nodeMaxCurrents[root] || 0;
+
+        const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
+        if (connectedCard) {
+          const solved = solvedDCOperatingPoint[connectedCard.id];
+          if (solved) {
+            current = solved.branchCurrent;
+          }
+        } else if (w.netName === '1' || w.netName?.startsWith('1.')) {
+          const r2Card = cards.find((c) => c.componentType === 'resistor' && c.instanceNumber === 2);
+          if (r2Card && solvedDCOperatingPoint[r2Card.id]) {
+            current = solvedDCOperatingPoint[r2Card.id].branchCurrent;
+          }
+        }
+        wireCurrents[w.id] = current;
+      });
+
+      const wireVoltages: Record<string, number> = {};
+      arrows.forEach((w) => {
+        let pin = '';
+        if (w.fromId && w.fromSocket) {
+          pin = `${w.fromId}-${w.fromSocket}`;
+        } else if (w.toId && w.toSocket) {
+          pin = `${w.toId}-${w.toSocket}`;
+        }
+        if (pin) {
+          const root = uf.find(pin);
+          const nodeName = rootToNodeName[root] || '0';
+          wireVoltages[w.id] = voltages[nodeName] || 0;
+        } else {
+          wireVoltages[w.id] = 0;
+        }
+      });
+
+      return { solvedDCOperatingPoint, wireCurrents, wireVoltages };
+    } catch (e) {
+      console.error("Live DC Solver failed:", e);
+      return {
+        solvedDCOperatingPoint: {} as Record<string, any>,
+        wireCurrents: {} as Record<string, number>,
+        wireVoltages: {} as Record<string, number>
+      };
+    }
   }, [elements, liveDCOn]);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);

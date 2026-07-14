@@ -6,6 +6,7 @@
 export class Vector {
   public data: number[];
   public size: number;
+  public dimensions: string[] = [];
   private dimMap: Map<string, number> = new Map();
 
   constructor(size: number, data?: number[], dimensions?: string[]) {
@@ -16,6 +17,7 @@ export class Vector {
       this.data = new Array(size).fill(0);
     }
     if (dimensions) {
+      this.dimensions = dimensions;
       dimensions.forEach((dim, idx) => {
         this.dimMap.set(dim, idx);
       });
