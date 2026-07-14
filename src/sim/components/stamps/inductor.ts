@@ -4,9 +4,18 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class InductorElement implements BaseElement {
   static pattern = /^(L\S*)\s+(\S+)\s+(\S+)\s+(\S+)/i;
+
+  static isMatched(line: string): InductorElement | null {
+    const match = line.match(InductorElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, valToken] = match;
+    const value = parseEngineeringValue(valToken);
+    return new InductorElement(name, node1, node2, value);
+  }
 
   name: string;
   type: 'inductor' = 'inductor';

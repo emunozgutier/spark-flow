@@ -4,9 +4,18 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class VoltageSourceElement implements BaseElement {
   static pattern = /^(V\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
+
+  static isMatched(line: string): VoltageSourceElement | null {
+    const match = line.match(VoltageSourceElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, valToken] = match;
+    const value = parseEngineeringValue(valToken);
+    return new VoltageSourceElement(name, node1, node2, value);
+  }
 
   name: string;
   type: 'voltage' = 'voltage';

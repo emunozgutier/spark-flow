@@ -4,9 +4,19 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class ResistorElement implements BaseElement {
   static pattern = /^(R\S*)\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(G2|\[G2\]))?/i;
+
+  static isMatched(line: string): ResistorElement | null {
+    const match = line.match(ResistorElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, valToken, g2Token] = match;
+    const value = parseEngineeringValue(valToken);
+    const isGroup2 = g2Token ? g2Token.toUpperCase().includes('G2') : true;
+    return new ResistorElement(name, node1, node2, value, isGroup2);
+  }
 
   name: string;
   type: 'resistor' = 'resistor';

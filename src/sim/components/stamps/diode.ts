@@ -4,9 +4,18 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class DiodeElement implements BaseElement {
   static pattern = /^(D\S*)\s+(\S+)\s+(\S+)(?:\s+(\S+))?/i;
+
+  static isMatched(line: string): DiodeElement | null {
+    const match = line.match(DiodeElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, valToken] = match;
+    const value = valToken ? parseEngineeringValue(valToken) : 0;
+    return new DiodeElement(name, node1, node2, value);
+  }
 
   name: string;
   type: 'diode' = 'diode';

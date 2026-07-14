@@ -4,9 +4,18 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class CurrentSourceElement implements BaseElement {
   static pattern = /^(I\S*)\s+(\S+)\s+(\S+)\s+(?:DC\s+|AC\s+)?(\S+)/i;
+
+  static isMatched(line: string): CurrentSourceElement | null {
+    const match = line.match(CurrentSourceElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, valToken] = match;
+    const value = parseEngineeringValue(valToken);
+    return new CurrentSourceElement(name, node1, node2, value);
+  }
 
   name: string;
   type: 'current' = 'current';

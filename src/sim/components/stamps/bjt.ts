@@ -4,10 +4,19 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class BjtElement implements BaseElement {
   // Pattern matches Qname collector base emitter [beta]
   static pattern = /^(Q\S*)\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?/i;
+
+  static isMatched(line: string): BjtElement | null {
+    const match = line.match(BjtElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, node3, valToken] = match;
+    const value = valToken ? parseEngineeringValue(valToken) : 100;
+    return new BjtElement(name, node1, node2, node3, value);
+  }
 
   name: string;
   type: 'bjt' = 'bjt';

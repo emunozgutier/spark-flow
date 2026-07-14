@@ -4,10 +4,19 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class MosfetElement implements BaseElement {
   // Pattern matches Mname drain gate source [Vth]
   static pattern = /^(M\S*)\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?/i;
+
+  static isMatched(line: string): MosfetElement | null {
+    const match = line.match(MosfetElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, node3, valToken] = match;
+    const value = valToken ? parseEngineeringValue(valToken) : 2.0;
+    return new MosfetElement(name, node1, node2, node3, value);
+  }
 
   name: string;
   type: 'mosfet' = 'mosfet';

@@ -4,9 +4,18 @@
  */
 
 import type { BaseElement, ElementStamp } from './BaseElement';
+import { parseEngineeringValue } from '../../../utils/math';
 
 export class CapacitorElement implements BaseElement {
   static pattern = /^(C\S*)\s+(\S+)\s+(\S+)\s+(\S+)/i;
+
+  static isMatched(line: string): CapacitorElement | null {
+    const match = line.match(CapacitorElement.pattern);
+    if (!match) return null;
+    const [, name, node1, node2, valToken] = match;
+    const value = parseEngineeringValue(valToken);
+    return new CapacitorElement(name, node1, node2, value);
+  }
 
   name: string;
   type: 'capacitor' = 'capacitor';
