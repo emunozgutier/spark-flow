@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "npx tsx src/sim/test/parserTest.ts && npx tsx src/sim/test/SystemSolver.AlgebraicEquation.ts",
     "pregh-deploy": "npm run build",
     "gh-deploy": "gh-pages -d dist",
     "predeploy": "npm run build",
