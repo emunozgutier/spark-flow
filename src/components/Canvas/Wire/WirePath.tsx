@@ -157,7 +157,7 @@ export const Wire: React.FC<WireProps> = ({
         d={pathStr}
         fill="none"
         stroke="transparent"
-        strokeWidth="16"
+        strokeWidth="80"
       />
       {isSelected && (
         <>
@@ -166,7 +166,7 @@ export const Wire: React.FC<WireProps> = ({
             d={pathStr}
             fill="none"
             stroke={`var(--theme-${arrow.color || 'slate'})`}
-            strokeWidth="12"
+            strokeWidth="39"
             style={{ opacity: 0.25, filter: 'blur(3px)' }}
           />
           {/* Dashed selection border path */}
@@ -174,7 +174,7 @@ export const Wire: React.FC<WireProps> = ({
             d={pathStr}
             fill="none"
             stroke={`var(--theme-${arrow.color || 'slate'})`}
-            strokeWidth="8.5"
+            strokeWidth="35.5"
             strokeDasharray="6,4"
             style={{ opacity: 0.8 }}
           />
@@ -183,7 +183,7 @@ export const Wire: React.FC<WireProps> = ({
             d={pathStr}
             fill="none"
             stroke="var(--bg-canvas)"
-            strokeWidth="5.5"
+            strokeWidth="32.5"
           />
         </>
       )}
