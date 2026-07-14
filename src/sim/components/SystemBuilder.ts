@@ -1,12 +1,12 @@
 /**
- * StampBuilder.ts
+ * SystemBuilder.ts
  * Builds mathematical stamps and coordinates equation dimensions.
  */
 
 import type { BaseElement } from './stamps/BaseElement';
 import { Stamp } from '../Math/Stamp';
 
-export class StampBuilder {
+export class SystemBuilder {
   /**
    * Helper function to add a string item to a list array if it is not already present.
    */

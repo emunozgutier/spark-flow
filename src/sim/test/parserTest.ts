@@ -6,7 +6,7 @@
  */
 
 import { Spice } from '../Spice';
-import { StampBuilder } from '../components/StampBuilder';
+import { SystemBuilder } from '../components/SystemBuilder';
 import { Stamp } from '../Math/Stamp';
 
 const netlist = `
@@ -99,9 +99,9 @@ sim.elementsList.forEach(el => {
 });
 console.log('Tracked Nodes:', sim.nodes);
 
-// Test StampBuilder.findDimensions
-console.log('\n--- Running StampBuilder.findDimensions Validation ---');
-const builder = new StampBuilder();
+// Test SystemBuilder.findDimensions
+console.log('\n--- Running SystemBuilder.findDimensions Validation ---');
+const builder = new SystemBuilder();
 const dims = builder.findDimensions(sim.elementsList);
 
 const expectedDims = ['V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'i_V1', 'i_R1', 'i_L1'];
@@ -127,7 +127,7 @@ console.assert(stamp.S.get(3) === -2.5, `Expected S(3) to be -2.5, got ${stamp.S
 console.log('Stamp matrices successfully mapped and index/label assertions verified.');
 
 // Test buildAllStamps
-console.log('\n--- Running StampBuilder.buildAllStamps Validation ---');
+console.log('\n--- Running SystemBuilder.buildAllStamps Validation ---');
 const stamps = builder.buildAllStamps(sim.elementsList, dims);
 console.assert(stamps.length === sim.elementsList.length, `Expected ${sim.elementsList.length} stamps, got ${stamps.length}`);
 
@@ -143,7 +143,7 @@ console.assert(r1Stamp.G.get('i_R1', 'i_R1') === -1000, `Expected R1 stamp G("i_
 console.log('All elements successfully created their dimension-aware Stamp.');
 
 // Test buildFinalStamp
-console.log('\n--- Running StampBuilder.buildFinalStamp Validation ---');
+console.log('\n--- Running SystemBuilder.buildFinalStamp Validation ---');
 const finalStamp = builder.buildFinalStamp(sim.elementsList, dims);
 // Check V1 contributions in finalStamp
 console.assert(finalStamp.S.get('i_V1') === 5, `Expected finalStamp S("i_V1") to be 5, got ${finalStamp.S.get('i_V1')}`);

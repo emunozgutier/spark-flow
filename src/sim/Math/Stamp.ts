@@ -4,7 +4,7 @@ import { Vector } from './Vector';
 /**
  * Stamp class representing a mathematical stamp configuration.
  * Contains G, H, Jf, and Jg matrices of dimension (D x D) and S vector of size D.
- * The size and mapping are based on mathematical dimensions from StampBuilder.
+ * The size and mapping are based on mathematical dimensions from SystemBuilder.
  */
 export class Stamp {
   public G: Matrix;
