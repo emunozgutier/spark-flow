@@ -7,6 +7,7 @@
 
 import { Spice } from '../Spice';
 import { StampBuilder } from '../components/StampBuilder';
+import { Stamp } from '../Math/Stamp';
 
 const netlist = `
 * Comprehensive Parser Test Circuit
@@ -106,5 +107,23 @@ const dims = builder.findDimensions(sim.elementsList);
 const expectedDims = ['V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'i_V1', 'i_R1', 'i_L1'];
 console.assert(JSON.stringify(dims) === JSON.stringify(expectedDims), `Expected exact order ${JSON.stringify(expectedDims)}, got ${JSON.stringify(dims)}`);
 console.log('Tracked Dimensions:', dims);
+
+// Test Stamp with dimensions
+console.log('\n--- Running Stamp and matrix/vector label-based indexing Validation ---');
+const stamp = new Stamp(dims);
+console.assert(stamp.G.rows === dims.length && stamp.G.cols === dims.length, 'Matrix G should be square with dimension equal to dims length');
+console.assert(stamp.S.size === dims.length, 'Vector S should have size equal to dims length');
+
+// Test Matrix label-based set and get (V1 is index 1, V2 is index 2)
+stamp.G.set('V1', 'V2', 42.5);
+console.assert(stamp.G.get('V1', 'V2') === 42.5, `Expected G("V1", "V2") to be 42.5, got ${stamp.G.get('V1', 'V2')}`);
+console.assert(stamp.G.get(1, 2) === 42.5, `Expected G(1, 2) to be 42.5, got ${stamp.G.get(1, 2)}`);
+
+// Test Vector label-based set and get (V3 is index 3)
+stamp.S.set('V3', -2.5);
+console.assert(stamp.S.get('V3') === -2.5, `Expected S("V3") to be -2.5, got ${stamp.S.get('V3')}`);
+console.assert(stamp.S.get(3) === -2.5, `Expected S(3) to be -2.5, got ${stamp.S.get(3)}`);
+
+console.log('Stamp matrices successfully mapped and index/label assertions verified.');
 
 console.log('\n--- All assertions passed! Parser test successful. ---');

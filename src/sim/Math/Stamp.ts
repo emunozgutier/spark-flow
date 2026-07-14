@@ -3,7 +3,8 @@ import { Vector } from './Vector';
 
 /**
  * Stamp class representing a mathematical stamp configuration.
- * Contains G and H matrices of dimension (elemCnt x nodeCnt) and S vector of size nodeCnt.
+ * Contains G, H, Jf, and Jg matrices of dimension (D x D) and S vector of size D.
+ * The size and mapping are based on mathematical dimensions from StampBuilder.
  */
 export class Stamp {
   public G: Matrix;
@@ -11,21 +12,20 @@ export class Stamp {
   public Jf: Matrix;
   public Jg: Matrix;
   public S: Vector;
-  public nodeCnt: number;
-  public elemCnt: number;
+  public dimensions: string[];
 
-  constructor(nodeCnt: number, elemCnt: number) {
-    this.nodeCnt = nodeCnt;
-    this.elemCnt = elemCnt;
-    // vertical rows are set by elemCnt, horizontal cols are set by nodeCnt
-    this.G = new Matrix(elemCnt, nodeCnt);
-    this.H = new Matrix(elemCnt, nodeCnt);
-    this.Jf = new Matrix(elemCnt, nodeCnt);
-    this.Jg = new Matrix(elemCnt, nodeCnt);
-    this.S = new Vector(nodeCnt);
+  constructor(dimensions: string[]) {
+    this.dimensions = dimensions;
+    const D = dimensions.length;
+    
+    this.G = new Matrix(D, D, undefined, dimensions);
+    this.H = new Matrix(D, D, undefined, dimensions);
+    this.Jf = new Matrix(D, D, undefined, dimensions);
+    this.Jg = new Matrix(D, D, undefined, dimensions);
+    this.S = new Vector(D, undefined, dimensions);
   }
 
   makeEmptyStamp(): Stamp {
-    return new Stamp(this.nodeCnt, this.elemCnt);
+    return new Stamp(this.dimensions);
   }
 }
