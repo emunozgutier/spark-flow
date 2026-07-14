@@ -152,4 +152,24 @@ console.assert(finalStamp.G.get('V1', 'i_R1') === 1, `Expected finalStamp G("V1"
 console.assert(finalStamp.G.get('i_R1', 'i_R1') === -1000, `Expected finalStamp G("i_R1", "i_R1") to be -1000, got ${finalStamp.G.get('i_R1', 'i_R1')}`);
 console.log('Final combined stamp built and verified successfully.');
 
+// Test SystemSolver and Spice.solve
+console.log('\n--- Running SystemSolver and Spice.solve Validation ---');
+const testNetlist = `
+V1 1 0 5
+R1 1 2 1000
+R2 2 0 1000
+`;
+const simpleSim = new Spice(testNetlist);
+const sol = simpleSim.solve();
+
+// With V1=5V and two 1k resistors in series:
+// V(1) should be 5V, V(2) should be 2.5V.
+const v1Val = sol.get('V1');
+const v2Val = sol.get('V2');
+const v0Val = sol.get('V0');
+console.assert(Math.abs(v1Val - 5.0) < 1e-5, `Expected V1 to be 5, got ${v1Val}`);
+console.assert(Math.abs(v2Val - 2.5) < 1e-5, `Expected V2 to be 2.5, got ${v2Val}`);
+console.assert(Math.abs(v0Val - 0.0) < 1e-5, `Expected V0 to be 0, got ${v0Val}`);
+console.log('Linear system solver successfully calculated node voltages: V1 = 5V, V2 = 2.5V.');
+
 console.log('\n--- All assertions passed! Parser test successful. ---');
