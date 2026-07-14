@@ -159,6 +159,34 @@ export const Wire: React.FC<WireProps> = ({
         stroke="transparent"
         strokeWidth="16"
       />
+      {isSelected && (
+        <>
+          {/* Outer glowing path to match resistor box-shadow area */}
+          <path
+            d={pathStr}
+            fill="none"
+            stroke={`var(--theme-${arrow.color || 'slate'})`}
+            strokeWidth="12"
+            style={{ opacity: 0.25, filter: 'blur(3px)' }}
+          />
+          {/* Dashed selection border path */}
+          <path
+            d={pathStr}
+            fill="none"
+            stroke={`var(--theme-${arrow.color || 'slate'})`}
+            strokeWidth="8.5"
+            strokeDasharray="6,4"
+            style={{ opacity: 0.8 }}
+          />
+          {/* Background-colored eraser path to create a clean gap */}
+          <path
+            d={pathStr}
+            fill="none"
+            stroke="var(--bg-canvas)"
+            strokeWidth="5.5"
+          />
+        </>
+      )}
       <path
         d={pathStr}
         fill="none"

@@ -668,7 +668,8 @@ export const Canvas: React.FC<CanvasProps> = ({
                  target.closest('.card-socket') || 
                  target.closest('.card-resize-handle') ||
                  target.closest('.interactive-panel') || 
-                 target.closest('.sidebar-panel');
+                 target.closest('.sidebar-panel') ||
+                 target.closest('.deletable-wire');
 
     // 1. Viewport panning via Spacebar, Middle mouse, or Hand Tool active
     const isMiddleClick = e.button === 1;
