@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type TopBarMenu = 'file' | 'animation' | 'simulate' | 'debug';
+export type TopBarMenu = 'file' | 'animation' | 'simulate' | 'debug' | 'style';
 
 interface TopBarState {
   activeMenu: TopBarMenu;
