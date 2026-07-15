@@ -915,6 +915,128 @@ export const deserializeElements = (stateStr: string): CanvasElement[] => {
     }
   });
 
+  // Post-process to resolve duplicate IDs from legacy hash layouts
+  const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+  const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+
+  const idToCards: Record<string, CardElement[]> = {};
+  cards.forEach((card) => {
+    if (!idToCards[card.id]) {
+      idToCards[card.id] = [];
+    }
+    idToCards[card.id].push(card);
+  });
+
+  const duplicateIdGroups = Object.entries(idToCards).filter(([_, group]) => group.length > 1);
+
+  if (duplicateIdGroups.length > 0) {
+    const originalIdToCandidates: Record<string, CardElement[]> = {};
+
+    duplicateIdGroups.forEach(([originalId, group]) => {
+      originalIdToCandidates[originalId] = [...group];
+
+      for (let i = 1; i < group.length; i++) {
+        const card = group[i];
+        let nextInst = (card.instanceNumber || 1) + i;
+        let candidateId = `${originalId.replace(/\d+$/, '')}${nextInst}`;
+
+        while (cards.some((c) => c.id === candidateId)) {
+          nextInst++;
+          candidateId = `${originalId.replace(/\d+$/, '')}${nextInst}`;
+        }
+
+        card.id = candidateId;
+        card.instanceNumber = nextInst;
+
+        if (card.ports) {
+          card.ports.forEach((port) => {
+            const socketSuffix = port.id.substring(port.id.lastIndexOf('-'));
+            port.id = `${card.id}${socketSuffix}`;
+          });
+        }
+      }
+    });
+
+    const getCardSocketPosition = (card: CardElement, socket: string): { x: number; y: number } => {
+      let basePt = { x: card.x + 30, y: card.y + 30 };
+      const isPassive = !!card.componentType;
+      const isTwoPort = isPassive && card.componentType !== 'ground' && card.componentType !== 'bjt' && card.componentType !== 'mosfet';
+      switch (socket) {
+        case 'top':
+          basePt = { x: card.x + (card.width || 60) / 2, y: card.y };
+          break;
+        case 'right':
+          basePt = {
+            x: card.x + (card.width || 60),
+            y: isTwoPort ? card.y + 20 : card.y + (card.height || 60) / 2
+          };
+          break;
+        case 'bottom':
+          basePt = { x: card.x + (card.width || 60) / 2, y: card.y + (card.height || 60) };
+          break;
+        case 'left':
+          basePt = {
+            x: card.x,
+            y: isTwoPort ? card.y + 20 : card.y + (card.height || 60) / 2
+          };
+          break;
+      }
+
+      if (card.rotation) {
+        const cx = card.x + (card.width || 60) / 2;
+        const cy = card.y + (card.height || 60) / 2;
+        const rad = (card.rotation * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const dx = basePt.x - cx;
+        const dy = basePt.y - cy;
+        return {
+          x: cx + dx * cos - dy * sin,
+          y: cy + dx * sin + dy * cos
+        };
+      }
+      return basePt;
+    };
+
+    arrows.forEach((arrow) => {
+      const fromCandidates = originalIdToCandidates[arrow.fromId || ''] || (arrow.fromId ? [cards.find((c) => c.id === arrow.fromId)].filter(Boolean) as CardElement[] : []);
+      const toCandidates = originalIdToCandidates[arrow.toId || ''] || (arrow.toId ? [cards.find((c) => c.id === arrow.toId)].filter(Boolean) as CardElement[] : []);
+
+      if (fromCandidates.length > 1 || toCandidates.length > 1) {
+        let minDistance = Infinity;
+        let bestFrom: CardElement | null = null;
+        let bestTo: CardElement | null = null;
+
+        for (const fCard of fromCandidates) {
+          const fPt = getCardSocketPosition(fCard, arrow.fromSocket || 'left');
+          for (const tCard of toCandidates) {
+            const tPt = getCardSocketPosition(tCard, arrow.toSocket || 'left');
+            const dist = Math.hypot(fPt.x - tPt.x, fPt.y - tPt.y);
+            if (dist < minDistance) {
+              minDistance = dist;
+              bestFrom = fCard;
+              bestTo = tCard;
+            }
+          }
+        }
+
+        if (bestFrom) {
+          arrow.fromId = bestFrom.id;
+        }
+        if (bestTo) {
+          arrow.toId = bestTo.id;
+        }
+      } else {
+        if (arrow.fromId && originalIdToCandidates[arrow.fromId]) {
+          arrow.fromId = originalIdToCandidates[arrow.fromId][0].id;
+        }
+        if (arrow.toId && originalIdToCandidates[arrow.toId]) {
+          arrow.toId = originalIdToCandidates[arrow.toId][0].id;
+        }
+      }
+    });
+  }
+
   return elements;
 };
 

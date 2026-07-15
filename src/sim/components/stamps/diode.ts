@@ -61,10 +61,10 @@ export class DiodeElement implements BaseElement {
 
     const Ieq = id - gd * vd;
 
-    stamp.Jg.set(V1, V1, stamp.Jg.get(V1, V1) + gd);
-    stamp.Jg.set(V2, V2, stamp.Jg.get(V2, V2) + gd);
-    stamp.Jg.set(V1, V2, stamp.Jg.get(V1, V2) - gd);
-    stamp.Jg.set(V2, V1, stamp.Jg.get(V2, V1) - gd);
+    stamp.G.set(V1, V1, stamp.G.get(V1, V1) + gd);
+    stamp.G.set(V2, V2, stamp.G.get(V2, V2) + gd);
+    stamp.G.set(V1, V2, stamp.G.get(V1, V2) - gd);
+    stamp.G.set(V2, V1, stamp.G.get(V2, V1) - gd);
 
     stamp.S.set(V1, stamp.S.get(V1) - Ieq);
     stamp.S.set(V2, stamp.S.get(V2) + Ieq);

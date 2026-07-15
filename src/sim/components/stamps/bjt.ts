@@ -91,7 +91,7 @@ export class BjtElement implements BaseElement {
     const nodes = [V1, V2, V3];
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
-        stamp.Jg.set(nodes[r], nodes[c], stamp.Jg.get(nodes[r], nodes[c]) + Jac[r][c]);
+        stamp.G.set(nodes[r], nodes[c], stamp.G.get(nodes[r], nodes[c]) + Jac[r][c]);
       }
       stamp.S.set(nodes[r], stamp.S.get(nodes[r]) - I_eq[r]);
     }

@@ -476,8 +476,9 @@ export const useCanvas: UseBoundStore<StoreApi<CanvasState>> & {
           if (componentType) {
             const sameTypeElements = get().elements.filter(
               (el) => el.type === 'box' && (el as CardElement).componentType === componentType
-            );
-            instanceNumber = sameTypeElements.length + 1;
+            ) as CardElement[];
+            const maxInstance = sameTypeElements.reduce((max, el) => Math.max(max, el.instanceNumber || 0), 0);
+            instanceNumber = maxInstance + 1;
 
             if (componentType === 'ground') {
               ports = [
