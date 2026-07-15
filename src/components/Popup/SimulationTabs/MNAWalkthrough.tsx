@@ -884,9 +884,10 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   });
 
   const [nmaStep, setNmaStep] = useState<number>(0);
-  const cellWidth = 90;
-  const cellHeight = 56;
-  const cellFontSize = 14;
+  const [selectedMatrix, setSelectedMatrix] = useState<string>('G');
+  const cellWidth = 45;
+  const cellHeight = 28;
+  const cellFontSize = 9;
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
 
 
@@ -1200,33 +1201,6 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             </span>
           </div>
 
-          {/* Math Equations Panel */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            fontSize: '11px',
-            color: 'rgba(255, 255, 255, 0.85)',
-            background: 'rgba(15, 23, 42, 0.35)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
-            borderRadius: '8px',
-            padding: '10px 14px'
-          }}>
-            <span style={{ color: 'var(--theme-emerald)', fontWeight: 'bold', fontSize: '12.5px' }}>System Equation:</span>
-            <span style={{
-              fontFamily: 'monospace',
-              fontSize: '13px',
-              color: '#fff',
-              fontWeight: 'bold'
-            }}>
-              {D > 0 ? (
-                <>G&middot;x + H&middot;g(x) - s = f(x)</>
-              ) : (
-                <>G&middot;x - s = f(x)</>
-              )}
-            </span>
-          </div>
 
           {/* 3. Stacked Equations Matrix Visualizers */}
           {(() => {
@@ -1284,39 +1258,56 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                       )}
                     </div>
                     <RightBracket />
+                    
+                    {/* Row Labels (Dimensions) on the right hand side */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '3px',
+                      marginLeft: '12px',
+                      justifyContent: 'center',
+                      fontFamily: 'monospace',
+                      fontSize: '9px',
+                      color: 'rgba(255,255,255,0.45)',
+                      textAlign: 'left'
+                    }}>
+                      {Array.from({ length: rows }).map((_, rIdx) => {
+                        const isGxFx = label.includes('g(x)') || label.includes('gx') || label.includes('Diode');
+                        const diodeName = isGxFx ? (diodeLabels[rIdx] || `D${rIdx + 1}`) : '';
+                        
+                        const isKcl = rIdx < nodeCount;
+                        const labelText = isGxFx
+                          ? `i(${diodeName})`
+                          : (isKcl 
+                              ? `v(${rIdx + 1})` 
+                              : `i(${getDesignator(group2Elements[rIdx - nodeCount])})`);
+                        const descText = isGxFx
+                          ? `(Diode)`
+                          : (isKcl
+                              ? `(Node ${rIdx + 1})`
+                              : `(${getDesignator(group2Elements[rIdx - nodeCount])})`);
+                        return (
+                          <div 
+                            key={rIdx} 
+                            style={{ 
+                              height: `${cellHeight}px`, 
+                              display: 'flex', 
+                              alignItems: 'center',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <span style={{ color: '#ffffff', fontWeight: 'bold', marginRight: '4px' }}>{labelText}</span>
+                            <span style={{ opacity: 0.65 }}>{descText}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               );
             };
 
-            const Operator = ({ char }: { char: string }) => (
-              <div style={{
-                color: 'rgba(255,255,255,0.4)',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                alignSelf: 'center',
-                marginTop: '12px',
-                padding: '0 4px',
-                flexShrink: 0
-              }}>
-                {char}
-              </div>
-            );
 
-            const equationRowStyle: React.CSSProperties = {
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontFamily: 'monospace',
-              background: 'rgba(0,0,0,0.18)',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.04)',
-              overflowX: 'auto',
-              minHeight: 0,
-              width: '100%',
-              boxSizing: 'border-box'
-            };
 
             // Formatting & Tooltip functions
             const gFormat = (val: number) => val === 0 ? '0' : val.toFixed(3);
@@ -1396,6 +1387,99 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
               .filter(h => h.startsWith('fx-'))
               .map(h => h.substring(3) + '-0');
 
+            const stepTitle = nmaSteps[currentStep]?.title || '';
+            const isNRStep = stepTitle.startsWith('Iteration');
+
+            const getChangedSymbols = (): string[] => {
+              if (currentStep === 0) return [];
+              if (stepTitle.startsWith('Iteration')) {
+                return ['Jf', 's_k'];
+              }
+              if (currentStep === solveStepIndex) {
+                return [];
+              }
+              const card = elementsToStamp[currentStep - 1];
+              if (!card) return [];
+              if (card.componentType === 'resistor' || card.componentType === 'inductor') {
+                return ['G'];
+              }
+              if (card.componentType === 'voltage' || card.componentType === 'acvoltage') {
+                return ['G', 's'];
+              }
+              if (card.componentType === 'current') {
+                return ['s'];
+              }
+              if (card.componentType === 'diode') {
+                return ['H'];
+              }
+              if (card.componentType === 'bjt' || card.componentType === 'mosfet') {
+                return ['G', 's'];
+              }
+              return [];
+            };
+
+            let activeMatrix = selectedMatrix;
+            if (isNRStep) {
+              if (activeMatrix !== 'Jf' && activeMatrix !== 'x_k+1' && activeMatrix !== 's_k') {
+                activeMatrix = 'Jf';
+              }
+            } else {
+              if (activeMatrix !== 'G' && activeMatrix !== 'x' && activeMatrix !== 'H' && activeMatrix !== 'gx' && activeMatrix !== 's' && activeMatrix !== 'fx') {
+                activeMatrix = 'G';
+              }
+              if (D === 0 && (activeMatrix === 'H' || activeMatrix === 'gx')) {
+                activeMatrix = 'G';
+              }
+            }
+
+            const renderSymbol = (key: string, label: string | React.ReactNode, isChanged: boolean) => {
+              const isSelected = activeMatrix === key;
+              const color = isChanged ? 'var(--theme-amber)' : (isSelected ? 'var(--theme-sapphire)' : '#ffffff');
+              return (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMatrix(key)}
+                  onMouseEnter={() => setSelectedMatrix(key)}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '15px',
+                    fontWeight: 'bold',
+                    color,
+                    background: isSelected ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    border: isSelected ? `1px solid ${color}` : '1px solid transparent',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textShadow: isChanged ? '0 0 8px var(--theme-amber-glow)' : 'none',
+                    transform: isSelected ? 'scale(1.05)' : 'none',
+                    outline: 'none',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            };
+
+            const equationRowStyle: React.CSSProperties = {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontFamily: 'monospace',
+              background: 'rgba(0,0,0,0.18)',
+              padding: '16px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.04)',
+              overflowX: 'auto',
+              minHeight: '180px',
+              width: '100%',
+              boxSizing: 'border-box'
+            };
+
             return (
               <div style={{
                 flex: 1,
@@ -1407,28 +1491,65 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                 minHeight: 0,
                 paddingRight: '2px'
               }}>
-                {/* System Equation Row */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontSize: '10.5px', color: 'var(--theme-emerald)', fontWeight: 'bold', paddingLeft: '4px' }}>
-                    System Equation (G&middot;x{D > 0 && <> + H&middot;g(x)</>} - s = f(x))
+                {/* System Equation Row (Tabs) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Interactive Equation (Hover/Click to select matrix):
                   </div>
-                  <div style={equationRowStyle}>
-                    {renderMatrixInEquation(G_data, 'Matrix G', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
-                    <Operator char="&bull;" />
-                    {renderMatrixInEquation(x_data, 'State x', 'var(--theme-emerald)', xFormat, xTooltip)}
-                    {D > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontFamily: 'monospace',
+                    fontSize: '15px',
+                    color: 'rgba(255,255,255,0.3)',
+                    background: 'rgba(15, 23, 42, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    userSelect: 'none'
+                  }}>
+                    {isNRStep ? (
                       <>
-                        <Operator char="+" />
-                        {renderMatrixInEquation(H_data, 'Matrix H', 'var(--theme-amber)', hFormat, hTooltip, hHighlights)}
-                        <Operator char="&bull;" />
-                        {renderMatrixInEquation(gx_data, 'Diode g(x)', 'var(--theme-coral)', gxFormat, gxTooltip)}
+                        {renderSymbol('Jf', <>J<sub>f</sub>(x<sub>k</sub>)</>, getChangedSymbols().includes('Jf'))}
+                        <span>&bull;</span>
+                        {renderSymbol('x_k+1', <>x<sub>k+1</sub></>, getChangedSymbols().includes('x_k+1'))}
+                        <span>=</span>
+                        {renderSymbol('s_k', <>s<sub>k</sub></>, getChangedSymbols().includes('s_k'))}
+                      </>
+                    ) : (
+                      <>
+                        {renderSymbol('G', 'G', getChangedSymbols().includes('G'))}
+                        <span>&bull;</span>
+                        {renderSymbol('x', 'x', getChangedSymbols().includes('x'))}
+                        {D > 0 && (
+                          <>
+                            <span>+</span>
+                            {renderSymbol('H', 'H', getChangedSymbols().includes('H'))}
+                            <span>&bull;</span>
+                            {renderSymbol('gx', 'g(x)', getChangedSymbols().includes('gx'))}
+                          </>
+                        )}
+                        <span>-</span>
+                        {renderSymbol('s', 's', getChangedSymbols().includes('s'))}
+                        <span>=</span>
+                        {renderSymbol('fx', 'f(x)', getChangedSymbols().includes('fx'))}
                       </>
                     )}
-                    <Operator char="-" />
-                    {renderMatrixInEquation(s_data, 'Source s', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
-                    <Operator char="=" />
-                    {renderMatrixInEquation(fx_data, 'Residual f(x)', 'var(--theme-coral)', fxFormat, fxTooltip, fxHighlights)}
                   </div>
+                </div>
+
+                {/* Selected Matrix View */}
+                <div style={equationRowStyle}>
+                  {activeMatrix === 'G' && renderMatrixInEquation(G_data, 'Matrix G (Linear Conductance)', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
+                  {activeMatrix === 'x' && renderMatrixInEquation(x_data, 'State Vector x (Voltages & Currents)', 'var(--theme-emerald)', xFormat, xTooltip)}
+                  {activeMatrix === 'H' && renderMatrixInEquation(H_data, 'Matrix H (Selector Matrix)', 'var(--theme-amber)', hFormat, hTooltip, hHighlights)}
+                  {activeMatrix === 'gx' && renderMatrixInEquation(gx_data, 'Vector g(x) (Nonlinear Currents)', 'var(--theme-coral)', gxFormat, gxTooltip)}
+                  {activeMatrix === 's' && renderMatrixInEquation(s_data, 'Source Vector s (Independent Sources)', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
+                  {activeMatrix === 'fx' && renderMatrixInEquation(fx_data, 'Residual Vector f(x)', 'var(--theme-coral)', fxFormat, fxTooltip, fxHighlights)}
+                  {activeMatrix === 'Jf' && renderMatrixInEquation(G_data, 'Jacobian Matrix J_f(x_k)', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
+                  {activeMatrix === 'x_k+1' && renderMatrixInEquation(x_data, 'Next State Vector x_k+1', 'var(--theme-emerald)', xFormat, xTooltip)}
+                  {activeMatrix === 's_k' && renderMatrixInEquation(s_data, 'Equivalent Source Vector s_k', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
                 </div>
               </div>
             );
