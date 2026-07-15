@@ -3,7 +3,7 @@ import type { UseBoundStore, StoreApi } from 'zustand';
 import { temporal } from 'zundo';
 import type { TemporalState } from 'zundo';
 import type { CanvasElement, CardElement, ArrowElement, ToolType, ThemeColor, Port } from '../dataTypes/AnotateType';
-import { deserializeElements } from '../url';
+import { deserializeElements, serializeElements } from '../url';
 
 const STORAGE_KEY = 'spark-flow:board-elements';
 
@@ -235,6 +235,15 @@ const loadInitialElements = (): CanvasElement[] => {
       if (cleanHash.includes('~') || cleanHash.includes('.')) {
         const decoded = deserializeElements(cleanHash);
         if (decoded && decoded.length > 0) {
+          // Synchronize URL hash with cleaned elements if they differ
+          try {
+            const cleanedHash = serializeElements(decoded);
+            if (cleanedHash !== cleanHash) {
+              window.location.hash = cleanedHash;
+            }
+          } catch (err) {
+            console.error('Failed to sync cleaned hash:', err);
+          }
           return decoded;
         }
       }
