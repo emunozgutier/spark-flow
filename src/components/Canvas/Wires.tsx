@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ArrowElement, CardElement, DrawingArrowState, Point } from '../../dataTypes/AnotateType';
+import type { ArrowElement, CardElement, Point } from '../../dataTypes/AnotateType';
 import { Wire } from './Wire/WirePath';
 import { useCanvas } from '../../store/useCanvas';
 
@@ -8,9 +8,7 @@ interface WiresProps {
   cards: CardElement[];
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
-  drawingArrow: DrawingArrowState | null;
   getSocketPosition: (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'left') => Point;
-  activeSnap?: { wire: ArrowElement; point: Point } | null;
   wireVoltages?: Record<string, number>;
   wireCurrents?: Record<string, number>;
 }
@@ -381,14 +379,10 @@ export const Wires: React.FC<WiresProps> = ({
   cards,
   selectedId,
   setSelectedId,
-  drawingArrow,
   getSocketPosition,
-  activeSnap,
   wireVoltages = {},
   wireCurrents = {},
 }) => {
-  const sourceCard = drawingArrow ? cards.find((c) => c.id === drawingArrow.fromId) : undefined;
-
   const maxVoltage = Math.max(
     ...Object.values(wireVoltages).map((v) => Math.abs(v)),
     1e-5
@@ -425,7 +419,7 @@ export const Wires: React.FC<WiresProps> = ({
           </marker>
         ))}
         <marker
-          id="arrowhead-white"
+          id="arrowhead-select"
           markerWidth="8"
           markerHeight="7"
           refX="7.5"
@@ -434,7 +428,7 @@ export const Wires: React.FC<WiresProps> = ({
         >
           <polygon
             points="0 0, 8 3.5, 0 7"
-            fill="#ffffff"
+            fill="#f43f5e"
           />
         </marker>
       </defs>
@@ -453,71 +447,6 @@ export const Wires: React.FC<WiresProps> = ({
           maxVoltage={maxVoltage}
         />
       ))}
- 
-      {/* Render temporary live connector line preview when dragging socket */}
-      {drawingArrow && drawingArrow.fromPoint && (
-        <path
-          d={calculatePath(
-            drawingArrow.fromPoint,
-            drawingArrow.currentPoint,
-            drawingArrow.style,
-            drawingArrow.fromSocket,
-            undefined,
-            sourceCard?.rotation || 0,
-            0
-          )}
-          fill="none"
-          stroke="#64748b"
-          strokeWidth="2.0"
-          strokeDasharray="4,4"
-        />
-      )}
- 
-      {/* Render temporary live snap join indicator */}
-      {drawingArrow && activeSnap && (
-        <g style={{ pointerEvents: 'none' }}>
-          {/* Glowing pulse ring */}
-          <circle
-            cx={activeSnap.point.x}
-            cy={activeSnap.point.y}
-            r="8"
-            fill="rgba(244, 63, 94, 0.35)"
-            style={{ transformOrigin: `${activeSnap.point.x}px ${activeSnap.point.y}px` }}
-          />
-          {/* Core circular junction dot */}
-          <circle
-            cx={activeSnap.point.x}
-            cy={activeSnap.point.y}
-            r="4.5"
-            fill="#f43f5e"
-            stroke="#ffffff"
-            strokeWidth="1"
-          />
-          {/* Glow tooltip saying "JOIN" */}
-          <g transform={`translate(${activeSnap.point.x}, ${activeSnap.point.y - 15})`}>
-            <rect
-              x="-18"
-              y="-10"
-              width="36"
-              height="14"
-              rx="3"
-              fill="#f43f5e"
-              stroke="#ffffff"
-              strokeWidth="0.5"
-            />
-            <text
-              fill="#ffffff"
-              fontSize="8"
-              fontWeight="bold"
-              textAnchor="middle"
-              y="-1"
-              fontFamily="var(--font-sans)"
-            >
-              JOIN
-            </text>
-          </g>
-        </g>
-      )}
     </svg>
   );
 };
