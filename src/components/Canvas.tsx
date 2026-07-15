@@ -440,9 +440,16 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [spacePressed, setSpacePressed] = useState(false);
   const [drawingSelectionBox, setDrawingSelectionBox] = useState<{ startPoint: Point; currentPoint: Point } | null>(null);
   const [activeSnap, setActiveSnap] = useState<{ wire: ArrowElement; point: Point } | null>(null);
+  const [tempJoin, setTempJoin] = useState<{ x: number; y: number; wire: ArrowElement } | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const lastZoomRef = useRef(zoom);
   const lastPanRef = useRef(pan);
+
+  useEffect(() => {
+    if (activeTool !== 'arrow') {
+      setTempJoin(null);
+    }
+  }, [activeTool]);
 
   useEffect(() => {
     const isUserInteracting = isPanning || !!draggingCard || !!drawingArrow || !!resizingCard || !!drawingSelectionBox || !!drawingBox;
@@ -810,7 +817,23 @@ export const Canvas: React.FC<CanvasProps> = ({
           currentPoint: mouseCanvas
         });
       }
-      return;
+    }
+
+    // 5. Hovering wire in Wire tool mode (spawns temp join)
+    if (activeTool === 'arrow' && !drawingArrow) {
+      const mouseCanvas = screenToCanvas(e.clientX, e.clientY);
+      const arrows = elements.filter((el) => el.type === 'arrow') as ArrowElement[];
+      const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+      const snapResult = findClosestWirePoint(mouseCanvas, arrows, cards, getSocketPosition);
+      if (snapResult) {
+        setTempJoin({
+          x: snapResult.point.x,
+          y: snapResult.point.y,
+          wire: snapResult.wire
+        });
+      } else {
+        setTempJoin(null);
+      }
     }
   };
 
@@ -1103,7 +1126,107 @@ export const Canvas: React.FC<CanvasProps> = ({
       currentPoint: socketPt,
       color: card.color,
       style: 'curved'
-    });
+  };
+
+  const handleStartDrawingFromTempJoin = (
+    snapPtX: number,
+    snapPtY: number,
+    targetWire: ArrowElement,
+    clickedSocketDir: 'top' | 'right' | 'bottom' | 'left',
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const cards = elements.filter((el) => el.type === 'box') as CardElement[];
+    const snapPt = { x: snapPtX, y: snapPtY };
+
+    // 1. Generate unique IDs
+    const joinId = `join-${Date.now()}`;
+    const wireAId = `arrow-${Date.now()}-a`;
+    const wireBId = `arrow-${Date.now()}-b`;
+
+    const origFromCard = cards.find((c) => c.id === targetWire.fromId);
+    const origToCard = cards.find((c) => c.id === targetWire.toId);
+
+    if (origFromCard && origToCard && targetWire.fromSocket && targetWire.toSocket) {
+      const origFromSocketPt = getSocketPosition(origFromCard, targetWire.fromSocket);
+      const origToSocketPt = getSocketPosition(origToCard, targetWire.toSocket);
+
+      // 2. Create the permanent join junction card
+      const joinCard: CardElement = {
+        id: joinId,
+        type: 'box',
+        x: snapPt.x - 8,
+        y: snapPt.y - 8,
+        width: 16,
+        height: 16,
+        color: targetWire.color || 'slate',
+        title: 'join',
+        content: ''
+      };
+
+      // 3. Calculate socket directions on the join node
+      const joinCenter = snapPt;
+      const socketForOrigFrom = getJoinSocketDirection(joinCenter, origFromSocketPt);
+      const socketForOrigTo = getJoinSocketDirection(joinCenter, origToSocketPt);
+
+      // 4. Create the two split wires
+      const wireA: ArrowElement = {
+        id: wireAId,
+        type: 'arrow',
+        fromId: targetWire.fromId,
+        fromSocket: targetWire.fromSocket,
+        toId: joinId,
+        toSocket: socketForOrigFrom,
+        color: targetWire.color,
+        style: targetWire.style,
+        label: ''
+      };
+
+      const wireB: ArrowElement = {
+        id: wireBId,
+        type: 'arrow',
+        fromId: joinId,
+        fromSocket: socketForOrigTo,
+        toId: targetWire.toId,
+        toSocket: targetWire.toSocket,
+        color: targetWire.color,
+        style: targetWire.style,
+        label: ''
+      };
+
+      // 5. Update Zustand store atomically
+      const filteredElements = elements.filter((el) => el.id !== targetWire.id);
+      const nextElements = [...filteredElements, joinCard, wireA, wireB];
+
+      const temporalApi = (useCanvas as any).temporal?.getState();
+      temporalApi?.resume();
+
+      useCanvas.setState({ elements: nextElements });
+      localStorage.setItem('spark-flow:board-elements', JSON.stringify(nextElements));
+
+      // 6. Initiate arrow drawing from the new permanent join!
+      const socketPt = getSocketPosition(joinCard, clickedSocketDir);
+      setDrawingArrow({
+        fromId: joinId,
+        fromSocket: clickedSocketDir,
+        fromPoint: socketPt,
+        currentPoint: socketPt,
+        color: joinCard.color,
+        style: 'curved'
+      });
+
+      // Clear the temporary join state
+      setTempJoin(null);
+
+      if (setToast) {
+        setToast({
+          message: '🔗 Wire split at junction! Drawing new wire...',
+          type: 'success'
+        });
+      }
+    }
   };
 
 
@@ -1129,6 +1252,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onMouseLeave={() => setTempJoin(null)}
       style={{ touchAction: 'none' }}
     >
       {/* 1. Vector Grid Background layer */}
@@ -1256,8 +1380,29 @@ export const Canvas: React.FC<CanvasProps> = ({
               updateElement={updateElement}
               finalizeDrag={finalizeDrag}
             />
-          );
         })}
+        {/* Render temporary hover join on wire */}
+        {tempJoin && !drawingArrow && activeTool === 'arrow' && (
+          <Join
+            card={{
+              id: 'temp-join',
+              type: 'box',
+              x: tempJoin.x - 8,
+              y: tempJoin.y - 8,
+              width: 16,
+              height: 16,
+              color: tempJoin.wire.color || 'slate',
+              title: 'join',
+              content: ''
+            } as CardElement}
+            isSelected={false}
+            activeTool={activeTool}
+            initiateCardDrag={() => {}}
+            initiateArrowDraw={(card, socketDir, e) => {
+              handleStartDrawingFromTempJoin(tempJoin.x, tempJoin.y, tempJoin.wire, socketDir, e);
+            }}
+          />
+        )}
       </div>
 
       {liveDCOn && (

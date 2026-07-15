@@ -25,8 +25,8 @@ export const Border: React.FC<BorderProps> = ({
 
   const borderStyle: React.CSSProperties = isResistor
     ? (isHorizontal
-      ? { left: '-12.5px', right: '-12.5px', top: '-7.5px', bottom: '-7.5px', borderRadius: '8px' }
-      : { left: '-7.5px', right: '-7.5px', top: '-7.5px', bottom: '-7.5px', borderRadius: '8px' })
+      ? { left: '-10px', right: '-10px', top: '-6px', bottom: '-6px', borderRadius: '6px' }
+      : { left: '-6px', right: '-6px', top: '-6px', bottom: '-6px', borderRadius: '6px' })
     : (isTwoPort && isHorizontal)
       ? { left: '-25px', right: '-25px', top: '-15px', bottom: '-15px', borderRadius: '16px' }
       : { left: '-15px', right: '-15px', top: '-15px', bottom: '-15px', borderRadius: '16px' };
