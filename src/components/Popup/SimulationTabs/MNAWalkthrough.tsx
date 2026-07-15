@@ -3,6 +3,61 @@ import type { CanvasElement, CardElement, ArrowElement } from '../../../dataType
 import { formatEngineering } from '../../../utils/math';
 
 
+const solveLinearSystem = (A: number[][], B: number[]): number[] => {
+  const n = B.length;
+  const a = A.map(row => [...row]);
+  const b = [...B];
+
+  for (let i = 0; i < n; i++) {
+    let maxEl = Math.abs(a[i][i]);
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(a[k][i]) > maxEl) {
+        maxEl = Math.abs(a[k][i]);
+        maxRow = k;
+      }
+    }
+
+    const tempRow = a[maxRow];
+    a[maxRow] = a[i];
+    a[i] = tempRow;
+
+    const tempB = b[maxRow];
+    b[maxRow] = b[i];
+    b[i] = tempB;
+
+    if (Math.abs(a[i][i]) < 1e-12) {
+      continue;
+    }
+
+    for (let k = i + 1; k < n; k++) {
+      const c = -a[k][i] / a[i][i];
+      for (let j = i; j < n; j++) {
+        if (i === j) {
+          a[k][j] = 0;
+        } else {
+          a[k][j] += c * a[i][j];
+        }
+      }
+      a[k][i] = 0;
+      b[k] += c * b[i];
+    }
+  }
+
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    if (Math.abs(a[i][i]) < 1e-12) {
+      x[i] = 0;
+      continue;
+    }
+    x[i] = b[i] / a[i][i];
+    for (let k = i - 1; k >= 0; k--) {
+      b[k] -= a[k][i] * x[i];
+    }
+  }
+  return x;
+};
+
 interface MNAWalkthroughProps {
   elements: CanvasElement[];
 }
@@ -572,7 +627,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       }
     });
 
-    let nextX = new Array(mnaSize).fill(0);
+    let nextX = solveLinearSystem(A_iter, B_iter);
 
     const nextVoltages: Record<string, number> = { '0': 0 };
     for (let i = 1; i <= nodeCount; i++) {
