@@ -21,9 +21,15 @@ export const Border: React.FC<BorderProps> = ({
   
   const isHorizontal = Math.abs(card.rotation || 0) % 180 === 0;
 
-  const borderStyle: React.CSSProperties = (isTwoPort && isHorizontal)
-    ? { left: '-10px', right: '-10px', top: 0, bottom: 0 }
-    : { left: 0, right: 0, top: 0, bottom: 0 };
+  const isResistor = card.componentType === 'resistor';
+
+  const borderStyle: React.CSSProperties = isResistor
+    ? (isHorizontal
+      ? { left: '-12.5px', right: '-12.5px', top: '-7.5px', bottom: '-7.5px', borderRadius: '8px' }
+      : { left: '-7.5px', right: '-7.5px', top: '-7.5px', bottom: '-7.5px', borderRadius: '8px' })
+    : (isTwoPort && isHorizontal)
+      ? { left: '-25px', right: '-25px', top: '-15px', bottom: '-15px', borderRadius: '16px' }
+      : { left: '-15px', right: '-15px', top: '-15px', bottom: '-15px', borderRadius: '16px' };
 
   return (
     <>
