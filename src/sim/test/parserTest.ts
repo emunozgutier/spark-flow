@@ -104,7 +104,7 @@ console.log('\n--- Running SystemBuilder.findDimensions Validation ---');
 const builder = new SystemBuilder();
 const dims = builder.findDimensions(sim.elementsList);
 
-const expectedDims = ['V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'i_V1', 'i_R1', 'i_L1'];
+const expectedDims = ['V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'i_V1', 'i_L1'];
 console.assert(JSON.stringify(dims) === JSON.stringify(expectedDims), `Expected exact order ${JSON.stringify(expectedDims)}, got ${JSON.stringify(dims)}`);
 console.log('Tracked Dimensions:', dims);
 
@@ -135,10 +135,11 @@ console.assert(stamps.length === sim.elementsList.length, `Expected ${sim.elemen
 const v1Stamp = stamps[0];
 console.assert(v1Stamp.S.get('i_V1') === 5, `Expected V1 stamp branch current source value 5, got ${v1Stamp.S.get('i_V1')}`);
 
-// Assert R1 stamp contributions (R1 is second element, Group 2 by default)
+// Assert R1 stamp contributions (R1 is second element, Group 1 by default)
 const r1Stamp = stamps[1];
-console.assert(r1Stamp.G.get('V1', 'i_R1') === 1, `Expected R1 stamp G("V1", "i_R1") to be 1, got ${r1Stamp.G.get('V1', 'i_R1')}`);
-console.assert(r1Stamp.G.get('i_R1', 'i_R1') === -1000, `Expected R1 stamp G("i_R1", "i_R1") to be -1000, got ${r1Stamp.G.get('i_R1', 'i_R1')}`);
+const g = 1 / 1000;
+console.assert(r1Stamp.G.get('V1', 'V1') === g, `Expected R1 stamp G("V1", "V1") to be ${g}, got ${r1Stamp.G.get('V1', 'V1')}`);
+console.assert(r1Stamp.G.get('V2', 'V2') === g, `Expected R1 stamp G("V2", "V2") to be ${g}, got ${r1Stamp.G.get('V2', 'V2')}`);
 
 console.log('All elements successfully created their dimension-aware Stamp.');
 
@@ -148,8 +149,8 @@ const finalStamp = builder.buildFinalStamp(sim.elementsList, dims);
 // Check V1 contributions in finalStamp
 console.assert(finalStamp.S.get('i_V1') === 5, `Expected finalStamp S("i_V1") to be 5, got ${finalStamp.S.get('i_V1')}`);
 // Check R1 contributions in finalStamp
-console.assert(finalStamp.G.get('V1', 'i_R1') === 1, `Expected finalStamp G("V1", "i_R1") to be 1, got ${finalStamp.G.get('V1', 'i_R1')}`);
-console.assert(finalStamp.G.get('i_R1', 'i_R1') === -1000, `Expected finalStamp G("i_R1", "i_R1") to be -1000, got ${finalStamp.G.get('i_R1', 'i_R1')}`);
+const gFinal = 1 / 1000;
+console.assert(finalStamp.G.get('V1', 'V1') === gFinal, `Expected finalStamp G("V1", "V1") to be ${gFinal}, got ${finalStamp.G.get('V1', 'V1')}`);
 console.log('Final combined stamp built and verified successfully.');
 
 // Test SystemSolver and Spice.solve

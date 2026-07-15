@@ -16,7 +16,7 @@ export class ResistorElement implements BaseElement {
     if (!match) return null;
     const [, name, node1, node2, valToken, g2Token] = match;
     const value = parseEngineeringValue(valToken);
-    const isGroup2 = g2Token ? g2Token.toUpperCase().includes('G2') : true;
+    const isGroup2 = g2Token ? g2Token.toUpperCase().includes('G2') : false;
     return new ResistorElement(name, node1, node2, value, isGroup2);
   }
 
