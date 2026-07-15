@@ -70,7 +70,22 @@ export const Join: React.FC<JoinProps> = ({
         pointerEvents: 'auto',
         cursor: 'pointer'
       }}
-      onMouseDown={(e) => initiateCardDrag(card, e)}
+      onMouseDown={(e) => {
+        if (card.id === 'temp-join') {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const clickX = e.clientX - rect.left - rect.width / 2;
+          const clickY = e.clientY - rect.top - rect.height / 2;
+          let dir: 'top' | 'right' | 'bottom' | 'left' = 'right';
+          if (Math.abs(clickX) > Math.abs(clickY)) {
+            dir = clickX > 0 ? 'right' : 'left';
+          } else {
+            dir = clickY > 0 ? 'bottom' : 'top';
+          }
+          initiateArrowDraw(card, dir, e);
+        } else {
+          initiateCardDrag(card, e);
+        }
+      }}
     >
       <style>{junctionStyles}</style>
       {/* Hollow, vertex-like circular junction dot */}

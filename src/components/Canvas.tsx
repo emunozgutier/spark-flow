@@ -13,8 +13,7 @@ import { getNextVoltageValue, getNextDecadeValue } from '../utils/math';
 import { 
   WireTool, 
   handleWireMouseMove, 
-  handleWireMouseUp,
-  handleStartDrawingFromTempJoin
+  handleWireMouseUp
 } from './Canvas/Wire/WireTool';
 import './Canvas/Canvas.css';
 
@@ -272,7 +271,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   setPan,
   setZoom,
   addCard,
-  addArrow,
+  addArrow: _addArrow,
   updateElement,
   updateCardPosition,
   updateCardSize,
@@ -807,8 +806,6 @@ export const Canvas: React.FC<CanvasProps> = ({
         elements,
         screenToCanvas,
         getSocketPosition,
-        addArrow,
-        updateElement,
         setDrawingArrow,
         setActiveSnap,
         setToast
@@ -879,18 +876,21 @@ export const Canvas: React.FC<CanvasProps> = ({
     clickedSocketDir: 'top' | 'right' | 'bottom' | 'left',
     e: React.MouseEvent
   ) => {
-    handleStartDrawingFromTempJoin(
-      snapPtX,
-      snapPtY,
-      targetWire,
-      clickedSocketDir,
-      e,
-      elements,
-      getSocketPosition,
-      setDrawingArrow,
-      setTempJoin,
-      setToast
-    );
+    e.stopPropagation();
+    e.preventDefault();
+
+    const snapPt = { x: snapPtX, y: snapPtY };
+    setDrawingArrow({
+      fromSocket: clickedSocketDir,
+      fromPoint: snapPt,
+      currentPoint: snapPt,
+      color: targetWire.color || 'slate',
+      style: 'curved',
+      fromWireId: targetWire.id,
+      fromWireSnapPt: snapPt
+    } as any);
+
+    setTempJoin(null);
   };
 
 

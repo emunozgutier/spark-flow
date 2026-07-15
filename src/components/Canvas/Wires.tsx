@@ -111,38 +111,6 @@ const getSocketPos = (card: CardElement, socket: 'top' | 'right' | 'bottom' | 'l
   return basePt;
 };
 
-const isVerticalTwoPortSocket = (
-  pt: Point,
-  cards: CardElement[]
-): { card: CardElement; socket: 'left' | 'right' } | null => {
-  for (const card of cards) {
-    if (!card.componentType) continue;
-    const isTwoPort = card.componentType !== 'ground' && 
-                      card.componentType !== 'bjt' && 
-                      card.componentType !== 'mosfet' &&
-                      card.componentType !== 'text';
-    if (!isTwoPort) continue;
-    
-    // Check if it's vertical (90 or 270 degrees rotation)
-    const isVertical = Math.abs(card.rotation || 0) % 180 === 90;
-    if (!isVertical) continue;
-
-    // Calculate absolute socket positions for 'left' and 'right' ports
-    const leftPt = getSocketPos(card, 'left');
-    const rightPt = getSocketPos(card, 'right');
-
-    const distLeft = Math.hypot(pt.x - leftPt.x, pt.y - leftPt.y);
-    const distRight = Math.hypot(pt.x - rightPt.x, pt.y - rightPt.y);
-
-    if (distLeft < 1.0) {
-      return { card, socket: 'left' };
-    }
-    if (distRight < 1.0) {
-      return { card, socket: 'right' };
-    }
-  }
-  return null;
-};
 
 const findCardForSocket = (pt: Point, cards: CardElement[]): CardElement | null => {
   const dirs: ('top' | 'right' | 'bottom' | 'left')[] = ['top', 'right', 'bottom', 'left'];
@@ -180,74 +148,25 @@ export const getOrthogonalPathPoints = (
 
   let finalAbsFromDir = absFromDir;
   let finalAbsToDir = absToDir;
-
-  let forceFromUturn = false;
-  let forceToUturn = false;
-
-  let customP1: Point | null = null;
-  let customP2: Point | null = null;
-
-  // Check if "from" is a socket on a vertical two-port component
-  const fromInfo = isVerticalTwoPortSocket(from, cards);
-  if (fromInfo) {
-    const { card: fromCard } = fromInfo;
-    const goLeft = to.x < fromCard.x + fromCard.width / 2;
-    if (goLeft) {
-      finalAbsFromDir = 'left';
-      customP1 = { x: fromCard.x - minSegment, y: from.y };
-    } else {
-      finalAbsFromDir = 'right';
-      customP1 = { x: fromCard.x + fromCard.width + minSegment, y: from.y };
-    }
-    forceFromUturn = true;
-  }
-
-  // Check if "to" is a socket on a vertical two-port component
-  const toInfo = isVerticalTwoPortSocket(to, cards);
-  if (toInfo) {
-    const { card: toCard } = toInfo;
-    const goLeft = from.x < toCard.x + toCard.width / 2;
-    if (goLeft) {
-      finalAbsToDir = 'left';
-      customP2 = { x: toCard.x - minSegment, y: to.y };
-    } else {
-      finalAbsToDir = 'right';
-      customP2 = { x: toCard.x + toCard.width + minSegment, y: to.y };
-    }
-    forceToUturn = true;
-  }
   
   // 1. Determine the actual lead-out point
-  let p1 = customP1 ? { ...customP1 } : { ...from };
-  if (!customP1) {
-    if (finalAbsFromDir === 'left') p1.x -= minSegment;
-    else if (finalAbsFromDir === 'right') p1.x += minSegment;
-    else if (finalAbsFromDir === 'top') p1.y -= minSegment;
-    else if (finalAbsFromDir === 'bottom') p1.y += minSegment;
-    else {
-      p1.x += (to.x > from.x ? minSegment : -minSegment);
-    }
+  let p1 = { ...from };
+  if (finalAbsFromDir === 'left') p1.x -= minSegment;
+  else if (finalAbsFromDir === 'right') p1.x += minSegment;
+  else if (finalAbsFromDir === 'top') p1.y -= minSegment;
+  else if (finalAbsFromDir === 'bottom') p1.y += minSegment;
+  else {
+    p1.x += (to.x > from.x ? minSegment : -minSegment);
   }
 
   // 2. Determine the actual lead-in point
-  let p2 = customP2 ? { ...customP2 } : { ...to };
-  if (!customP2) {
-    if (finalAbsToDir === 'left') p2.x -= minSegment;
-    else if (finalAbsToDir === 'right') p2.x += minSegment;
-    else if (finalAbsToDir === 'top') p2.y -= minSegment;
-    else if (finalAbsToDir === 'bottom') p2.y += minSegment;
-    else {
-      p2.x += (to.x > from.x ? -minSegment : minSegment);
-    }
-  }
-
-  if (forceFromUturn) {
-    const path = [from, p1, { x: p1.x, y: p2.y }, p2, to];
-    return simplifyPathPoints(path);
-  }
-  if (forceToUturn) {
-    const path = [from, p1, { x: p2.x, y: p1.y }, p2, to];
-    return simplifyPathPoints(path);
+  let p2 = { ...to };
+  if (finalAbsToDir === 'left') p2.x -= minSegment;
+  else if (finalAbsToDir === 'right') p2.x += minSegment;
+  else if (finalAbsToDir === 'top') p2.y -= minSegment;
+  else if (finalAbsToDir === 'bottom') p2.y += minSegment;
+  else {
+    p2.x += (to.x > from.x ? -minSegment : minSegment);
   }
 
   // Check if we need to route around horizontal overlapping components
