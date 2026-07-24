@@ -18,13 +18,6 @@ interface CircuitExample {
 
 const CIRCUIT_EXAMPLES: CircuitExample[] = [
   {
-    id: 'diode-resistor-network',
-    name: '⚡ Diode & Resistor Circuit',
-    category: 'Non-linear MNA',
-    description: 'Voltage source with series-parallel resistor network and non-linear diodes (D1, D2)',
-    netlist: `GND1.130.250~V1.440.50.90..amethyst~D1.190.-30.180~R2.360.-10~W.R2.r.V1.l.amber~R3.120.60.90~W.R3.l.D1.r.amber~R4.280.40.90~T.join-end-1784109682902-scbkc.312.2.16.16.amber.join~W.R2.l.join-end-1784109682902-scbkc.r.amber~W.join-end-1784109682902-scbkc.l.D1.l.amber~W.R4.l.join-end-1784109682902-scbkc.b.amber~T.join-end-1784109713008-ykadm.152.222.16.16.amber.join~W.GND1.t.join-end-1784109713008-ykadm.b.amber~W.join-end-1784109713008-ykadm.t.R3.r.amber~D2.280.140.90~W.D2.l.R4.r.amber~T.join-end-1784113956286-6diy7.312.222.16.16.amber.join~W.join-end-1784109713008-ykadm.r.join-end-1784113956286-6diy7.l.amber~W.join-end-1784113956286-6diy7.r.V1.r.amber~W.D2.r.join-end-1784113956286-6diy7.t.amber`
-  },
-  {
     id: 'voltage-divider',
     name: '🔌 Simple Voltage Divider',
     category: 'Linear MNA',
@@ -36,7 +29,7 @@ const CIRCUIT_EXAMPLES: CircuitExample[] = [
     name: '💡 Diode Clipper Network',
     category: 'Non-linear MNA',
     description: 'AC voltage source with resistor and diode clipper',
-    netlist: `GND1.130.250~Vac1.250.50.90.5.60.sapphire~R1.190.50.0.1000.amber~D1.130.140.90.amber~W.Vac1.l.R1.l.sapphire~W.R1.r.D1.l.amber~W.D1.r.GND1.t.amethyst~W.Vac1.r.GND1.t.amethyst`
+    netlist: `GND1.130.250~Vac1.120.120.90.5.60.sapphire~R1.210.80.90.1000.amber~D1.210.150.90.amber~W.Vac1.l.R1.l.sapphire~W.R1.r.D1.l.amber~W.D1.r.GND1.t.amethyst~W.Vac1.r.GND1.t.amethyst`
   }
 ];
 
@@ -108,29 +101,6 @@ export const ExamplesBar: React.FC<ExamplesBarProps> = ({ loadElements, setToast
           </option>
         ))}
       </select>
-
-      {/* Preset Quick Click Buttons */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {CIRCUIT_EXAMPLES.map((ex) => (
-          <button
-            key={ex.id}
-            type="button"
-            className="tool-btn text-btn"
-            onClick={() => handleLoad(ex.id)}
-            style={{
-              color: 'var(--theme-amber)',
-              borderColor: 'rgba(245, 158, 11, 0.3)',
-              background: 'rgba(245, 158, 11, 0.1)',
-              fontSize: '11px',
-              padding: '4px 10px',
-              fontWeight: 'bold',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {ex.name}
-          </button>
-        ))}
-      </div>
     </div>
   );
 };

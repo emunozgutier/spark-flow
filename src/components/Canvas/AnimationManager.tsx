@@ -364,15 +364,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
     ) => {
       if (chain.length === 0) return;
 
-      // If the branch contains only 1 wire and it is a ground wire, skip it
-      if (chain.length === 1 && chain[0].type === 'wire') {
-        const w = chain[0].element as ArrowElement;
-        const isGndWire = w.netName === '0.0' || 
-                          cards.some((c) => c.componentType === 'ground' && (w.fromId === c.id || w.toId === c.id));
-        if (isGndWire) {
-          return;
-        }
-      }
+
 
       
       const rootStart = uf.find(pinStart);
