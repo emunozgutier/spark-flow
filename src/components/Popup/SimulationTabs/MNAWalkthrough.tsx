@@ -477,6 +477,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
     A: number[][];
     B: number[];
     nextX: number[];
+    prevX: number[];
     residual: number[];
     converged: boolean;
   }
@@ -490,6 +491,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   const tolI = 1e-6;
   let finalVoltages = { ...voltagesGuess };
   let finalX = new Array(mnaSize).fill(0);
+  let currentXState = new Array(mnaSize).fill(0);
 
   for (let iter = 0; iter < maxWalkthroughIterations; iter++) {
     // Compile at current voltagesGuess
@@ -655,18 +657,22 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
       }
     }
 
+    const prevX = [...currentXState];
+
     iterationsList.push({
       iterIndex: iter + 1,
       voltagesGuess: { ...voltagesGuess },
       nonLinearStamps,
       A: A_iter.map(row => [...row]),
       B: [...B_iter],
+      prevX,
       nextX: [...nextX],
       residual,
       converged
     });
 
     voltagesGuess = nextVoltages;
+    currentXState = [...nextX];
     finalVoltages = nextVoltages;
     finalX = nextX;
 
@@ -1466,7 +1472,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             const getChangedSymbols = (): string[] => {
               if (currentStep === 0) return [];
               if (stepTitle.startsWith('Iteration')) {
-                return ['x_k+1', 's_k', 'Jf'];
+                return ['x_k+1', 'x_k', 's_k', 'Jf'];
               }
               if (currentStep === solveStepIndex) {
                 return [];
@@ -1493,7 +1499,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
 
             let activeMatrix = selectedMatrix;
             if (isNRStep) {
-              if (activeMatrix !== 'Jf' && activeMatrix !== 'x_k+1' && activeMatrix !== 's_k') {
+              if (activeMatrix !== 'Jf' && activeMatrix !== 'x_k+1' && activeMatrix !== 'x_k' && activeMatrix !== 's_k') {
                 activeMatrix = 'x_k+1';
               }
             } else {
@@ -1613,17 +1619,132 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
                 </div>
 
                 {/* Selected Matrix View */}
-                <div style={equationRowStyle}>
-                  {activeMatrix === 'G' && renderMatrixInEquation(G_data, 'Matrix G (Linear Conductance)', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
-                  {activeMatrix === 'x' && renderMatrixInEquation(x_data, 'State Vector x (Voltages & Currents)', 'var(--theme-emerald)', xFormat, xTooltip)}
-                  {activeMatrix === 'H' && renderMatrixInEquation(H_data, 'Matrix H (Selector Matrix)', 'var(--theme-amber)', hFormat, hTooltip, hHighlights)}
-                  {activeMatrix === 'gx' && renderMatrixInEquation(gx_data, 'Vector g(x) (Nonlinear Currents)', 'var(--theme-coral)', gxFormat, gxTooltip)}
-                  {activeMatrix === 's' && renderMatrixInEquation(s_data, 'Source Vector s (Independent Sources)', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
-                  {activeMatrix === 'fx' && renderMatrixInEquation(fx_data, 'Residual Vector f(x)', 'var(--theme-coral)', fxFormat, fxTooltip, fxHighlights)}
-                  {activeMatrix === 'Jf' && renderMatrixInEquation(G_data, 'Jacobian Matrix J_f(x_k)', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
-                  {activeMatrix === 'x_k+1' && renderMatrixInEquation(x_data, 'Next State Vector x_k+1', 'var(--theme-emerald)', xFormat, xTooltip)}
-                  {activeMatrix === 's_k' && renderMatrixInEquation(s_data, 'Equivalent Source Vector s_k', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
-                </div>
+                {(() => {
+                  const renderNRProgressMatrix = () => {
+                    const stepObj = nmaSteps[currentStep];
+                    const iterItem = iterationsList.find(
+                      (item) => `Iteration ${item.iterIndex}` === stepObj?.title || `Iteration ${item.iterIndex} (Converged)` === stepObj?.title
+                    );
+
+                    const iterIdx = iterItem ? iterItem.iterIndex : 1;
+                    const x_kPlus1 = iterItem ? iterItem.nextX : new Array(mnaSize).fill(0);
+                    const x_k = iterItem ? iterItem.prevX : new Array(mnaSize).fill(0);
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--theme-amber)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Newton-Raphson Iteration {iterIdx} Progress Vector (x<sub>k</sub> &rarr; x<sub>k+1</sub>)
+                        </div>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '100px repeat(3, 120px)',
+                          gap: '6px',
+                          alignItems: 'center',
+                          fontFamily: 'monospace',
+                          fontSize: '11px',
+                          background: 'rgba(15, 23, 42, 0.6)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '8px',
+                          padding: '12px 16px'
+                        }}>
+                          {/* Table Headers */}
+                          <div style={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', fontSize: '9.5px' }}>VARIABLE</div>
+                          <div style={{
+                            fontWeight: 'bold',
+                            color: activeMatrix === 'x_k' ? 'var(--theme-amber)' : 'rgba(255,255,255,0.6)',
+                            textAlign: 'center',
+                            background: activeMatrix === 'x_k' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                            border: activeMatrix === 'x_k' ? '1px solid var(--theme-amber)' : '1px solid transparent',
+                            borderRadius: '4px',
+                            padding: '3px 4px',
+                            fontSize: '9.5px'
+                          }}>
+                            x<sub>k</sub> (Current)
+                          </div>
+                          <div style={{
+                            fontWeight: 'bold',
+                            color: activeMatrix === 'x_k+1' ? 'var(--theme-emerald)' : 'var(--theme-emerald)',
+                            textAlign: 'center',
+                            background: activeMatrix === 'x_k+1' ? 'rgba(52, 211, 153, 0.18)' : 'transparent',
+                            border: activeMatrix === 'x_k+1' ? '1px solid var(--theme-emerald)' : '1px solid transparent',
+                            borderRadius: '4px',
+                            padding: '3px 4px',
+                            fontSize: '9.5px'
+                          }}>
+                            x<sub>k+1</sub> (Next)
+                          </div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--theme-sapphire)', textAlign: 'center', fontSize: '9.5px' }}>
+                            &Delta;x (|x<sub>k+1</sub>-x<sub>k</sub>|)
+                          </div>
+
+                          {/* Rows */}
+                          {variableLabels.map((lbl, idx) => {
+                            const isCurrent = idx >= nodeCount;
+                            const unit = isCurrent ? 'A' : 'V';
+                            const valK = x_k[idx] || 0;
+                            const valKNext = x_kPlus1[idx] || 0;
+                            const delta = Math.abs(valKNext - valK);
+
+                            return (
+                              <React.Fragment key={idx}>
+                                <div style={{ fontWeight: 'bold', color: '#ffffff', fontSize: '10.5px' }}>{lbl}</div>
+
+                                <div style={{
+                                  textAlign: 'center',
+                                  color: activeMatrix === 'x_k' ? 'var(--theme-amber)' : 'rgba(255,255,255,0.7)',
+                                  background: activeMatrix === 'x_k' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255,255,255,0.02)',
+                                  border: '1px solid rgba(255,255,255,0.05)',
+                                  padding: '4px 6px',
+                                  borderRadius: '4px'
+                                }}>
+                                  {formatEngineering(valK)}{unit}
+                                </div>
+
+                                <div style={{
+                                  textAlign: 'center',
+                                  color: 'var(--theme-emerald)',
+                                  fontWeight: 'bold',
+                                  background: activeMatrix === 'x_k+1' ? 'rgba(52, 211, 153, 0.18)' : 'rgba(52, 211, 153, 0.05)',
+                                  border: '1px solid rgba(52, 211, 153, 0.25)',
+                                  padding: '4px 6px',
+                                  borderRadius: '4px'
+                                }}>
+                                  {formatEngineering(valKNext)}{unit}
+                                </div>
+
+                                <div style={{
+                                  textAlign: 'center',
+                                  color: delta < (isCurrent ? tolI : tolV) ? 'var(--theme-emerald)' : 'var(--theme-coral)',
+                                  background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid rgba(255,255,255,0.05)',
+                                  padding: '4px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '9.5px'
+                                }}>
+                                  {formatEngineering(delta)}{unit}
+                                </div>
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div style={equationRowStyle}>
+                      {activeMatrix === 'G' && renderMatrixInEquation(G_data, 'Matrix G (Linear Conductance)', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
+                      {activeMatrix === 'x' && renderMatrixInEquation(x_data, 'State Vector x (Voltages & Currents)', 'var(--theme-emerald)', xFormat, xTooltip)}
+                      {activeMatrix === 'H' && renderMatrixInEquation(H_data, 'Matrix H (Selector Matrix)', 'var(--theme-amber)', hFormat, hTooltip, hHighlights)}
+                      {activeMatrix === 'gx' && renderMatrixInEquation(gx_data, 'Vector g(x) (Nonlinear Currents)', 'var(--theme-coral)', gxFormat, gxTooltip)}
+                      {activeMatrix === 's' && renderMatrixInEquation(s_data, 'Source Vector s (Independent Sources)', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
+                      {activeMatrix === 'fx' && renderMatrixInEquation(fx_data, 'Residual Vector f(x)', 'var(--theme-coral)', fxFormat, fxTooltip, fxHighlights)}
+                      {activeMatrix === 'Jf' && renderMatrixInEquation(G_data, 'Jacobian Matrix J_f(x_k)', 'var(--theme-sapphire)', gFormat, gTooltip, gHighlights)}
+                      {(activeMatrix === 'x_k+1' || activeMatrix === 'x_k') && renderNRProgressMatrix()}
+                      {activeMatrix === 's_k' && renderMatrixInEquation(s_data, 'Equivalent Source Vector s_k', 'var(--theme-sapphire)', sFormat, sTooltip, sHighlights)}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
