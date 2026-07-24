@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { CanvasElement, CardElement, ArrowElement } from '../../../dataTypes/AnotateType';
 import { formatEngineering } from '../../../utils/math';
 
@@ -945,6 +945,24 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
   const cellFontSize = 9;
   const currentStep = Math.min(nmaStep, nmaSteps.length - 1);
 
+  useEffect(() => {
+    const stepTitle = nmaSteps[currentStep]?.title || '';
+    if (stepTitle.startsWith('Iteration')) {
+      setSelectedMatrix('x_k+1');
+    } else if (currentStep > 0 && currentStep < solveStepIndex) {
+      const card = elementsToStamp[currentStep - 1];
+      if (card?.componentType === 'diode') {
+        setSelectedMatrix('H');
+      } else if (card?.componentType === 'current') {
+        setSelectedMatrix('s');
+      } else if (card?.componentType === 'resistor' || card?.componentType === 'inductor' || card?.componentType === 'voltage' || card?.componentType === 'acvoltage' || card?.componentType === 'bjt' || card?.componentType === 'mosfet') {
+        setSelectedMatrix('G');
+      }
+    } else {
+      setSelectedMatrix('G');
+    }
+  }, [currentStep, solveStepIndex]);
+
 
   const { G, H, x: xVector, gx: gxVector, s: sVector, fx: fxVector, diodeLabels } = (() => {
     let x = new Array(mnaSize).fill(0);
@@ -1448,7 +1466,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             const getChangedSymbols = (): string[] => {
               if (currentStep === 0) return [];
               if (stepTitle.startsWith('Iteration')) {
-                return ['Jf', 's_k'];
+                return ['x_k+1', 's_k', 'Jf'];
               }
               if (currentStep === solveStepIndex) {
                 return [];
@@ -1476,7 +1494,7 @@ export const MNAWalkthrough: React.FC<MNAWalkthroughProps> = ({ elements }) => {
             let activeMatrix = selectedMatrix;
             if (isNRStep) {
               if (activeMatrix !== 'Jf' && activeMatrix !== 'x_k+1' && activeMatrix !== 's_k') {
-                activeMatrix = 'Jf';
+                activeMatrix = 'x_k+1';
               }
             } else {
               if (activeMatrix !== 'G' && activeMatrix !== 'x' && activeMatrix !== 'H' && activeMatrix !== 'gx' && activeMatrix !== 's' && activeMatrix !== 'fx') {
