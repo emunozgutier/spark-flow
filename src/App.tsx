@@ -473,7 +473,7 @@ function App() {
         const root = uf.find(sStart);
         let current = nodeMaxCurrents[root] || 0;
 
-        const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
+        const connectedCard = cards.find((c) => c.componentType && c.componentType !== 'ground' && (w.fromId === c.id || w.toId === c.id));
         if (connectedCard) {
           const solved = solvedDCOperatingPoint[connectedCard.id];
           if (solved) {

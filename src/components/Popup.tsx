@@ -41,7 +41,7 @@ export const Popup: React.FC<PopupProps> = ({
   onClose,
   setToast
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'dc' | 'sweep' | 'netlist' | 'nma'>('dc');
+  const [activeSubTab, setActiveSubTab] = useState<'sim' | 'netlist' | 'nma'>('sim');
   const [dcVoltages, setDcVoltages] = useState<Record<string, number>>({});
   const [spiceNetlist, setSpiceNetlist] = useState<string>('');
 

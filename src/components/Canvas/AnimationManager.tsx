@@ -452,7 +452,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
           const root = uf.find(sStart);
           branchCurrentVal = nodeMaxCurrents[root] || 0;
           
-          const connectedCard = cards.find((c) => c.componentType && (w.fromId === c.id || w.toId === c.id));
+          const connectedCard = cards.find((c) => c.componentType && c.componentType !== 'ground' && (w.fromId === c.id || w.toId === c.id));
           if (connectedCard) {
             const solved = solvedResults[connectedCard.id];
             if (solved) {
@@ -622,11 +622,11 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
           for (let i = 0; i < numElectrons; i++) {
             if (i < oldProgresses.length) {
               newElectrons.push({ segmentId: seg.id, progress: oldProgresses[i] % seg.length });
-            } else if (seg.startsAtJunction) {
+            } else {
               newElectrons.push({ segmentId: seg.id, progress: (i / numElectrons) * seg.length });
             }
           }
-        } else if (seg.startsAtJunction) {
+        } else {
           for (let i = 0; i < numElectrons; i++) {
             newElectrons.push({ segmentId: seg.id, progress: (i / numElectrons) * seg.length });
           }
@@ -663,7 +663,7 @@ export const AnimationManager: React.FC<AnimationManagerProps> = ({
 
       // 2. Spawn new electrons at the start joint based on distance traveled
       segments.forEach((seg) => {
-        if (seg.speed <= 0 || !seg.startsAtJunction) return;
+        if (seg.speed <= 0) return;
         
         seg.spawnAccumulator = (seg.spawnAccumulator || 0) + seg.speed * dt;
         while (seg.spawnAccumulator >= 40) {
