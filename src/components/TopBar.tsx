@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { ToolType, CanvasElement } from '../dataTypes/AnotateType';
 import { FileBar } from './TopBar/FileBar';
+import { ExamplesBar } from './TopBar/ExamplesBar';
 import { Animation } from './TopBar/Animation';
 import { DebugPopup } from './TopBar/DebugPopup';
 
@@ -91,6 +92,19 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="tooltip">File Options</span>
           </button>
 
+          {/* Examples Tab */}
+          <button
+            className={`tool-btn tab-btn ${activeMenu === 'examples' ? 'active' : ''}`}
+            onClick={() => setActiveMenu('examples')}
+            aria-label="Example Circuits"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: activeMenu === 'examples' ? 'var(--theme-amber)' : 'currentColor' }}>
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            <span className="tooltip" style={{ color: activeMenu === 'examples' ? 'var(--theme-amber)' : 'inherit' }}>Example Circuits</span>
+          </button>
+
 
  
           {/* Simulate Tab */}
@@ -173,6 +187,13 @@ export const TopBar: React.FC<TopBarProps> = ({
             exportJSON={exportJSON}
             exportSVG={exportSVG}
             loadElements={loadElements}
+          />
+        )}
+
+        {activeMenu === 'examples' && (
+          <ExamplesBar
+            loadElements={loadElements}
+            setToast={setToast}
           />
         )}
  
